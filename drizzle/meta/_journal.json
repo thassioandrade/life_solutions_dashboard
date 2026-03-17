@@ -1,5 +1,27 @@
 {
   "version": "7",
   "dialect": "mysql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1773763544775,
+      "tag": "0000_green_wonder_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1773764140943,
+      "tag": "0001_blue_tempest",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1773764198341,
+      "tag": "0002_powerful_trauma",
+      "breakpoints": true
+    }
+  ]
 }

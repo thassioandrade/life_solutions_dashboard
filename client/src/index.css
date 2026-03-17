@@ -43,46 +43,56 @@
 }
 
 :root {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-600);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --radius: 0.65rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.235 0.015 65);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.235 0.015 65);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.235 0.015 65);
-  --secondary: oklch(0.98 0.001 286.375);
-  --secondary-foreground: oklch(0.4 0.015 65);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.141 0.005 285.823);
+  /* Life Solutions - Tema Claro com Verde */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --radius: 0.5rem;
+  --background: oklch(98% 0 0);
+  --foreground: oklch(15% 0.02 150);
+  --card: oklch(100% 0 0);
+  --card-foreground: oklch(15% 0.02 150);
+  --popover: oklch(100% 0 0);
+  --popover-foreground: oklch(15% 0.02 150);
+  --primary: oklch(45% 0.18 150);
+  --primary-foreground: oklch(99% 0 0);
+  --secondary: oklch(94% 0.03 150);
+  --secondary-foreground: oklch(30% 0.08 150);
+  --muted: oklch(95% 0.01 150);
+  --muted-foreground: oklch(55% 0.04 150);
+  --accent: oklch(92% 0.05 150);
+  --accent-foreground: oklch(40% 0.15 150);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.623 0.214 259.815);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.235 0.015 65);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.623 0.214 259.815);
+  --border: oklch(88% 0.03 150);
+  --input: oklch(90% 0.02 150);
+  --ring: oklch(45% 0.18 150);
+  --chart-1: oklch(48% 0.18 150);
+  --chart-2: oklch(60% 0.15 200);
+  --chart-3: oklch(55% 0.18 120);
+  --chart-4: oklch(65% 0.14 180);
+  --chart-5: oklch(50% 0.16 100);
+  --sidebar: oklch(18% 0.05 150);
+  --sidebar-foreground: oklch(92% 0.02 150);
+  --sidebar-primary: oklch(55% 0.20 150);
+  --sidebar-primary-foreground: oklch(99% 0 0);
+  --sidebar-accent: oklch(25% 0.06 150);
+  --sidebar-accent-foreground: oklch(75% 0.10 150);
+  --sidebar-border: oklch(28% 0.05 150);
+  --sidebar-ring: oklch(55% 0.20 150);
+  /* Life Solutions Brand Colors */
+  --ls-green: #16a34a;
+  --ls-green-light: #22c55e;
+  --ls-green-dark: #15803d;
+  --ls-green-glow: #16a34a66;
+  --ls-surface: #f0fdf4;
+  --ls-gradient: linear-gradient(135deg, #15803d 0%, #16a34a 50%, #22c55e 100%);
+  --ls-glow: 0 0 20px #16a34a66, 0 0 40px #16a34a26;
 }
 
 .dark {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-500);
-  --sidebar-primary-foreground: var(--color-blue-50);
+  --primary: oklch(55% 0.20 150);
+  --primary-foreground: oklch(99% 0 0);
+  --sidebar-primary: oklch(55% 0.20 150);
+  --sidebar-primary-foreground: oklch(99% 0 0);
   --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.85 0.005 65);
   --card: oklch(0.21 0.006 285.885);
@@ -174,4 +184,28 @@
       max-width: 1280px; /* Standard content width */
     }
   }
+}
+/* Life Solutions Utility Classes */
+.ls-gradient {
+  background: var(--ls-gradient);
+}
+
+.ls-glow {
+  box-shadow: var(--ls-glow);
+}
+
+/* Scrollbar customization */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(75% 0.05 150);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(55% 0.12 150);
 }
