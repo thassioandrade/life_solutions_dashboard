@@ -7,6 +7,8 @@ import { getLoginUrl } from "@/const";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { useEffect } from "react";
 
 const LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310419663032202102/5GsibdpZJXu4DWbuGMNC4c/life-solutions-logo_20f8e656.jpg";
 
@@ -18,6 +20,19 @@ export default function Login() {
   const [senha, setSenha] = useState("");
   const [showSenha, setShowSenha] = useState(false);
   const [, navigate] = useLocation();
+  const { user, loading } = useAuth();
+
+  // Se já estiver autenticado, redireciona para o painel correto
+  useEffect(() => {
+    if (loading) return;
+    if (user) {
+      if (user.role === "admin") {
+        navigate("/dashboard");
+      } else {
+        navigate("/painel");
+      }
+    }
+  }, [user, loading, navigate]);
 
   const loginMutation = trpc.auth.loginConsultor.useMutation({
     onSuccess: (data) => {

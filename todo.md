@@ -163,3 +163,6 @@
 
 ## Bug: Login não funciona
 - [x] Corrigir bug de login: loginConsultor agora cria cookie JWT de sessão corretamente
+
+## Bug: Login Administrador OAuth não funciona
+- [x] Corrigido: página de login agora detecta sessão ativa e redireciona para /dashboard (admin) ou /painel (consultor). OAuth callback redireciona direto para /dashboard.
