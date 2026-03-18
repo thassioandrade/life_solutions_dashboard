@@ -497,6 +497,62 @@ export const appRouter = router({
       }),
   }),
 
+  metaColetado: router({
+    buscar: protectedProcedure
+      .input(z.object({ mes: z.number(), ano: z.number() }))
+      .query(async ({ input }) => {
+        const chave = `meta_coletado_${input.mes}_${input.ano}`;
+        const valor = await getConfiguracao(chave);
+        return { meta: valor ? parseFloat(valor) : 0 };
+      }),
+    salvar: adminProcedure
+      .input(z.object({ mes: z.number(), ano: z.number(), meta: z.number().min(0) }))
+      .mutation(async ({ input }) => {
+        const chave = `meta_coletado_${input.mes}_${input.ano}`;
+        await setConfiguracao(chave, String(input.meta));
+        return { success: true };
+      }),
+  }),
+  rankingHistorico: router({
+    salvarSnapshot: adminProcedure
+      .input(z.object({ mes: z.number(), ano: z.number() }))
+      .mutation(async ({ input }) => {
+        // Buscar todas as vendas do período e calcular ranking
+        const vendas = await getVendasByPeriod(input.mes, input.ano);
+        const consultores = await getAllConsultores();
+        // Agrupar por consultor
+        const porConsultor = new Map<number, { coletado: number; vendas: number }>();
+        for (const v of vendas) {
+          if (!v.consultorId) continue;
+          const atual = porConsultor.get(v.consultorId) || { coletado: 0, vendas: 0 };
+          atual.coletado += parseFloat(String(v.valorColetado || 0));
+          atual.vendas += 1;
+          porConsultor.set(v.consultorId, atual);
+        }
+        // Ordenar por coletado
+        const sorted = Array.from(porConsultor.entries()).sort((a, b) => b[1].coletado - a[1].coletado);
+        // Salvar rankings
+        for (let i = 0; i < sorted.length; i++) {
+          const [consultorId, dados] = sorted[i];
+          await upsertRanking({
+            mes: input.mes, ano: input.ano,
+            consultorId, posicao: i + 1,
+            valorColetado: String(dados.coletado),
+            totalVendas: dados.vendas,
+          });
+        }
+        // Notificar dono
+        const nomes = sorted.map(([id, d], i) => {
+          const c = consultores.find(c => c.id === id);
+          return `${i+1}º ${c?.nome || 'Consultor'}: R$ ${d.coletado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        }).join('\n');
+        await notifyOwner({
+          title: `Ranking ${input.mes}/${input.ano} salvo`,
+          content: `Ranking do mês ${input.mes}/${input.ano} foi salvo com ${sorted.length} consultoras.\n\n${nomes}`,
+        });
+        return { success: true, total: sorted.length };
+      }),
+  }),
   configuracoes: router({
     get: protectedProcedure
       .input(z.object({ chave: z.string() }))

@@ -125,6 +125,17 @@
 - [x] Inserir logo no header do dashboard
 - [x] Aplicar cores da marca em todos os componentes e botões
 
+## Configurações Completas (igual Exodus)
+- [x] Seção de Consultoras com CRUD completo (adicionar, editar, excluir, ativar/bloquear)
+- [x] Upload de foto da consultora via S3
+- [x] Definição de senha da consultora com gerador aleatório
+- [x] Seção de Usuários do Sistema com toggle de role (Admin/Usuário)
+- [x] Meta Mensal de Coletado por mês/ano
+- [x] Histórico de Rankings (salvar snapshot com notificação)
+- [x] Notificações ao Proprietário (Relatório Mensal + Teste)
+- [x] Backend: router metaColetado.buscar e metaColetado.salvar
+- [x] Backend: router rankingHistorico.salvarSnapshot
+
 ## Integração Agendamento Público → Sistema
 - [x] Auto-criar lead no pipeline quando cliente agenda pela página pública
 - [x] Agendamento público aparece na lista de agendamentos dos vendedores e admin
