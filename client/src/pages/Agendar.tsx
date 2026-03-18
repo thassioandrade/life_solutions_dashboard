@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,10 +6,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarDays, CheckCircle2, User, Phone, Mail, Clock, MessageSquare } from "lucide-react";
+import { CalendarDays, CheckCircle2, User, Phone, Mail, Clock, MessageSquare, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 const LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310419663032202102/5GsibdpZJXu4DWbuGMNC4c/life-solutions-logo_20f8e656.jpg";
+
+function getUrlParam(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.search).get(key);
+}
 
 export default function Agendar() {
   const [form, setForm] = useState({
@@ -22,8 +27,37 @@ export default function Agendar() {
   });
   const [success, setSuccess] = useState(false);
   const [consultorNome, setConsultorNome] = useState("");
+  // Se veio parâmetro de consultora na URL, oculta o seletor
+  const [consultorFixo, setConsultorFixo] = useState<string | null>(null);
 
   const { data: consultores } = trpc.consultores.list.useQuery();
+
+  // Ao carregar, verifica se há parâmetro ?consultora=ID ou ?consultora=NOME na URL
+  useEffect(() => {
+    if (!consultores) return;
+    const param = getUrlParam("consultora") || getUrlParam("c");
+    if (!param) return;
+
+    // Tenta por ID numérico
+    const porId = consultores.find((c: any) => String(c.id) === param && c.ativo);
+    if (porId) {
+      setForm(f => ({ ...f, consultorId: String(porId.id) }));
+      setConsultorNome(porId.nome);
+      setConsultorFixo(String(porId.id));
+      return;
+    }
+
+    // Tenta por slug do nome (ex: "ana-silva" → "Ana Silva")
+    const slug = param.toLowerCase().replace(/-/g, " ");
+    const porNome = consultores.find((c: any) =>
+      c.ativo && c.nome.toLowerCase().includes(slug)
+    );
+    if (porNome) {
+      setForm(f => ({ ...f, consultorId: String(porNome.id) }));
+      setConsultorNome(porNome.nome);
+      setConsultorFixo(String(porNome.id));
+    }
+  }, [consultores]);
 
   const createMutation = trpc.agendamentos.createPublico.useMutation({
     onSuccess: () => setSuccess(true),
@@ -39,6 +73,23 @@ export default function Agendar() {
       ...form,
       consultorId: parseInt(form.consultorId),
     });
+  };
+
+  const resetForm = () => {
+    const param = getUrlParam("consultora") || getUrlParam("c");
+    setSuccess(false);
+    setForm({
+      clienteNome: "",
+      clienteEmail: "",
+      clienteTelefone: "",
+      consultorId: consultorFixo || "",
+      dataHora: "",
+      observacoes: "",
+    });
+    if (!param) {
+      setConsultorNome("");
+      setConsultorFixo(null);
+    }
   };
 
   if (success) {
@@ -65,7 +116,7 @@ export default function Agendar() {
               Em breve você receberá uma confirmação. Fique atento ao seu telefone e email.
             </p>
             <Button
-              onClick={() => { setSuccess(false); setForm({ clienteNome: "", clienteEmail: "", clienteTelefone: "", consultorId: "", dataHora: "", observacoes: "" }); setConsultorNome(""); }}
+              onClick={resetForm}
               className="text-white font-semibold border-0"
               style={{ background: "#0055FF" }}
             >
@@ -96,7 +147,13 @@ export default function Agendar() {
             <img src={LOGO_URL} alt="Life Solutions" className="h-10 object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-white">Diagnóstico Gratuito</h1>
-          <p className="text-gray-400 text-sm mt-1">Agende sua consulta com um de nossos especialistas</p>
+          {consultorFixo && consultorNome ? (
+            <p className="text-blue-400 text-sm mt-1 font-medium">
+              com <span className="text-white font-semibold">{consultorNome}</span>
+            </p>
+          ) : (
+            <p className="text-gray-400 text-sm mt-1">Agende sua consulta com um de nossos especialistas</p>
+          )}
         </div>
 
         {/* Card do formulário */}
@@ -149,29 +206,39 @@ export default function Agendar() {
                 </div>
               </div>
 
-              {/* Consultor */}
-              <div>
-                <Label className="text-gray-700 text-sm font-medium flex items-center gap-1.5 mb-1.5">
-                  <User className="w-3.5 h-3.5" /> Consultor *
-                </Label>
-                <Select
-                  value={form.consultorId}
-                  onValueChange={v => {
-                    setForm({ ...form, consultorId: v });
-                    const c = consultores?.find((c: any) => String(c.id) === v);
-                    setConsultorNome(c?.nome || "");
-                  }}
-                >
-                  <SelectTrigger className="border-gray-200 focus:border-blue-500">
-                    <SelectValue placeholder="Selecione seu consultor..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {consultores?.filter((c: any) => c.ativo).map((c: any) => (
-                      <SelectItem key={c.id} value={String(c.id)}>{c.nome}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Consultor — oculto se veio fixo pela URL */}
+              {!consultorFixo && (
+                <div>
+                  <Label className="text-gray-700 text-sm font-medium flex items-center gap-1.5 mb-1.5">
+                    <User className="w-3.5 h-3.5" /> Consultor *
+                  </Label>
+                  <Select
+                    value={form.consultorId}
+                    onValueChange={v => {
+                      setForm({ ...form, consultorId: v });
+                      const c = consultores?.find((c: any) => String(c.id) === v);
+                      setConsultorNome(c?.nome || "");
+                    }}
+                  >
+                    <SelectTrigger className="border-gray-200 focus:border-blue-500">
+                      <SelectValue placeholder="Selecione seu consultor..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {consultores?.filter((c: any) => c.ativo).map((c: any) => (
+                        <SelectItem key={c.id} value={String(c.id)}>{c.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Consultor fixo — exibe apenas o nome */}
+              {consultorFixo && consultorNome && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-100">
+                  <User className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                  <span className="text-sm text-blue-700 font-medium">{consultorNome}</span>
+                </div>
+              )}
 
               {/* Data e Hora */}
               <div>

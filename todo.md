@@ -155,3 +155,8 @@
 - [x] Backend: router de upload de comprovante
 - [x] Backend: router de atualização de status do agendamento pelo consultor
 - [x] Backend: router de meta mensal do consultor
+
+## Links de Agendamento para Plataformas de Venda
+- [x] Suporte a parâmetro ?consultora=ID na URL de agendamento (pré-seleciona a consultora)
+- [x] Suporte a parâmetro ?c=SLUG na URL (pré-seleciona por slug do nome)
+- [x] Página de agendamento oculta o seletor quando consultora já está na URL
