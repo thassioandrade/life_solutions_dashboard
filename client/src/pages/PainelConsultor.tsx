@@ -116,7 +116,7 @@ export default function PainelConsultor() {
                     {agendamentos.map((ag) => {
                       const dataHora = new Date(ag.dataHora);
                       return (
-                        <div key={ag.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg border border-gray-100 hover:bg-gray-50">
+                        <div key={ag.id} className={`flex items-center justify-between py-2.5 px-3 rounded-lg border hover:bg-gray-50 ${ag.origem === "publico" ? "border-blue-200 bg-blue-50/30" : "border-gray-100"}`}>
                           <div>
                             <p className="text-sm font-medium text-gray-800">{ag.clienteNome}</p>
                             <div className="flex items-center gap-3 mt-0.5">
@@ -135,6 +135,9 @@ export default function PainelConsultor() {
                               <span className="text-xs font-medium text-blue-600">{formatCurrency(parseFloat(String(ag.valorColetado)))}</span>
                             )}
                             <Badge className={`text-xs ${STATUS_COLORS[ag.status] || ""}`}>{STATUS_LABELS[ag.status] || ag.status}</Badge>
+                            {ag.origem === "publico" && (
+                              <Badge className="text-xs text-white border-0" style={{ background: "#0055FF" }}>🌐</Badge>
+                            )}
                           </div>
                         </div>
                       );

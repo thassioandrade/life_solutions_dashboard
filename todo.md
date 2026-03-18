@@ -124,3 +124,9 @@
 - [x] Inserir logo na tela de login
 - [x] Inserir logo no header do dashboard
 - [x] Aplicar cores da marca em todos os componentes e botões
+
+## Integração Agendamento Público → Sistema
+- [x] Auto-criar lead no pipeline quando cliente agenda pela página pública
+- [x] Agendamento público aparece na lista de agendamentos dos vendedores e admin
+- [x] Notificação ao dono quando novo agendamento público é feito
+- [x] Criar coluna padrão "Novos Agendamentos" no pipeline se não existir

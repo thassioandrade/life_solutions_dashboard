@@ -158,13 +158,16 @@ export default function Agendamentos() {
               const consultor = consultores?.find(c => c.id === ag.consultorId);
               const dataHora = new Date(ag.dataHora);
               return (
-                <Card key={ag.id} className="border-gray-200 hover:shadow-sm transition-shadow">
+                <Card key={ag.id} className={`hover:shadow-sm transition-shadow ${ag.origem === "publico" ? "border-blue-300 bg-blue-50/30" : "border-gray-200"}`}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-semibold text-gray-800">{ag.clienteNome}</p>
                           <Badge className={`text-xs ${STATUS_COLORS[ag.status] || ""}`}>{STATUS_LABELS[ag.status] || ag.status}</Badge>
+                          {ag.origem === "publico" && (
+                            <Badge className="text-xs text-white border-0" style={{ background: "#0055FF" }}>🌐 Online</Badge>
+                          )}
                         </div>
                         <div className="flex items-center gap-4 mt-1.5 flex-wrap">
                           <div className="flex items-center gap-1 text-xs text-gray-500">

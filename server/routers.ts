@@ -5,6 +5,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
+import { notifyOwner } from "./_core/notification";
 import {
   getAllUsers, updateUserRole, updateUserAvatar,
   getAllConsultores, getConsultorById, getConsultorByEmail, createConsultor, updateConsultor, deleteConsultor,
@@ -230,9 +231,65 @@ export const appRouter = router({
         clienteCpfCnpj: z.string().optional(),
         consultorId: z.number(),
         dataHora: z.string(),
+        observacoes: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
+        // 1. Criar o agendamento
         await createAgendamento({ ...input, dataHora: new Date(input.dataHora), origem: "publico" });
+
+        // 2. Auto-criar lead no pipeline (coluna "Novos Agendamentos" ou primeira disponível)
+        try {
+          const db = await getDb();
+          if (db) {
+            // Buscar ou criar coluna padrão
+            let colunas = await getColunasPipeline();
+            let colunaAlvo = colunas.find(c =>
+              c.nome.toLowerCase().includes("novo") ||
+              c.nome.toLowerCase().includes("agendamento") ||
+              c.nome.toLowerCase().includes("lead")
+            ) || colunas[0];
+
+            if (!colunaAlvo) {
+              // Criar coluna padrão se não existir nenhuma
+              await createColuna({ nome: "Novos Agendamentos", cor: "#0055FF", ordem: 0 });
+              colunas = await getColunasPipeline();
+              colunaAlvo = colunas[0];
+            }
+
+            if (colunaAlvo) {
+              const dataAgendamento = new Date(input.dataHora);
+              await createLead({
+                colunaId: colunaAlvo.id,
+                nome: input.clienteNome,
+                telefone: input.clienteTelefone,
+                email: input.clienteEmail,
+                consultorId: input.consultorId,
+                dataReuniao: dataAgendamento,
+                horario: dataAgendamento.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+                observacoes: `Agendamento público em ${dataAgendamento.toLocaleDateString("pt-BR")}${input.observacoes ? " — " + input.observacoes : ""}`,
+                mes: dataAgendamento.getMonth() + 1,
+                ano: dataAgendamento.getFullYear(),
+                ordem: 0,
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("[createPublico] Falha ao criar lead no pipeline:", e);
+        }
+
+        // 3. Notificar o dono do sistema
+        try {
+          const dataFormatada = new Date(input.dataHora).toLocaleString("pt-BR", {
+            dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo"
+          });
+          await notifyOwner({
+            title: `📅 Novo Agendamento: ${input.clienteNome}`,
+            content: `Cliente **${input.clienteNome}** agendou um diagnóstico para **${dataFormatada}**.\n\nTelefone: ${input.clienteTelefone || "não informado"}\nEmail: ${input.clienteEmail || "não informado"}\nConsultor ID: ${input.consultorId}`,
+          });
+        } catch (e) {
+          console.warn("[createPublico] Falha ao notificar dono:", e);
+        }
+
         return { success: true };
       }),
     update: protectedProcedure
