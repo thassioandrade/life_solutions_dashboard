@@ -1,11 +1,13 @@
 import * as bcrypt from "bcryptjs";
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 import { notifyOwner } from "./_core/notification";
+import { sdk } from "./_core/sdk";
+import { upsertUser } from "./db";
 import {
   getAllUsers, updateUserRole, updateUserAvatar,
   getAllConsultores, getConsultorById, getConsultorByEmail, createConsultor, updateConsultor, deleteConsultor,
@@ -48,6 +50,27 @@ export const appRouter = router({
         const valid = await bcrypt.compare(input.senha, consultor.senhaHash);
         if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Email ou senha inválidos" });
         if (!consultor.ativo) throw new TRPCError({ code: "FORBIDDEN", message: "Consultor desativado" });
+
+        // Cria um openId único para o consultor baseado no email
+        const openId = `consultor_${consultor.id}_${Buffer.from(consultor.email || String(consultor.id)).toString('base64').slice(0, 16)}`;
+
+        // Garante que o consultor existe na tabela users (necessário para autenticação JWT)
+        await upsertUser({
+          openId,
+          name: consultor.nome,
+          email: consultor.email || null,
+          loginMethod: "email",
+          lastSignedIn: new Date(),
+          role: "user",
+        });
+
+        // Cria o token JWT de sessão
+        const sessionToken = await sdk.createSessionToken(openId, { name: consultor.nome });
+
+        // Seta o cookie de sessão (mesmo mecanismo do OAuth)
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
         return { success: true, consultor: { id: consultor.id, nome: consultor.nome, email: consultor.email, fotoUrl: consultor.fotoUrl } };
       }),
   }),

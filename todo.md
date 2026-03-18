@@ -160,3 +160,6 @@
 - [x] Suporte a parâmetro ?consultora=ID na URL de agendamento (pré-seleciona a consultora)
 - [x] Suporte a parâmetro ?c=SLUG na URL (pré-seleciona por slug do nome)
 - [x] Página de agendamento oculta o seletor quando consultora já está na URL
+
+## Bug: Login não funciona
+- [x] Corrigir bug de login: loginConsultor agora cria cookie JWT de sessão corretamente
