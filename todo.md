@@ -130,3 +130,17 @@
 - [x] Agendamento público aparece na lista de agendamentos dos vendedores e admin
 - [x] Notificação ao dono quando novo agendamento público é feito
 - [x] Criar coluna padrão "Novos Agendamentos" no pipeline se não existir
+
+## Painel Consultor Completo (igual Exodus PainelVendedora)
+- [x] Modal de atualização de status do agendamento (Realizado/No-Show/Cancelado/Remarcado)
+- [x] Formulário de registro de venda no painel do consultor (coletado, faturado, parcelas)
+- [x] Seleção de serviços contratados (Limpa Nome, Rating Bancário, etc.)
+- [x] Forma de pagamento (PIX, Boleto, Cartão, Transferência, Dinheiro)
+- [x] Sistema de parcelas com datas de vencimento editáveis
+- [x] Upload de comprovante de pagamento (S3)
+- [x] Meta do mês com barra de progresso
+- [x] Ranking entre consultores no painel
+- [x] Calendário visual de reuniões (clicável por dia)
+- [x] Backend: router de upload de comprovante
+- [x] Backend: router de atualização de status do agendamento pelo consultor
+- [x] Backend: router de meta mensal do consultor
