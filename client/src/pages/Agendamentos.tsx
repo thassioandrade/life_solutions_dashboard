@@ -16,7 +16,7 @@ const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Ag
 
 const STATUS_COLORS: Record<string, string> = {
   confirmado: "bg-blue-100 text-blue-700",
-  realizado: "bg-green-100 text-green-700",
+  realizado: "bg-blue-100 text-blue-700",
   noshow: "bg-red-100 text-red-700",
   cancelado: "bg-gray-100 text-gray-600",
   remarcado: "bg-amber-100 text-amber-700",
@@ -99,7 +99,7 @@ export default function Agendamentos() {
             </Button>
             <Dialog open={openCreate} onOpenChange={setOpenCreate}>
               <DialogTrigger asChild>
-                <Button className="bg-green-600 hover:bg-green-700 text-white ml-2">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white ml-2">
                   <Plus className="w-4 h-4 mr-1" /> Novo
                 </Button>
               </DialogTrigger>
@@ -139,7 +139,7 @@ export default function Agendamentos() {
                   </div>
                   <div className="flex gap-2">
                     <Button type="button" variant="outline" onClick={() => setOpenCreate(false)} className="flex-1">Cancelar</Button>
-                    <Button type="submit" className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled={createMutation.isPending}>Criar</Button>
+                    <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white" disabled={createMutation.isPending}>Criar</Button>
                   </div>
                 </form>
               </DialogContent>
@@ -189,7 +189,7 @@ export default function Agendamentos() {
                           )}
                         </div>
                         {ag.resultouVenda && (
-                          <div className="mt-1.5 flex items-center gap-2 text-xs text-green-600">
+                          <div className="mt-1.5 flex items-center gap-2 text-xs text-blue-600">
                             <CheckCircle className="w-3 h-3" />
                             Resultou em venda — {ag.valorColetado ? formatCurrency(parseFloat(String(ag.valorColetado))) : ""}
                           </div>
@@ -234,7 +234,7 @@ export default function Agendamentos() {
                               </div>
                               <div className="flex gap-2">
                                 <Button variant="outline" onClick={() => setOpenEdit(null)} className="flex-1">Cancelar</Button>
-                                <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" onClick={handleUpdate} disabled={updateMutation.isPending}>Salvar</Button>
+                                <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={handleUpdate} disabled={updateMutation.isPending}>Salvar</Button>
                               </div>
                             </div>
                           </DialogContent>

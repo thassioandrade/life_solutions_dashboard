@@ -63,7 +63,7 @@ export default function Configuracoes() {
         <Card className="border-gray-200">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              <User className="w-4 h-4 text-green-600" />
+              <User className="w-4 h-4 text-blue-600" />
               Meu Perfil
             </CardTitle>
           </CardHeader>
@@ -73,11 +73,11 @@ export default function Configuracoes() {
                 <div className="relative">
                   <Avatar className="w-20 h-20">
                     <AvatarImage src={user?.avatarUrl || undefined} />
-                    <AvatarFallback className="bg-green-100 text-green-700 text-xl font-bold">{getInitials(user?.name)}</AvatarFallback>
+                    <AvatarFallback className="bg-blue-100 text-blue-700 text-xl font-bold">{getInitials(user?.name)}</AvatarFallback>
                   </Avatar>
                   <button
                     onClick={() => fileRef.current?.click()}
-                    className="absolute bottom-0 right-0 w-7 h-7 bg-green-600 rounded-full flex items-center justify-center text-white hover:bg-green-700 transition-colors shadow-lg"
+                    className="absolute bottom-0 right-0 w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-white hover:bg-blue-700 transition-colors shadow-lg"
                     disabled={uploading}
                   >
                     <Camera className="w-3.5 h-3.5" />
@@ -98,7 +98,7 @@ export default function Configuracoes() {
                 <div>
                   <Label className="text-xs text-gray-500">Função</Label>
                   <div className="mt-0.5">
-                    <Badge className={user?.role === "admin" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}>
+                    <Badge className={user?.role === "admin" ? "bg-blue-100 text-blue-700" : "bg-blue-100 text-blue-700"}>
                       {user?.role === "admin" ? "Administrador" : "Usuário"}
                     </Badge>
                   </div>
@@ -113,7 +113,7 @@ export default function Configuracoes() {
           <Card className="border-gray-200">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <Users className="w-4 h-4 text-green-600" />
+                <Users className="w-4 h-4 text-blue-600" />
                 Gerenciamento de Usuários
               </CardTitle>
             </CardHeader>
@@ -127,7 +127,7 @@ export default function Configuracoes() {
                       <div className="flex items-center gap-3">
                         <Avatar className="w-8 h-8">
                           <AvatarImage src={u.avatarUrl || undefined} />
-                          <AvatarFallback className="bg-green-100 text-green-700 text-xs">{getInitials(u.name)}</AvatarFallback>
+                          <AvatarFallback className="bg-blue-100 text-blue-700 text-xs">{getInitials(u.name)}</AvatarFallback>
                         </Avatar>
                         <div>
                           <p className="text-sm font-medium text-gray-800">{u.name || "Sem nome"}</p>
@@ -135,7 +135,7 @@ export default function Configuracoes() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge className={u.role === "admin" ? "bg-green-100 text-green-700 text-xs" : "bg-gray-100 text-gray-600 text-xs"}>
+                        <Badge className={u.role === "admin" ? "bg-blue-100 text-blue-700 text-xs" : "bg-gray-100 text-gray-600 text-xs"}>
                           {u.role === "admin" ? "Admin" : "User"}
                         </Badge>
                         {u.id !== user.id && (
@@ -165,7 +165,7 @@ export default function Configuracoes() {
         <Card className="border-gray-200">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              <Settings className="w-4 h-4 text-green-600" />
+              <Settings className="w-4 h-4 text-blue-600" />
               Informações do Sistema
             </CardTitle>
           </CardHeader>
@@ -181,7 +181,7 @@ export default function Configuracoes() {
               </div>
               <div className="flex justify-between py-1.5">
                 <span className="text-gray-500">Ambiente</span>
-                <Badge className="bg-green-100 text-green-700 text-xs">Produção</Badge>
+                <Badge className="bg-blue-100 text-blue-700 text-xs">Produção</Badge>
               </div>
             </div>
           </CardContent>

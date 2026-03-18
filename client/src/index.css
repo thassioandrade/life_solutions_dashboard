@@ -43,84 +43,102 @@
 }
 
 :root {
-  /* Life Solutions - Tema Claro com Verde */
+  /* Life Solutions — Marca Oficial: Preto + Azul + Branco */
   --font-sans: 'Inter', system-ui, sans-serif;
   --radius: 0.5rem;
-  --background: oklch(98% 0 0);
-  --foreground: oklch(15% 0.02 150);
+
+  /* Fundo geral: branco/cinza muito claro */
+  --background: oklch(97% 0 0);
+  --foreground: oklch(12% 0.01 250);
+
+  /* Cards: branco puro */
   --card: oklch(100% 0 0);
-  --card-foreground: oklch(15% 0.02 150);
+  --card-foreground: oklch(12% 0.01 250);
+
+  /* Popover */
   --popover: oklch(100% 0 0);
-  --popover-foreground: oklch(15% 0.02 150);
-  --primary: oklch(45% 0.18 150);
-  --primary-foreground: oklch(99% 0 0);
-  --secondary: oklch(94% 0.03 150);
-  --secondary-foreground: oklch(30% 0.08 150);
-  --muted: oklch(95% 0.01 150);
-  --muted-foreground: oklch(55% 0.04 150);
-  --accent: oklch(92% 0.05 150);
-  --accent-foreground: oklch(40% 0.15 150);
+  --popover-foreground: oklch(12% 0.01 250);
+
+  /* Primário: Azul Life Solutions #0055FF */
+  --primary: oklch(48% 0.28 264);
+  --primary-foreground: oklch(100% 0 0);
+
+  /* Secundário: cinza claro */
+  --secondary: oklch(93% 0.01 250);
+  --secondary-foreground: oklch(20% 0.02 250);
+
+  /* Muted */
+  --muted: oklch(94% 0.005 250);
+  --muted-foreground: oklch(52% 0.02 250);
+
+  /* Accent: azul claro */
+  --accent: oklch(92% 0.04 264);
+  --accent-foreground: oklch(40% 0.22 264);
+
+  /* Destructive */
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(88% 0.03 150);
-  --input: oklch(90% 0.02 150);
-  --ring: oklch(45% 0.18 150);
-  --chart-1: oklch(48% 0.18 150);
-  --chart-2: oklch(60% 0.15 200);
-  --chart-3: oklch(55% 0.18 120);
-  --chart-4: oklch(65% 0.14 180);
-  --chart-5: oklch(50% 0.16 100);
-  --sidebar: oklch(18% 0.05 150);
-  --sidebar-foreground: oklch(92% 0.02 150);
-  --sidebar-primary: oklch(55% 0.20 150);
-  --sidebar-primary-foreground: oklch(99% 0 0);
-  --sidebar-accent: oklch(25% 0.06 150);
-  --sidebar-accent-foreground: oklch(75% 0.10 150);
-  --sidebar-border: oklch(28% 0.05 150);
-  --sidebar-ring: oklch(55% 0.20 150);
+
+  /* Bordas e inputs */
+  --border: oklch(88% 0.01 250);
+  --input: oklch(90% 0.01 250);
+  --ring: oklch(48% 0.28 264);
+
+  /* Charts */
+  --chart-1: oklch(48% 0.28 264);
+  --chart-2: oklch(60% 0.20 264);
+  --chart-3: oklch(38% 0.25 264);
+  --chart-4: oklch(65% 0.15 200);
+  --chart-5: oklch(55% 0.18 240);
+
+  /* Sidebar: preto/grafite escuro da marca */
+  --sidebar: oklch(11% 0.01 250);
+  --sidebar-foreground: oklch(90% 0.01 250);
+  --sidebar-primary: oklch(48% 0.28 264);
+  --sidebar-primary-foreground: oklch(100% 0 0);
+  --sidebar-accent: oklch(18% 0.02 250);
+  --sidebar-accent-foreground: oklch(80% 0.02 250);
+  --sidebar-border: oklch(20% 0.02 250);
+  --sidebar-ring: oklch(48% 0.28 264);
+
   /* Life Solutions Brand Colors */
-  --ls-green: #16a34a;
-  --ls-green-light: #22c55e;
-  --ls-green-dark: #15803d;
-  --ls-green-glow: #16a34a66;
-  --ls-surface: #f0fdf4;
-  --ls-gradient: linear-gradient(135deg, #15803d 0%, #16a34a 50%, #22c55e 100%);
-  --ls-glow: 0 0 20px #16a34a66, 0 0 40px #16a34a26;
+  --ls-blue: #0055FF;
+  --ls-blue-light: #3377FF;
+  --ls-blue-dark: #0033CC;
+  --ls-black: #111111;
+  --ls-dark: #1a1a1a;
+  --ls-white: #ffffff;
+  --ls-surface: #f4f6fb;
+  --ls-gradient: linear-gradient(135deg, #0033CC 0%, #0055FF 60%, #3377FF 100%);
+  --ls-glow: 0 0 20px rgba(0, 85, 255, 0.4), 0 0 40px rgba(0, 85, 255, 0.15);
 }
 
 .dark {
-  --primary: oklch(55% 0.20 150);
-  --primary-foreground: oklch(99% 0 0);
-  --sidebar-primary: oklch(55% 0.20 150);
-  --sidebar-primary-foreground: oklch(99% 0 0);
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.85 0.005 65);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.85 0.005 65);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.85 0.005 65);
-  --secondary: oklch(0.24 0.006 286.033);
-  --secondary-foreground: oklch(0.7 0.005 65);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground:  oklch(0.92 0.005 65);
+  --background: oklch(11% 0.01 250);
+  --foreground: oklch(92% 0.005 250);
+  --card: oklch(16% 0.015 250);
+  --card-foreground: oklch(92% 0.005 250);
+  --popover: oklch(16% 0.015 250);
+  --popover-foreground: oklch(92% 0.005 250);
+  --primary: oklch(55% 0.28 264);
+  --primary-foreground: oklch(100% 0 0);
+  --secondary: oklch(22% 0.015 250);
+  --secondary-foreground: oklch(80% 0.01 250);
+  --muted: oklch(22% 0.015 250);
+  --muted-foreground: oklch(60% 0.02 250);
+  --accent: oklch(22% 0.02 264);
+  --accent-foreground: oklch(85% 0.01 250);
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.985 0 0);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.488 0.243 264.376);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.85 0.005 65);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground:  oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.488 0.243 264.376);
+  --ring: oklch(55% 0.28 264);
+  --sidebar: oklch(11% 0.01 250);
+  --sidebar-foreground: oklch(90% 0.01 250);
+  --sidebar-accent: oklch(18% 0.02 250);
+  --sidebar-accent-foreground: oklch(80% 0.02 250);
+  --sidebar-border: oklch(20% 0.02 250);
+  --sidebar-ring: oklch(55% 0.28 264);
 }
 
 @layer base {
@@ -129,6 +147,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans);
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
@@ -144,24 +163,11 @@
 }
 
 @layer components {
-  /**
-   * Custom container utility that centers content and adds responsive padding.
-   *
-   * This overrides Tailwind's default container behavior to:
-   * - Auto-center content (mx-auto)
-   * - Add responsive horizontal padding
-   * - Set max-width for large screens
-   *
-   * Usage: <div className="container">...</div>
-   *
-   * For custom widths, use max-w-* utilities directly:
-   * <div className="max-w-6xl mx-auto px-4">...</div>
-   */
   .container {
     width: 100%;
     margin-left: auto;
     margin-right: auto;
-    padding-left: 1rem; /* 16px - mobile padding */
+    padding-left: 1rem;
     padding-right: 1rem;
   }
 
@@ -172,19 +178,20 @@
 
   @media (min-width: 640px) {
     .container {
-      padding-left: 1.5rem; /* 24px - tablet padding */
+      padding-left: 1.5rem;
       padding-right: 1.5rem;
     }
   }
 
   @media (min-width: 1024px) {
     .container {
-      padding-left: 2rem; /* 32px - desktop padding */
+      padding-left: 2rem;
       padding-right: 2rem;
-      max-width: 1280px; /* Standard content width */
+      max-width: 1280px;
     }
   }
 }
+
 /* Life Solutions Utility Classes */
 .ls-gradient {
   background: var(--ls-gradient);
@@ -192,6 +199,10 @@
 
 .ls-glow {
   box-shadow: var(--ls-glow);
+}
+
+.ls-surface {
+  background: var(--ls-surface);
 }
 
 /* Scrollbar customization */
@@ -203,9 +214,9 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: oklch(75% 0.05 150);
+  background: oklch(70% 0.05 264);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(55% 0.12 150);
+  background: oklch(48% 0.28 264);
 }

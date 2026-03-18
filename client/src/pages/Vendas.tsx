@@ -95,7 +95,7 @@ export default function Vendas() {
             </Button>
             <Dialog open={openCreate} onOpenChange={setOpenCreate}>
               <DialogTrigger asChild>
-                <Button className="bg-green-600 hover:bg-green-700 text-white ml-2">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white ml-2">
                   <Plus className="w-4 h-4 mr-1" /> Nova Venda
                 </Button>
               </DialogTrigger>
@@ -169,7 +169,7 @@ export default function Vendas() {
                   </div>
                   <div className="flex gap-2 pt-2">
                     <Button type="button" variant="outline" onClick={() => setOpenCreate(false)} className="flex-1">Cancelar</Button>
-                    <Button type="submit" className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled={createMutation.isPending}>Registrar</Button>
+                    <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white" disabled={createMutation.isPending}>Registrar</Button>
                   </div>
                 </form>
               </DialogContent>
@@ -183,9 +183,9 @@ export default function Vendas() {
             <p className="text-xs text-blue-600 uppercase tracking-wide font-medium">Total Faturado</p>
             <p className="text-xl font-bold text-blue-700 mt-1">{formatCurrency(totalFaturado)}</p>
           </div>
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-            <p className="text-xs text-green-600 uppercase tracking-wide font-medium">Total Coletado</p>
-            <p className="text-xl font-bold text-green-700 mt-1">{formatCurrency(totalColetado)}</p>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <p className="text-xs text-blue-600 uppercase tracking-wide font-medium">Total Coletado</p>
+            <p className="text-xl font-bold text-blue-700 mt-1">{formatCurrency(totalColetado)}</p>
           </div>
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
             <p className="text-xs text-amber-600 uppercase tracking-wide font-medium">Total Comissões</p>
@@ -227,7 +227,7 @@ export default function Vendas() {
                           </div>
                           <div className="text-sm">
                             <span className="text-gray-500 text-xs">Coletado: </span>
-                            <span className="font-medium text-green-600">{formatCurrency(parseFloat(String(venda.valorColetado || 0)))}</span>
+                            <span className="font-medium text-blue-600">{formatCurrency(parseFloat(String(venda.valorColetado || 0)))}</span>
                           </div>
                           <div className="text-sm">
                             <span className="text-gray-500 text-xs">Comissão: </span>
@@ -249,9 +249,9 @@ export default function Vendas() {
                                   <div key={p.id} className="flex items-center justify-between text-xs">
                                     <span className="text-gray-600">Parcela {p.numeroParcela} — {formatCurrency(parseFloat(String(p.valor || 0)))} — {new Date(p.dataVencimento).toLocaleDateString("pt-BR")}</span>
                                     {p.pago ? (
-                                      <span className="text-green-600 flex items-center gap-1"><CheckCircle className="w-3 h-3" />Pago</span>
+                                      <span className="text-blue-600 flex items-center gap-1"><CheckCircle className="w-3 h-3" />Pago</span>
                                     ) : (
-                                      <Button size="sm" className="h-5 text-xs bg-green-600 hover:bg-green-700 text-white px-2"
+                                      <Button size="sm" className="h-5 text-xs bg-blue-600 hover:bg-blue-700 text-white px-2"
                                         onClick={() => pagarParcelaMutation.mutate({ id: p.id })}>
                                         Pagar
                                       </Button>

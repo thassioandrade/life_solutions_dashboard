@@ -60,7 +60,7 @@ export default function Consultores() {
           </div>
           <Dialog open={openCreate} onOpenChange={setOpenCreate}>
             <DialogTrigger asChild>
-              <Button className="bg-green-600 hover:bg-green-700 text-white">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
                 <Plus className="w-4 h-4 mr-1" /> Novo Consultor
               </Button>
             </DialogTrigger>
@@ -81,7 +81,7 @@ export default function Consultores() {
                 </div>
                 <div className="flex gap-2">
                   <Button type="button" variant="outline" onClick={() => setOpenCreate(false)} className="flex-1">Cancelar</Button>
-                  <Button type="submit" className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled={createMutation.isPending}>Criar</Button>
+                  <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white" disabled={createMutation.isPending}>Criar</Button>
                 </div>
               </form>
             </DialogContent>
@@ -102,12 +102,12 @@ export default function Consultores() {
                   <div className="flex items-start gap-3">
                     <Avatar className="w-12 h-12">
                       <AvatarImage src={c.fotoUrl || undefined} />
-                      <AvatarFallback className="bg-green-100 text-green-700 font-semibold">{getInitials(c.nome)}</AvatarFallback>
+                      <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold">{getInitials(c.nome)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="font-semibold text-gray-800 truncate">{c.nome}</p>
-                        <Badge variant={c.ativo ? "default" : "secondary"} className={c.ativo ? "bg-green-100 text-green-700 text-[10px]" : "text-[10px]"}>
+                        <Badge variant={c.ativo ? "default" : "secondary"} className={c.ativo ? "bg-blue-100 text-blue-700 text-[10px]" : "text-[10px]"}>
                           {c.ativo ? "Ativo" : "Inativo"}
                         </Badge>
                       </div>
@@ -155,7 +155,7 @@ export default function Consultores() {
                               variant="outline"
                               size="sm"
                               onClick={() => updateMutation.mutate({ id: c.id, ativo: !c.ativo })}
-                              className={c.ativo ? "text-red-600 border-red-200" : "text-green-600 border-green-200"}
+                              className={c.ativo ? "text-red-600 border-red-200" : "text-blue-600 border-blue-200"}
                             >
                               {c.ativo ? <><XCircle className="w-3 h-3 mr-1" />Desativar</> : <><CheckCircle className="w-3 h-3 mr-1" />Ativar</>}
                             </Button>
@@ -163,7 +163,7 @@ export default function Consultores() {
                           <div className="flex gap-2">
                             <Button variant="outline" onClick={() => setOpenEdit(null)} className="flex-1">Cancelar</Button>
                             <Button
-                              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                               onClick={() => {
                                 const nome = (document.getElementById(`nome-${c.id}`) as HTMLInputElement)?.value;
                                 const email = (document.getElementById(`email-${c.id}`) as HTMLInputElement)?.value;
@@ -196,7 +196,7 @@ export default function Consultores() {
                           </div>
                           <div className="flex gap-2">
                             <Button variant="outline" onClick={() => setOpenSenha(null)} className="flex-1">Cancelar</Button>
-                            <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" onClick={() => handleSenha(c.id)} disabled={senhaMutation.isPending}>Salvar</Button>
+                            <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => handleSenha(c.id)} disabled={senhaMutation.isPending}>Salvar</Button>
                           </div>
                         </div>
                       </DialogContent>

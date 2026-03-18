@@ -1,5 +1,4 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
@@ -31,6 +30,8 @@ import {
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
+const LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310419663032202102/5GsibdpZJXu4DWbuGMNC4c/life-solutions-logo_20f8e656.jpg";
+
 const navItems = [
   { href: "/dashboard", label: "Dashboard Geral", icon: LayoutDashboard, adminOnly: true },
   { href: "/trafego", label: "Tráfego & Front-end", icon: TrendingUp, adminOnly: true },
@@ -57,9 +58,10 @@ export default function LifeDashboardLayout({ children, title }: LifeDashboardLa
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--ls-surface)]">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--ls-surface)" }}>
         <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-full border-4 border-green-200 border-t-green-600 animate-spin" />
+          <img src={LOGO_URL} alt="Life Solutions" className="h-10 object-contain mb-2" />
+          <div className="w-10 h-10 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin" />
           <p className="text-sm text-muted-foreground">Carregando...</p>
         </div>
       </div>
@@ -88,19 +90,18 @@ export default function LifeDashboardLayout({ children, title }: LifeDashboardLa
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-[var(--sidebar-border)]">
-        <div className="w-9 h-9 rounded-lg flex items-center justify-center ls-gradient shadow-lg">
-          <span className="text-white font-bold text-sm">LS</span>
-        </div>
-        <div>
-          <p className="text-sm font-bold text-white leading-tight">Life Solutions</p>
-          <p className="text-[10px] text-green-400 uppercase tracking-widest">Plataforma de Gestão</p>
-        </div>
+      {/* Logo Area */}
+      <div className="flex items-center justify-center px-4 py-5 border-b border-[var(--sidebar-border)]">
+        <img
+          src={LOGO_URL}
+          alt="Life Solutions"
+          className="h-10 object-contain w-full max-w-[160px]"
+          style={{ filter: "brightness(1.05)" }}
+        />
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {filteredNav.map((item) => {
           const Icon = item.icon;
           const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
@@ -109,9 +110,10 @@ export default function LifeDashboardLayout({ children, title }: LifeDashboardLa
               <a
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group ${
                   isActive
-                    ? "bg-green-600 text-white shadow-sm"
-                    : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-accent-foreground)]"
+                    ? "text-white shadow-sm"
+                    : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] hover:text-white"
                 }`}
+                style={isActive ? { background: "var(--ls-blue)" } : {}}
                 onClick={() => setSidebarOpen(false)}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
@@ -128,9 +130,10 @@ export default function LifeDashboardLayout({ children, title }: LifeDashboardLa
             <a
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
                 location === "/painel"
-                  ? "bg-green-600 text-white shadow-sm"
-                  : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-accent-foreground)]"
+                  ? "text-white shadow-sm"
+                  : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] hover:text-white"
               }`}
+              style={location === "/painel" ? { background: "var(--ls-blue)" } : {}}
               onClick={() => setSidebarOpen(false)}
             >
               <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
@@ -145,31 +148,41 @@ export default function LifeDashboardLayout({ children, title }: LifeDashboardLa
         <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-[var(--sidebar-accent)] transition-colors">
           <Avatar className="w-8 h-8">
             <AvatarImage src={user?.avatarUrl || undefined} />
-            <AvatarFallback className="bg-green-700 text-white text-xs">{getInitials(user?.name)}</AvatarFallback>
+            <AvatarFallback
+              className="text-white text-xs font-bold"
+              style={{ background: "var(--ls-blue)" }}
+            >
+              {getInitials(user?.name)}
+            </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium text-white truncate">{user?.name || "Usuário"}</p>
-            <p className="text-[10px] text-green-400 truncate">{isAdmin ? "Administrador" : "Consultor"}</p>
+            <p className="text-[10px] truncate" style={{ color: "var(--ls-blue-light)" }}>
+              {isAdmin ? "Administrador" : "Consultor"}
+            </p>
           </div>
           <button
             onClick={handleLogout}
-            className="text-green-400 hover:text-white transition-colors p-1 rounded"
+            className="hover:text-white transition-colors p-1 rounded"
+            style={{ color: "var(--ls-blue-light)" }}
             title="Sair"
           >
             <LogOut className="w-3.5 h-3.5" />
           </button>
         </div>
-        <p className="text-center text-[10px] text-green-700 mt-2">v1.0.0</p>
+        <p className="text-center text-[10px] mt-2" style={{ color: "oklch(35% 0.02 250)" }}>
+          Life Solutions v1.0
+        </p>
       </div>
     </div>
   );
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen overflow-hidden" style={{ background: "var(--ls-surface)" }}>
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+          className="fixed inset-0 bg-black/60 z-20 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -187,7 +200,7 @@ export default function LifeDashboardLayout({ children, title }: LifeDashboardLa
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top header */}
-        <header className="flex-shrink-0 h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6">
+        <header className="flex-shrink-0 h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6 shadow-sm">
           <div className="flex items-center gap-3">
             <button
               className="lg:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-600"
@@ -195,12 +208,24 @@ export default function LifeDashboardLayout({ children, title }: LifeDashboardLa
             >
               {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
+            {/* Logo no header mobile */}
+            <img
+              src={LOGO_URL}
+              alt="Life Solutions"
+              className="h-7 object-contain lg:hidden"
+            />
             {title && (
               <h1 className="text-base font-semibold text-gray-800 hidden sm:block">{title}</h1>
             )}
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Logo no header desktop (lado direito, pequena) */}
+            <img
+              src={LOGO_URL}
+              alt="Life Solutions"
+              className="h-6 object-contain hidden lg:block mr-2 opacity-70"
+            />
             <Button
               variant="ghost"
               size="icon"
@@ -218,7 +243,12 @@ export default function LifeDashboardLayout({ children, title }: LifeDashboardLa
                 <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-100 transition-colors">
                   <Avatar className="w-7 h-7">
                     <AvatarImage src={user?.avatarUrl || undefined} />
-                    <AvatarFallback className="bg-green-600 text-white text-xs">{getInitials(user?.name)}</AvatarFallback>
+                    <AvatarFallback
+                      className="text-white text-xs font-bold"
+                      style={{ background: "var(--ls-blue)" }}
+                    >
+                      {getInitials(user?.name)}
+                    </AvatarFallback>
                   </Avatar>
                   <span className="text-sm font-medium text-gray-700 hidden sm:block">{user?.name?.split(" ")[0]}</span>
                 </button>

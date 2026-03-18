@@ -115,7 +115,7 @@ export default function Pipeline() {
                     </div>
                     <div className="flex gap-2">
                       <Button variant="outline" onClick={() => setOpenColuna(false)} className="flex-1">Cancelar</Button>
-                      <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" onClick={() => createColunaMutation.mutate({ nome: colunaForm.nome, cor: colunaForm.cor })} disabled={!colunaForm.nome}>Criar</Button>
+                      <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => createColunaMutation.mutate({ nome: colunaForm.nome, cor: colunaForm.cor })} disabled={!colunaForm.nome}>Criar</Button>
                     </div>
                   </div>
                 </DialogContent>
@@ -123,7 +123,7 @@ export default function Pipeline() {
             )}
             <Dialog open={openLead} onOpenChange={setOpenLead}>
               <DialogTrigger asChild>
-                <Button className="bg-green-600 hover:bg-green-700 text-white">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
                   <Plus className="w-4 h-4 mr-1" /> Lead
                 </Button>
               </DialogTrigger>
@@ -164,7 +164,7 @@ export default function Pipeline() {
                   </div>
                   <div className="flex gap-2">
                     <Button type="button" variant="outline" onClick={() => setOpenLead(false)} className="flex-1">Cancelar</Button>
-                    <Button type="submit" className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled={createLeadMutation.isPending}>Adicionar</Button>
+                    <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white" disabled={createLeadMutation.isPending}>Adicionar</Button>
                   </div>
                 </form>
               </DialogContent>
@@ -230,8 +230,8 @@ export default function Pipeline() {
                             )}
                             {lead.valor && (
                               <div className="flex items-center gap-1 mt-0.5">
-                                <DollarSign className="w-3 h-3 text-green-500" />
-                                <p className="text-xs text-green-600 font-medium">{formatCurrency(parseFloat(String(lead.valor)))}</p>
+                                <DollarSign className="w-3 h-3 text-blue-500" />
+                                <p className="text-xs text-blue-600 font-medium">{formatCurrency(parseFloat(String(lead.valor)))}</p>
                               </div>
                             )}
                             {/* Move to other column */}

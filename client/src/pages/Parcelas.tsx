@@ -51,10 +51,10 @@ export default function Parcelas() {
             <p className="text-xl font-bold text-red-700 mt-1">{formatCurrency(totalAtrasado)}</p>
             <p className="text-xs text-red-500 mt-0.5">{atrasadas.length} parcela(s)</p>
           </div>
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-            <p className="text-xs text-green-600 uppercase tracking-wide font-medium">Total</p>
-            <p className="text-xl font-bold text-green-700 mt-1">{formatCurrency(totalPendente + totalAtrasado)}</p>
-            <p className="text-xs text-green-500 mt-0.5">{(parcelas?.length || 0)} parcela(s)</p>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <p className="text-xs text-blue-600 uppercase tracking-wide font-medium">Total</p>
+            <p className="text-xl font-bold text-blue-700 mt-1">{formatCurrency(totalPendente + totalAtrasado)}</p>
+            <p className="text-xs text-blue-500 mt-0.5">{(parcelas?.length || 0)} parcela(s)</p>
           </div>
         </div>
 
@@ -97,7 +97,7 @@ export default function Parcelas() {
                         </span>
                         <Button
                           size="sm"
-                          className="bg-green-600 hover:bg-green-700 text-white h-8"
+                          className="bg-blue-600 hover:bg-blue-700 text-white h-8"
                           onClick={() => markPaidMutation.mutate({ id: p.id })}
                           disabled={markPaidMutation.isPending}
                         >

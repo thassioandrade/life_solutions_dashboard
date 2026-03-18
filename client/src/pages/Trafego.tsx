@@ -87,7 +87,7 @@ export default function Trafego() {
             {user?.role === "admin" && (
               <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
-                  <Button className="bg-green-600 hover:bg-green-700 text-white ml-2">
+                  <Button className="bg-blue-600 hover:bg-blue-700 text-white ml-2">
                     <Plus className="w-4 h-4 mr-1" /> {metrica ? "Editar" : "Lançar"} Métricas
                   </Button>
                 </DialogTrigger>
@@ -126,7 +126,7 @@ export default function Trafego() {
                     </div>
                     <div className="flex gap-2 pt-2">
                       <Button type="button" variant="outline" onClick={() => setOpen(false)} className="flex-1">Cancelar</Button>
-                      <Button type="submit" className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled={createMutation.isPending}>Salvar</Button>
+                      <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white" disabled={createMutation.isPending}>Salvar</Button>
                     </div>
                   </form>
                 </DialogContent>
@@ -142,9 +142,9 @@ export default function Trafego() {
                 <p className="text-xs text-red-600 uppercase tracking-wide font-medium">Investimento</p>
                 <p className="text-xl font-bold text-red-700 mt-1">{formatCurrency(inv)}</p>
               </div>
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                <p className="text-xs text-green-600 uppercase tracking-wide font-medium">Receita Total</p>
-                <p className="text-xl font-bold text-green-700 mt-1">{formatCurrency(receitaTotal)}</p>
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <p className="text-xs text-blue-600 uppercase tracking-wide font-medium">Receita Total</p>
+                <p className="text-xl font-bold text-blue-700 mt-1">{formatCurrency(receitaTotal)}</p>
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                 <p className="text-xs text-blue-600 uppercase tracking-wide font-medium">ROI</p>
@@ -178,7 +178,7 @@ export default function Trafego() {
                       </div>
                       <div className="flex justify-between text-sm font-semibold border-t pt-2">
                         <span className="text-gray-700">Receita</span>
-                        <span className="text-green-600">{formatCurrency(item.receita)}</span>
+                        <span className="text-blue-600">{formatCurrency(item.receita)}</span>
                       </div>
                     </div>
                   </CardContent>

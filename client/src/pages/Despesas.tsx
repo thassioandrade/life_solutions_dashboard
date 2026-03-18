@@ -97,7 +97,7 @@ export default function Despesas() {
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" onClick={() => setOpenColaborador(false)} className="flex-1">Cancelar</Button>
-                    <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                    <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                       onClick={() => { if (!colabForm.nome || !colabForm.salario) { toast.error("Preencha os campos"); return; } createColabMutation.mutate({ nome: colabForm.nome, cargo: colabForm.cargo || undefined, salario: parseFloat(colabForm.salario) }); }}
                       disabled={createColabMutation.isPending}>Adicionar</Button>
                   </div>
@@ -106,7 +106,7 @@ export default function Despesas() {
             </Dialog>
             <Dialog open={openDespesa} onOpenChange={setOpenDespesa}>
               <DialogTrigger asChild>
-                <Button className="bg-green-600 hover:bg-green-700 text-white">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
                   <Plus className="w-4 h-4 mr-1" /> Despesa
                 </Button>
               </DialogTrigger>
@@ -143,7 +143,7 @@ export default function Despesas() {
                   </div>
                   <div className="flex gap-2">
                     <Button type="button" variant="outline" onClick={() => setOpenDespesa(false)} className="flex-1">Cancelar</Button>
-                    <Button type="submit" className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled={createDespesaMutation.isPending}>Registrar</Button>
+                    <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white" disabled={createDespesaMutation.isPending}>Registrar</Button>
                   </div>
                 </form>
               </DialogContent>

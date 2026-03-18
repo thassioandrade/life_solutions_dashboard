@@ -11,7 +11,7 @@ const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Ag
 
 const STATUS_COLORS: Record<string, string> = {
   confirmado: "bg-blue-100 text-blue-700",
-  realizado: "bg-green-100 text-green-700",
+  realizado: "bg-blue-100 text-blue-700",
   noshow: "bg-red-100 text-red-700",
   cancelado: "bg-gray-100 text-gray-600",
   remarcado: "bg-amber-100 text-amber-700",
@@ -85,9 +85,9 @@ export default function PainelConsultor() {
           <>
             {/* Metrics */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                <p className="text-xs text-green-600 uppercase tracking-wide font-medium">Coletado</p>
-                <p className="text-xl font-bold text-green-700 mt-1">{formatCurrency(totalColetado)}</p>
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <p className="text-xs text-blue-600 uppercase tracking-wide font-medium">Coletado</p>
+                <p className="text-xl font-bold text-blue-700 mt-1">{formatCurrency(totalColetado)}</p>
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                 <p className="text-xs text-blue-600 uppercase tracking-wide font-medium">Faturado</p>
@@ -132,7 +132,7 @@ export default function PainelConsultor() {
                           </div>
                           <div className="flex items-center gap-2">
                             {ag.resultouVenda && ag.valorColetado && (
-                              <span className="text-xs font-medium text-green-600">{formatCurrency(parseFloat(String(ag.valorColetado)))}</span>
+                              <span className="text-xs font-medium text-blue-600">{formatCurrency(parseFloat(String(ag.valorColetado)))}</span>
                             )}
                             <Badge className={`text-xs ${STATUS_COLORS[ag.status] || ""}`}>{STATUS_LABELS[ag.status] || ag.status}</Badge>
                           </div>
@@ -159,7 +159,7 @@ export default function PainelConsultor() {
                           <p className="text-xs text-gray-400">{new Date(v.dataVenda).toLocaleDateString("pt-BR")}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-semibold text-green-600">{formatCurrency(parseFloat(String(v.valorColetado || 0)))}</p>
+                          <p className="text-sm font-semibold text-blue-600">{formatCurrency(parseFloat(String(v.valorColetado || 0)))}</p>
                           <p className="text-xs text-gray-400">Comissão: {formatCurrency(parseFloat(String(v.valorColetado || 0)) * parseFloat(String(v.comissaoPercent || 10)) / 100)}</p>
                         </div>
                       </div>

@@ -22,14 +22,14 @@ function MetricCard({ title, value, subtitle, icon: Icon, color = "green", trend
   title: string; value: string; subtitle?: string; icon: React.ElementType; color?: string; trend?: "up" | "down" | "neutral";
 }) {
   const colorMap: Record<string, string> = {
-    green: "bg-green-50 border-green-200 text-green-700",
+    green: "bg-blue-50 border-blue-200 text-blue-700",
     blue: "bg-blue-50 border-blue-200 text-blue-700",
     amber: "bg-amber-50 border-amber-200 text-amber-700",
     red: "bg-red-50 border-red-200 text-red-700",
     purple: "bg-purple-50 border-purple-200 text-purple-700",
   };
   const iconColorMap: Record<string, string> = {
-    green: "text-green-600 bg-green-100",
+    green: "text-blue-600 bg-blue-100",
     blue: "text-blue-600 bg-blue-100",
     amber: "text-amber-600 bg-amber-100",
     red: "text-red-600 bg-red-100",
@@ -129,14 +129,14 @@ export default function Dashboard() {
                     ].map((item, i) => (
                       <div key={i} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                         <span className="text-sm text-gray-600">{item.label}</span>
-                        <span className={`text-sm font-medium ${item.positive ? "text-green-600" : "text-red-500"}`}>
+                        <span className={`text-sm font-medium ${item.positive ? "text-blue-600" : "text-red-500"}`}>
                           {item.positive ? "" : "- "}{formatCurrency(item.value)}
                         </span>
                       </div>
                     ))}
-                    <div className="flex items-center justify-between py-2 bg-green-50 rounded-lg px-3 mt-2">
+                    <div className="flex items-center justify-between py-2 bg-blue-50 rounded-lg px-3 mt-2">
                       <span className="text-sm font-bold text-green-800">Lucro Líquido</span>
-                      <span className={`text-base font-bold ${stats.lucroLiquido >= 0 ? "text-green-700" : "text-red-600"}`}>
+                      <span className={`text-base font-bold ${stats.lucroLiquido >= 0 ? "text-blue-700" : "text-red-600"}`}>
                         {formatCurrency(stats.lucroLiquido)}
                       </span>
                     </div>
@@ -155,9 +155,9 @@ export default function Dashboard() {
                       <p className="text-2xl font-bold text-blue-700">{stats.agendamentos.total}</p>
                       <p className="text-xs text-blue-600 mt-0.5">Total</p>
                     </div>
-                    <div className="text-center p-3 bg-green-50 rounded-lg">
-                      <p className="text-2xl font-bold text-green-700">{stats.agendamentos.realizadas}</p>
-                      <p className="text-xs text-green-600 mt-0.5">Realizadas</p>
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <p className="text-2xl font-bold text-blue-700">{stats.agendamentos.realizadas}</p>
+                      <p className="text-xs text-blue-600 mt-0.5">Realizadas</p>
                     </div>
                     <div className="text-center p-3 bg-amber-50 rounded-lg">
                       <p className="text-2xl font-bold text-amber-700">{stats.agendamentos.confirmadas}</p>
@@ -172,7 +172,7 @@ export default function Dashboard() {
                     <div className="mt-4 space-y-2">
                       <div className="flex justify-between text-xs text-gray-500">
                         <span>Taxa de Comparecimento</span>
-                        <span className="font-medium text-green-600">
+                        <span className="font-medium text-blue-600">
                           {Math.round((stats.agendamentos.realizadas / stats.agendamentos.total) * 100)}%
                         </span>
                       </div>
@@ -222,7 +222,7 @@ export default function Dashboard() {
                                 </span>
                               </td>
                               <td className="py-2 px-3 text-right font-medium text-gray-700">{formatCurrency(parseFloat(String(venda.valorFaturado || 0)))}</td>
-                              <td className="py-2 px-3 text-right font-medium text-green-600">{formatCurrency(parseFloat(String(venda.valorColetado || 0)))}</td>
+                              <td className="py-2 px-3 text-right font-medium text-blue-600">{formatCurrency(parseFloat(String(venda.valorColetado || 0)))}</td>
                               <td className="py-2 px-3 text-right font-medium text-amber-600">{formatCurrency(comissao)}</td>
                             </tr>
                           );
