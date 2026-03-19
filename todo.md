@@ -262,3 +262,13 @@
 - [x] PainelConsultor: card de Comissão mostra (coletado - custos) × 10%
 - [x] PainelConsultor: lista de vendas mostra comissão correta por venda
 - [x] PainelConsultor: modal de venda mostra base de cálculo sem revelar custo unitário
+
+## Correção Definitiva Cálculo Comissão (Mar 2026 - v2)
+- [x] PainelConsultor: projeção parcelas futuras — 10% direto, SEM descontar custo
+- [x] PainelConsultor: comissaoTotal do mês — (coletado - custoServico) × 10% (correto)
+- [x] Admin Dashboard (routers.ts): comissão = (coletado - custoServico) × 10%
+- [x] Admin Dashboard (db.ts getDashboardFinanceiro): comissão = (coletado - custoServico) × 10%
+- [x] Admin Vendas.tsx: comissão total e por venda = (coletado - custoServico) × 10%
+- [x] Admin Dashboard.tsx: comissão por venda na tabela = (coletado - custoServico) × 10%
+- [x] Admin Despesas.tsx: usa totalComissoes do backend (já corrigido)
+- [x] Auditoria completa: nenhum outro cálculo de comissão incorreto encontrado

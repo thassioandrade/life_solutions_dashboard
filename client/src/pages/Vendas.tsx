@@ -53,8 +53,10 @@ export default function Vendas() {
   const totalFaturado = vendas?.reduce((s, v) => s + parseFloat(String(v.valorFaturado || 0)), 0) || 0;
   const totalColetado = vendas?.reduce((s, v) => s + parseFloat(String(v.valorColetado || 0)), 0) || 0;
   const totalComissoes = vendas?.reduce((s, v) => {
-    const c = parseFloat(String(v.valorColetado || 0)) * parseFloat(String(v.comissaoPercent || 10)) / 100;
-    return s + c;
+    const coletado = parseFloat(String(v.valorColetado || 0));
+    const custo = parseFloat(String(v.custoServico || 0));
+    const pct = parseFloat(String(v.comissaoPercent || 10)) / 100;
+    return s + ((coletado - custo) * pct);
   }, 0) || 0;
 
   const handleCreate = (e: React.FormEvent<HTMLFormElement>): void => {
@@ -203,7 +205,7 @@ export default function Vendas() {
           <div className="space-y-3">
             {vendas.map((venda) => {
               const consultor = consultores?.find(c => c.id === venda.consultorId);
-              const comissao = parseFloat(String(venda.valorColetado || 0)) * parseFloat(String(venda.comissaoPercent || 10)) / 100;
+              const comissao = (parseFloat(String(venda.valorColetado || 0)) - parseFloat(String(venda.custoServico || 0))) * parseFloat(String(venda.comissaoPercent || 10)) / 100;
               const parcelas = (venda as any).parcelas || [];
               const parcelasPagas = parcelas.filter((p: any) => p.pago).length;
               return (

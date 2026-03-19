@@ -712,10 +712,13 @@ export const appRouter = router({
 
         const totalFaturado = vendasMes.reduce((s, v) => s + parseFloat(String(v.valorFaturado || 0)), 0);
         const totalColetado = vendasMes.reduce((s, v) => s + parseFloat(String(v.valorColetado || 0)), 0);
+        // Comissão = (coletado - custoServico) × 10% por venda
+        // Custo do serviço já está descontado dentro da comissão
         const totalComissoes = vendasMes.reduce((s, v) => {
           const coletado = parseFloat(String(v.valorColetado || 0));
+          const custo = parseFloat(String(v.custoServico || 0));
           const pct = parseFloat(String(v.comissaoPercent || 10));
-          return s + (coletado * pct / 100);
+          return s + ((coletado - custo) * pct / 100);
         }, 0);
         const totalCustos = vendasMes.reduce((s, v) => s + parseFloat(String(v.custoServico || 0)), 0);
         const totalDespesas = despesasMes.reduce((s, d) => s + parseFloat(String(d.valor || 0)), 0);
@@ -731,7 +734,8 @@ export const appRouter = router({
 
         return {
           totalFaturado, totalColetado, totalComissoes, totalCustos, totalDespesas, totalSalarios, investimento, totalParcelasPendentes,
-          lucroLiquido: totalColetado - totalComissoes - totalCustos - totalDespesas - totalSalarios - investimento,
+          // Lucro líquido = coletado - custos de serviços - comissões - despesas - salários - investimento
+          lucroLiquido: totalColetado - totalCustos - totalComissoes - totalDespesas - totalSalarios - investimento,
           totalVendas: vendasMes.length,
           agendamentos: { total, realizadas, noshow, confirmadas },
           vendas: vendasMes,

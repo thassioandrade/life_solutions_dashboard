@@ -673,8 +673,9 @@ export default function PainelConsultor() {
             {/* Projeção de Comissões Futuras - Mês a Mês */}
             {parcelasFuturas && parcelasFuturas.length > 0 && (() => {
               // Agrupar parcelas por mês/ano
-              // Lógica: 1ª parcela (numeroParcela === 1) desconta custoServico antes de calcular 10%
-              // Demais parcelas: comissão = valor × 10% diretamente
+              // REGRA: parcelas futuras são SEMPRE a 2ª, 3ª... parcela.
+              // O custo do serviço já foi descontado no coletado inicial (1ª parcela/entrada).
+              // Portanto, comissão de parcelas futuras = valor × 10% SEMPRE, sem nenhum desconto.
               const grupos: Record<string, { mes: number; ano: number; label: string; valor: number; comissao: number; qtd: number }> = {};
               parcelasFuturas.forEach(p => {
                 const d = new Date(p.vencimento);
@@ -684,10 +685,9 @@ export default function PainelConsultor() {
                 }
                 const valorParcela = parseFloat(String(p.valor || 0));
                 const pct = parseFloat(String(p.comissaoPercent || 10)) / 100;
-                const numParcela = p.numeroParcela ?? 2; // default 2+ se não tiver
-                const custo = numParcela === 1 ? parseFloat(String(p.custoServico || 0)) : 0;
+                // Sem desconto de custo: parcelas futuras = valor × 10% direto
                 grupos[key].valor += valorParcela;
-                grupos[key].comissao += (valorParcela - custo) * pct;
+                grupos[key].comissao += valorParcela * pct;
                 grupos[key].qtd += 1;
               });
               const mesesOrdenados = Object.values(grupos).sort((a, b) => a.ano !== b.ano ? a.ano - b.ano : a.mes - b.mes);

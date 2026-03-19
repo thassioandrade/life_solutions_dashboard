@@ -700,11 +700,15 @@ export async function getDashboardFinanceiro(mes: number, ano: number) {
   const totalCustosServicos = custoCustoLimpaName + custoCustoRating;
   const salarioFixo = custos["salario_fixo"];
 
-  // Comissão total (10% do coletado por padrão)
+  // Comissão total: (coletado - custoServico) × 10% por venda
+  // O custoServico já está embutido em cada venda (salvo no momento do cadastro)
+  // Portanto o lucro líquido = coletado - comissões - salário
+  // (os custos de serviço já estão dentro do cálculo da comissão)
   const totalComissoes = vendasMes.reduce((s, v) => {
     const coletado = parseFloat(String(v.valorColetado || 0));
+    const custo = parseFloat(String(v.custoServico || 0));
     const pct = parseFloat(String(v.comissaoPercent || 10));
-    return s + (coletado * pct / 100);
+    return s + ((coletado - custo) * pct / 100);
   }, 0);
 
   // Parcelas do mês
@@ -713,6 +717,7 @@ export async function getDashboardFinanceiro(mes: number, ano: number) {
   const totalParcelasPagas = parcelasPagas.reduce((s, p) => s + parseFloat(String(p.valor || 0)), 0);
   const totalParcelasPendentes = parcelasPendentes.reduce((s, p) => s + parseFloat(String(p.valor || 0)), 0);
 
+  // Lucro líquido: coletado - custos de serviços - salário - comissões
   const liquido = totalColetado - totalCustosServicos - salarioFixo - totalComissoes;
 
   return {

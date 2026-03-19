@@ -302,7 +302,7 @@ export default function Dashboard() {
                       <tbody>
                         {stats.vendas.map((venda: any) => {
                           const consultor = consultores?.find(c => c.id === venda.consultorId);
-                          const comissao = parseFloat(String(venda.valorColetado || 0)) * parseFloat(String(venda.comissaoPercent || 10)) / 100;
+                          const comissao = (parseFloat(String(venda.valorColetado || 0)) - parseFloat(String(venda.custoServico || 0))) * parseFloat(String(venda.comissaoPercent || 10)) / 100;
                           return (
                             <tr key={venda.id} className="border-b border-gray-50 hover:bg-gray-50">
                               <td className="py-2 px-3">
