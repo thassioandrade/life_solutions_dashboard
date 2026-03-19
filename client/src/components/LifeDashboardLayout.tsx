@@ -88,33 +88,40 @@ export default function LifeDashboardLayout({ children, title }: LifeDashboardLa
   // ─── Bloco de Anotações ───────────────────────────────────────────────────
   const NOTA_KEY = `life_notas_${user?.id || "guest"}`;
   const [notasAberto, setNotasAberto] = useState(false);
-  const [notasTexto, setNotasTexto] = useState("");
   const [notasSalvo, setNotasSalvo] = useState(true);
   const notasTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notasRef = useRef<HTMLTextAreaElement>(null);
 
+  // Carregar texto salvo quando o bloco abre
   useEffect(() => {
-    try { setNotasTexto(localStorage.getItem(NOTA_KEY) || ""); } catch {}
-  }, [NOTA_KEY]);
+    if (notasAberto && notasRef.current) {
+      try {
+        const saved = localStorage.getItem(NOTA_KEY) || "";
+        notasRef.current.value = saved;
+      } catch {}
+    }
+  }, [notasAberto, NOTA_KEY]);
 
-  const handleNotasChange = (v: string) => {
-    setNotasTexto(v);
+  const handleNotasChange = () => {
+    const v = notasRef.current?.value ?? "";
     setNotasSalvo(false);
     if (notasTimer.current) clearTimeout(notasTimer.current);
     notasTimer.current = setTimeout(() => {
       try { localStorage.setItem(NOTA_KEY, v); } catch {}
       setNotasSalvo(true);
-    }, 1500);
+    }, 2000);
   };
 
   function salvarNotasManual() {
-    try { localStorage.setItem(NOTA_KEY, notasTexto); } catch {}
+    const v = notasRef.current?.value ?? "";
+    try { localStorage.setItem(NOTA_KEY, v); } catch {}
     setNotasSalvo(true);
     toast.success("Anotações salvas!");
   }
 
   function limparNotas() {
     if (!confirm("Apagar todas as anotações?")) return;
-    setNotasTexto("");
+    if (notasRef.current) notasRef.current.value = "";
     try { localStorage.removeItem(NOTA_KEY); } catch {}
     setNotasSalvo(true);
     toast.success("Anotações apagadas");
@@ -330,11 +337,11 @@ export default function LifeDashboardLayout({ children, title }: LifeDashboardLa
           </button>
           {notasAberto && (
             <div className="mx-2 mb-2 rounded-lg overflow-hidden border border-[var(--sidebar-border)]" style={{ background: "oklch(18% 0.02 250)" }}>
-              <Textarea
-                value={notasTexto}
-                onChange={e => handleNotasChange(e.target.value)}
+              <textarea
+                ref={notasRef}
+                onInput={handleNotasChange}
                 placeholder="Escreva suas ideias aqui..."
-                className="min-h-[120px] text-xs text-white border-0 rounded-none resize-none focus-visible:ring-0 bg-transparent placeholder:text-gray-500"
+                className="min-h-[120px] w-full text-xs text-white border-0 rounded-none resize-none bg-transparent placeholder:text-gray-500 p-3 focus:outline-none"
               />
               <div className="flex items-center justify-between px-2 py-1 border-t border-[var(--sidebar-border)]">
                 <span className="text-[10px]" style={{ color: notasSalvo ? "oklch(60% 0.15 145)" : "oklch(70% 0.12 50)" }}>

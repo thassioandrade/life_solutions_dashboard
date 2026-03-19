@@ -231,3 +231,6 @@
 - [x] Painel Consultor: seção de comissões futuras mês a mês (cards por mês com comissão projetada)
 - [x] Barra lateral: bloco de anotações persistente (auto-save 1.5s, salvar manual, apagar)
 - [x] Barra lateral: calendário pessoal com eventos, alarmes sonoros e notificações do sistema
+
+## Bug: Anotações travando digitação
+- [x] Corrigido: textarea agora é uncontrolled (ref), sem re-render a cada tecla; auto-save dispara 2s após parar de digitar
