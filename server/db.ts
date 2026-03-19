@@ -377,6 +377,13 @@ export async function getAllLeads() {
   if (!db) return [];
   return db.select().from(leads).orderBy(leads.ordem);
 }
+export async function getLeadsByConsultor(consultorId: number, mes: number, ano: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(leads)
+    .where(and(eq(leads.consultorId, consultorId), eq(leads.mes, mes), eq(leads.ano, ano)))
+    .orderBy(leads.ordem);
+}
 
 export async function createLead(data: typeof leads.$inferInsert) {
   const db = await getDb();

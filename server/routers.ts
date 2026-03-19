@@ -18,7 +18,7 @@ import {
   getDespesasByPeriod, createDespesa, updateDespesa, deleteDespesa,
   getAllColaboradores, createColaborador, updateColaborador, deleteColaborador,
   getColunasPipeline, createColuna, updateColuna, deleteColuna,
-  getAllLeads, getLeadsByPeriod, createLead, updateLead, deleteLead,
+  getAllLeads, getLeadsByPeriod, getLeadsByConsultor, createLead, updateLead, deleteLead,
   getBloqueiosByConsultor, createBloqueio, deleteBloqueio,
   getConfiguracao, setConfiguracao,
   getRankingsByPeriod, getAllRankings, upsertRanking,
@@ -167,6 +167,32 @@ export const appRouter = router({
           comissaoPercent: String(input.comissaoPercent),
           custoServico: String(input.custoServico),
         });
+        // Auto-criar lead na coluna "Venda Realizada" (fixa)
+        try {
+          let colunas = await getColunasPipeline();
+          let colunaVenda = colunas.find(c => c.nome.toLowerCase().includes("venda realizada"));
+          if (!colunaVenda) {
+            // Criar coluna fixa "Venda Realizada" se não existir
+            await createColuna({ nome: "Venda Realizada", cor: "#16a34a", ordem: 999 });
+            colunas = await getColunasPipeline();
+            colunaVenda = colunas.find(c => c.nome.toLowerCase().includes("venda realizada"));
+          }
+          if (colunaVenda) {
+            const dataVenda = new Date(input.dataVenda);
+            await createLead({
+              colunaId: colunaVenda.id,
+              nome: input.clienteNome,
+              valor: String(input.valorColetado || input.valorFaturado),
+              consultorId: input.consultorId,
+              observacoes: input.observacoes || `Venda registrada manualmente`,
+              mes: dataVenda.getMonth() + 1,
+              ano: dataVenda.getFullYear(),
+              ordem: 0,
+            });
+          }
+        } catch (e) {
+          console.warn("[vendas.create] Falha ao criar lead no pipeline:", e);
+        }
         return { success: true };
       }),
     update: protectedProcedure
@@ -421,23 +447,38 @@ export const appRouter = router({
 
   pipeline: router({
     getColunas: protectedProcedure.query(async () => getColunasPipeline()),
-    createColuna: adminProcedure
+    createColuna: protectedProcedure
       .input(z.object({ nome: z.string().min(1), cor: z.string().optional(), ordem: z.number().optional() }))
       .mutation(async ({ input }) => {
         await createColuna(input);
         return { success: true };
       }),
-    updateColuna: adminProcedure
+    updateColuna: protectedProcedure
       .input(z.object({ id: z.number(), nome: z.string().optional(), cor: z.string().optional(), ordem: z.number().optional() }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         await updateColuna(id, data);
         return { success: true };
       }),
-    deleteColuna: adminProcedure
+    deleteColuna: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await deleteColuna(input.id);
+        return { success: true };
+      }),
+    getLeadsByConsultor: protectedProcedure
+      .input(z.object({ consultorId: z.number(), mes: z.number(), ano: z.number() }))
+      .query(async ({ input }) => getLeadsByConsultor(input.consultorId, input.mes, input.ano)),
+    moverLead: protectedProcedure
+      .input(z.object({ id: z.number(), colunaId: z.number() }))
+      .mutation(async ({ input }) => {
+        await updateLead(input.id, { colunaId: input.colunaId });
+        return { success: true };
+      }),
+    reordenarLead: protectedProcedure
+      .input(z.object({ id: z.number(), ordem: z.number() }))
+      .mutation(async ({ input }) => {
+        await updateLead(input.id, { ordem: input.ordem });
         return { success: true };
       }),
     getLeads: protectedProcedure

@@ -166,3 +166,12 @@
 
 ## Bug: Login Administrador OAuth não funciona
 - [x] Corrigido: página de login agora detecta sessão ativa e redireciona para /dashboard (admin) ou /painel (consultor). OAuth callback redireciona direto para /dashboard.
+
+## Pipeline e Vendas - Melhorias
+- [x] Pipeline: CRUD livre de colunas (criar, renomear, excluir qualquer coluna)
+- [x] Pipeline: drag-and-drop para mover lead entre colunas
+- [x] Pipeline: coluna fixa "Venda Realizada" sempre presente (badge + protegida)
+- [x] Pipeline: venda manual cria lead automaticamente na coluna "Venda Realizada"
+- [x] Pipeline: admin vê pipeline de todos os vendedores (filtro por vendedor)
+- [x] Backend: router pipeline.moverLead (mover lead para outra coluna)
+- [x] Backend: garantir coluna "Venda Realizada" ao criar venda manual
