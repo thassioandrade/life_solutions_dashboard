@@ -228,10 +228,13 @@ export default function PainelConsultor() {
   // Métricas
   const totalColetado = vendas?.reduce((s, v) => s + parseFloat(String(v.valorColetado || 0)), 0) || 0;
   const totalFaturado = vendas?.reduce((s, v) => s + parseFloat(String(v.valorFaturado || 0)), 0) || 0;
+  // comissaoTotal: soma de (coletado - custoServico) × 10% por venda
+  // Isso representa a comissão bruta já descontando os custos de serviços
   const comissaoTotal = vendas?.reduce((s, v) => {
     const coletado = parseFloat(String(v.valorColetado || 0));
+    const custo = parseFloat(String(v.custoServico || 0));
     const pct = parseFloat(String(v.comissaoPercent || 10));
-    return s + (coletado * pct / 100);
+    return s + ((coletado - custo) * pct / 100);
   }, 0) || 0;
 
   const qtdLimpaName = useMemo(() => {
@@ -249,10 +252,6 @@ export default function PainelConsultor() {
 
   const custoLimpaName = custosServicos?.custo_limpa_nome ?? 70;
   const custoRating = custosServicos?.custo_rating ?? 110;
-  const custosDoConsultor = (qtdLimpaName * custoLimpaName) + (qtdRating * custoRating);
-  // Comissão líquida = coletado - custos dos serviços (Limpa Nome + Rating)
-  // Os custos saem do coletado pois são o custo da operação para executar o serviço
-  const comissaoLiquida = totalColetado - custosDoConsultor;
 
   const realizadas = agendamentos?.filter(a => a.status === "realizado").length || 0;
   const noshow = agendamentos?.filter(a => a.status === "noshow").length || 0;
@@ -358,8 +357,8 @@ export default function PainelConsultor() {
     if (serv.toLowerCase().includes("rating")) return s + custoRating;
     return s;
   }, 0);
-  const comissaoModal = coletadoModal * 0.10;
-  const comissaoLiquidaModal = comissaoModal - custoModalServicos;
+  // Comissão líquida = (coletado - custos dos serviços) × 10%
+  const comissaoLiquidaModal = (coletadoModal - custoModalServicos) * 0.10;
 
   async function handleSalvar() {
     if (!agSelecionado) return;
@@ -533,18 +532,18 @@ export default function PainelConsultor() {
               <div className="rounded-xl p-4 border bg-amber-50 border-amber-200">
                 <div className="flex items-center gap-1.5 mb-1">
                   <CreditCard className="w-4 h-4 text-amber-600" />
-                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">Comissão Bruta</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">Comissão</p>
                 </div>
                 <p className="text-xl font-bold text-amber-700">{formatCurrency(comissaoTotal)}</p>
-                <p className="text-xs text-gray-400 mt-0.5">10% do coletado</p>
+                <p className="text-xs text-gray-400 mt-0.5">Sua comissão do mês</p>
               </div>
-              <div className={`rounded-xl p-4 border ${comissaoLiquida >= 0 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
+              <div className="rounded-xl p-4 border bg-emerald-50 border-emerald-200">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <FileText className={`w-4 h-4 ${comissaoLiquida >= 0 ? "text-emerald-600" : "text-red-600"}`} />
-                  <p className={`text-xs font-semibold uppercase tracking-wide ${comissaoLiquida >= 0 ? "text-emerald-600" : "text-red-600"}`}>Comissão Líquida</p>
+                  <Trophy className="w-4 h-4 text-emerald-600" />
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Vendas</p>
                 </div>
-                <p className={`text-xl font-bold ${comissaoLiquida >= 0 ? "text-emerald-700" : "text-red-700"}`}>{formatCurrency(comissaoLiquida)}</p>
-                <p className="text-xs text-gray-400 mt-0.5">Após custos serviços</p>
+                <p className="text-xl font-bold text-emerald-700">{vendas?.length || 0}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{realizadas} reuniões realizadas</p>
               </div>
             </div>
 
@@ -557,7 +556,6 @@ export default function PainelConsultor() {
                       <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-lg">🧹</div>
                       <div>
                         <p className="text-sm font-bold text-indigo-700">{qtdLimpaName}x Limpa Nome</p>
-                        <p className="text-xs text-indigo-500">Custo: {formatCurrency(qtdLimpaName * custoLimpaName)}</p>
                       </div>
                     </div>
                     <button
@@ -587,7 +585,6 @@ export default function PainelConsultor() {
                       <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center text-lg">⭐</div>
                       <div>
                         <p className="text-sm font-bold text-violet-700">{qtdRating}x Rating Bancário</p>
-                        <p className="text-xs text-violet-500">Custo: {formatCurrency(qtdRating * custoRating)}</p>
                       </div>
                     </div>
                     <button
@@ -675,7 +672,9 @@ export default function PainelConsultor() {
 
             {/* Projeção de Comissões Futuras - Mês a Mês */}
             {parcelasFuturas && parcelasFuturas.length > 0 && (() => {
-              // Agrupar parcelas por mês/ano, usando comissaoPercent de cada venda
+              // Agrupar parcelas por mês/ano
+              // Lógica: 1ª parcela (numeroParcela === 1) desconta custoServico antes de calcular 10%
+              // Demais parcelas: comissão = valor × 10% diretamente
               const grupos: Record<string, { mes: number; ano: number; label: string; valor: number; comissao: number; qtd: number }> = {};
               parcelasFuturas.forEach(p => {
                 const d = new Date(p.vencimento);
@@ -685,8 +684,10 @@ export default function PainelConsultor() {
                 }
                 const valorParcela = parseFloat(String(p.valor || 0));
                 const pct = parseFloat(String(p.comissaoPercent || 10)) / 100;
+                const numParcela = p.numeroParcela ?? 2; // default 2+ se não tiver
+                const custo = numParcela === 1 ? parseFloat(String(p.custoServico || 0)) : 0;
                 grupos[key].valor += valorParcela;
-                grupos[key].comissao += valorParcela * pct;
+                grupos[key].comissao += (valorParcela - custo) * pct;
                 grupos[key].qtd += 1;
               });
               const mesesOrdenados = Object.values(grupos).sort((a, b) => a.ano !== b.ano ? a.ano - b.ano : a.mes - b.mes);
@@ -837,7 +838,7 @@ export default function PainelConsultor() {
                             <div className="text-right">
                               <p className="text-sm font-semibold" style={{ color: "#0055FF" }}>{formatCurrency(parseFloat(String(v.valorColetado || 0)))}</p>
                               <p className="text-xs text-gray-400">Fat: {formatCurrency(parseFloat(String(v.valorFaturado || 0)))}</p>
-                              <p className="text-xs text-amber-600">Com: {formatCurrency(parseFloat(String(v.valorColetado || 0)) * parseFloat(String(v.comissaoPercent || 10)) / 100)}</p>
+                              <p className="text-xs text-amber-600">Com: {formatCurrency((parseFloat(String(v.valorColetado || 0)) - parseFloat(String(v.custoServico || 0))) * parseFloat(String(v.comissaoPercent || 10)) / 100)}</p>
                             </div>
                           </div>
                         ))}
@@ -1033,17 +1034,11 @@ export default function PainelConsultor() {
                         <p className="text-xs font-semibold text-amber-700 mb-2">Cálculo de Comissão</p>
                         <div className="space-y-1 text-xs">
                           <div className="flex justify-between text-gray-600">
-                            <span>Comissão bruta (10%)</span>
-                            <span className="font-medium">{formatCurrency(comissaoModal)}</span>
+                            <span>Base de cálculo</span>
+                            <span className="font-medium">{formatCurrency(coletadoModal - custoModalServicos)}</span>
                           </div>
-                          {custoModalServicos > 0 && (
-                            <div className="flex justify-between text-red-600">
-                              <span>(-) Custos serviços</span>
-                              <span className="font-medium">- {formatCurrency(custoModalServicos)}</span>
-                            </div>
-                          )}
                           <div className={`flex justify-between font-bold border-t border-amber-200 pt-1 ${comissaoLiquidaModal >= 0 ? "text-emerald-700" : "text-red-700"}`}>
-                            <span>Comissão líquida</span>
+                            <span>Comissão líquida (10%)</span>
                             <span>{formatCurrency(comissaoLiquidaModal)}</span>
                           </div>
                         </div>
@@ -1105,13 +1100,10 @@ export default function PainelConsultor() {
                             className={`text-xs px-3 py-1.5 rounded-full border transition-all ${venda.servicos.includes(s) ? "text-white border-transparent" : "border-gray-200 text-gray-600"}`}
                             style={venda.servicos.includes(s) ? { background: "#0055FF" } : {}}>
                             {s}
-                            {(s === "Limpa Nome" || s === "Rating Bancário") && (
-                              <span className="ml-1 text-[9px] opacity-70">({formatCurrency(s === "Limpa Nome" ? custoLimpaName : custoRating)})</span>
-                            )}
                           </button>
                         ))}
                       </div>
-                      <p className="text-[10px] text-gray-400 mt-1">Custos de Limpa Nome e Rating são descontados da comissão</p>
+
                     </div>
 
                     {/* Forma de Pagamento */}

@@ -77,6 +77,7 @@ export const parcelas = mysqlTable("parcelas", {
   status: mysqlEnum("status", ["pendente", "pago", "atrasado"]).default("pendente").notNull(),
   dataPagamento: timestamp("dataPagamento"),
   comprovanteUrl: text("comprovanteUrl"),
+  numeroParcela: int("numeroParcela").default(1),
   okConsultor: boolean("okConsultor").default(false),
   dataOkConsultor: timestamp("dataOkConsultor"),
   notificacaoEnviada: boolean("notificacaoEnviada").default(false),

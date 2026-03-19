@@ -565,8 +565,10 @@ export async function getParcelasFuturasConsultor(consultorId: number) {
     vencimento: parcelas.vencimento,
     status: parcelas.status,
     okConsultor: parcelas.okConsultor,
+    numeroParcela: parcelas.numeroParcela,
     clienteNome: vendas.clienteNome,
     comissaoPercent: vendas.comissaoPercent,
+    custoServico: vendas.custoServico,
   })
     .from(parcelas)
     .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
@@ -748,10 +750,13 @@ export async function getParcelasCompletasByConsultor(consultorId: number) {
     okConsultor: parcelas.okConsultor,
     dataOkConsultor: parcelas.dataOkConsultor,
     comprovanteUrl: parcelas.comprovanteUrl,
+    numeroParcela: parcelas.numeroParcela,
     clienteNome: vendas.clienteNome,
     clienteCpfCnpj: vendas.clienteCpfCnpj,
     clienteTelefone: vendas.clienteTelefone,
     servicos: vendas.servicos,
+    custoServico: vendas.custoServico,
+    comissaoPercent: vendas.comissaoPercent,
   })
     .from(parcelas)
     .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))

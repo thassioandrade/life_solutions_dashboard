@@ -238,14 +238,15 @@ export const appRouter = router({
     create: protectedProcedure
       .input(z.object({
         vendaId: z.number(),
-        parcelas: z.array(z.object({ valor: z.number(), vencimento: z.string() })),
+        parcelas: z.array(z.object({ valor: z.number(), vencimento: z.string(), numeroParcela: z.number().optional() })),
       }))
       .mutation(async ({ input }) => {
-        await createParcelas(input.parcelas.map(p => ({
+        await createParcelas(input.parcelas.map((p, idx) => ({
           vendaId: input.vendaId,
           valor: String(p.valor),
           vencimento: new Date(p.vencimento),
           status: "pendente" as const,
+          numeroParcela: p.numeroParcela ?? (idx + 1),
         })));
         return { success: true };
       }),

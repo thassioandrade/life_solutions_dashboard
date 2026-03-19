@@ -252,3 +252,13 @@
 - [x] Ranking: campos — valor faturado, reuniões feitas, vendas fechadas, % fechamento, coletado
 - [x] Ranking: calcula em tempo real do banco (zera automaticamente na virada do mês)
 - [x] Ranking: confetes + pódio animado + banner de celebração no último dia do mês
+
+## Correção Cálculo Comissão e Ocultação de Custos (Mar 2026)
+- [x] Backend: comissão = (coletado - custoServico) × 10%; custoServico salvo por venda
+- [x] Backend: salvar numeroParcela em cada parcela ao criar (1, 2, 3...)
+- [x] Backend: getParcelasFuturasConsultor e getParcelasCompletasByConsultor retornam numeroParcela e custoServico
+- [x] PainelConsultor: ocultar valores R$70/R$110 de custos — mostrar apenas comissão líquida final
+- [x] PainelConsultor: projeção mês a mês com cálculo correto (1ª parcela desconta custo, demais não)
+- [x] PainelConsultor: card de Comissão mostra (coletado - custos) × 10%
+- [x] PainelConsultor: lista de vendas mostra comissão correta por venda
+- [x] PainelConsultor: modal de venda mostra base de cálculo sem revelar custo unitário
