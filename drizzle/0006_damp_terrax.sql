@@ -1,0 +1,1 @@
+ALTER TABLE `agendamentos` ADD `vaiFechar` boolean DEFAULT false;

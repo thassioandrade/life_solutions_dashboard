@@ -272,3 +272,13 @@
 - [x] Admin Dashboard.tsx: comissão por venda na tabela = (coletado - custoServico) × 10%
 - [x] Admin Despesas.tsx: usa totalComissoes do backend (já corrigido)
 - [x] Auditoria completa: nenhum outro cálculo de comissão incorreto encontrado
+
+## Botão Vai Fechar nos Agendamentos e Pipeline (Mar 2026)
+- [x] Schema: campo vaiFechar na tabela agendamentos (migração aplicada)
+- [x] Backend: getAgendamentoById adicionado ao db.ts
+- [x] Backend: router agendamentos.update aceita campo vaiFechar
+- [x] Backend: ao marcar vaiFechar=true, move lead para coluna "Vai Fechar" no pipeline
+- [x] Backend: ao marcar resultouVenda=true, move lead para coluna "Venda Realizada" no pipeline
+- [x] Frontend Agendamentos: checkbox "Vai Fechar" no modal de edição (mutuamente exclusivo com Resultou em Venda)
+- [x] Frontend Agendamentos: badge visual "🤝 Vai fechar" no card do agendamento
+- [x] Pipeline: lead sai automaticamente de "Novos Agendamentos" ao marcar Vai Fechar ou Venda Realizada

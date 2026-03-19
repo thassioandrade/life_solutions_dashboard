@@ -13,7 +13,7 @@ import {
   getAllConsultores, getConsultorById, getConsultorByEmail, createConsultor, updateConsultor, deleteConsultor,
   getVendasByPeriod, getVendasByConsultor, createVenda, updateVenda, deleteVenda,
   getParcelasByVenda, getParcelasPendentes, getParcelasByConsultor, createParcelas, updateParcela,
-  getAgendamentosByPeriod, getAgendamentosByConsultor, createAgendamento, updateAgendamento, deleteAgendamento,
+  getAgendamentosByPeriod, getAgendamentosByConsultor, createAgendamento, updateAgendamento, deleteAgendamento, getAgendamentoById,
   getMetricasByPeriod, getAllMetricas, createMetrica, updateMetrica, deleteMetrica,
   getDespesasByPeriod, createDespesa, updateDespesa, deleteDespesa,
   getAllColaboradores, createColaborador, updateColaborador, deleteColaborador,
@@ -392,6 +392,7 @@ export const appRouter = router({
         servicos: z.array(z.string()).optional(),
         formaPagamento: z.string().optional(),
         resultouVenda: z.boolean().optional(),
+        vaiFechar: z.boolean().optional(),
         comprovanteUrl: z.string().optional(),
         observacoes: z.string().optional(),
         clienteTelefone: z.string().optional(),
@@ -403,6 +404,52 @@ export const appRouter = router({
         if (data.valorColetado !== undefined) updateData.valorColetado = String(data.valorColetado);
         if (data.valorFaturado !== undefined) updateData.valorFaturado = String(data.valorFaturado);
         await updateAgendamento(id, updateData as Parameters<typeof updateAgendamento>[1]);
+
+        // Mover lead no pipeline automaticamente quando vaiFechar ou resultouVenda muda
+        if (data.vaiFechar === true || data.resultouVenda === true) {
+          try {
+            const colunas = await getColunasPipeline();
+            // Buscar o agendamento para obter nome do cliente
+            const db = await getDb();
+            if (db && colunas.length > 0) {
+              // Determinar coluna destino
+              let colunaDestino: typeof colunas[0] | undefined;
+              if (data.resultouVenda === true) {
+                // Coluna "Venda Realizada"
+                colunaDestino = colunas.find(c => c.nome.toLowerCase().includes("venda realizada") || c.nome.toLowerCase().includes("vendas realizadas"));
+              } else if (data.vaiFechar === true) {
+                // Coluna "Vai Fechar"
+                colunaDestino = colunas.find(c => c.nome.toLowerCase().includes("vai fechar"));
+              }
+
+              if (colunaDestino) {
+                // Buscar leads para encontrar o lead deste cliente
+                const todosLeads = await getAllLeads();
+                // Identificar coluna de origem (Novos Agendamentos)
+                const colunaOrigem = colunas.find(c =>
+                  c.nome.toLowerCase().includes("novo") ||
+                  c.nome.toLowerCase().includes("agendamento") ||
+                  c.nome.toLowerCase().includes("lead")
+                );
+                // Buscar o agendamento para obter o nome do cliente
+                const ag = await getAgendamentoById(id);
+                if (ag) {
+                  // Encontrar lead correspondente: mesmo nome na coluna de origem
+                  const leadCorrespondente = todosLeads.find(l =>
+                    l.nome.toLowerCase() === ag.clienteNome.toLowerCase() &&
+                    (colunaOrigem ? l.colunaId === colunaOrigem.id : true)
+                  );
+                  if (leadCorrespondente && leadCorrespondente.colunaId !== colunaDestino.id) {
+                    await updateLead(leadCorrespondente.id, { colunaId: colunaDestino.id });
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.warn("[agendamentos.update] Falha ao mover lead no pipeline:", e);
+          }
+        }
+
         return { success: true };
       }),
     delete: adminProcedure

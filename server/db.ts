@@ -251,6 +251,13 @@ export async function deleteAgendamento(id: number) {
   await db.delete(agendamentos).where(eq(agendamentos.id, id));
 }
 
+export async function getAgendamentoById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(agendamentos).where(eq(agendamentos.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+
 // ─── Métricas de Tráfego ─────────────────────────────────────────────────────
 
 export async function getMetricasByPeriod(mes: number, ano: number) {

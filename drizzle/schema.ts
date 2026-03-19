@@ -103,6 +103,7 @@ export const agendamentos = mysqlTable("agendamentos", {
   servicos: json("servicos").$type<string[]>(),
   formaPagamento: varchar("formaPagamento", { length: 50 }),
   resultouVenda: boolean("resultouVenda").default(false),
+  vaiFechar: boolean("vaiFechar").default(false),
   comprovanteUrl: text("comprovanteUrl"),
   observacoes: text("observacoes"),
   origem: mysqlEnum("origem", ["admin", "publico"]).default("admin").notNull(),

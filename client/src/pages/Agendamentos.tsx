@@ -191,6 +191,12 @@ export default function Agendamentos() {
                             </div>
                           )}
                         </div>
+                        {(ag as any).vaiFechar && !ag.resultouVenda && (
+                          <div className="mt-1.5 flex items-center gap-2 text-xs text-violet-600">
+                            <span>🤝</span>
+                            Vai fechar
+                          </div>
+                        )}
                         {ag.resultouVenda && (
                           <div className="mt-1.5 flex items-center gap-2 text-xs text-blue-600">
                             <CheckCircle className="w-3 h-3" />
@@ -199,7 +205,7 @@ export default function Agendamentos() {
                         )}
                       </div>
                       <div className="flex gap-1.5">
-                        <Dialog open={openEdit?.id === ag.id} onOpenChange={(o) => { setOpenEdit(o ? ag : null); setEditForm({ status: ag.status, observacoes: ag.observacoes || "", valorColetado: ag.valorColetado || "", valorFaturado: ag.valorFaturado || "", resultouVenda: ag.resultouVenda || false }); }}>
+                        <Dialog open={openEdit?.id === ag.id} onOpenChange={(o) => { setOpenEdit(o ? ag : null); setEditForm({ status: ag.status, observacoes: ag.observacoes || "", valorColetado: ag.valorColetado || "", valorFaturado: ag.valorFaturado || "", resultouVenda: ag.resultouVenda || false, vaiFechar: (ag as any).vaiFechar || false }); }}>
                           <DialogTrigger asChild>
                             <Button variant="outline" size="sm" className="h-8 w-8 p-0">
                               <Edit2 className="w-3.5 h-3.5" />
@@ -228,7 +234,11 @@ export default function Agendamentos() {
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                <input type="checkbox" id="resultouVenda" checked={editForm.resultouVenda} onChange={e => setEditForm({ ...editForm, resultouVenda: e.target.checked })} />
+                                <input type="checkbox" id="vaiFechar" checked={editForm.vaiFechar || false} onChange={e => setEditForm({ ...editForm, vaiFechar: e.target.checked, resultouVenda: e.target.checked ? false : editForm.resultouVenda })} />
+                                <Label htmlFor="vaiFechar" className="text-violet-700 font-medium">🤝 Vai Fechar</Label>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <input type="checkbox" id="resultouVenda" checked={editForm.resultouVenda} onChange={e => setEditForm({ ...editForm, resultouVenda: e.target.checked, vaiFechar: e.target.checked ? false : editForm.vaiFechar })} />
                                 <Label htmlFor="resultouVenda">Resultou em venda</Label>
                               </div>
                               <div>
