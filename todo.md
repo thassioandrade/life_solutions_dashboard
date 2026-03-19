@@ -211,3 +211,15 @@
 - [x] Alerta no Dashboard Admin: banner roxo de promessas vencendo hoje com nome, telefone e consultora
 - [ ] Integração com agendamento: botão "Registrar Promessa" no modal de agendamento
 - [x] Navegação: "Promessas de Pgto" no sidebar para Admin e Consultor
+
+## Botão Vai Fechar e Exportação Excel de Serviços
+- [x] Schema: adicionar campo horarioPromessa (varchar HH:MM) na tabela promessas_pagamento
+- [x] Backend: atualizar router promessas.create e update para aceitar horarioPromessa
+- [x] Backend: hook usePromessaAlarm verifica a cada 30s se há promessa no horário atual
+- [x] PainelConsultor: botão "Vai Fechar" no modal de agendamento com campo data+horário
+- [x] PainelConsultor: ao clicar em Vai Fechar, cria promessa automaticamente e fecha modal
+- [x] Alarme em tempo real: overlay pulsante com nome, telefone e valor + som ao disparar
+- [x] Painel Consultor: botão exportar Excel de Limpa Nome (nome, CPF, telefone)
+- [x] Painel Consultor: botão exportar Excel de Rating Bancário (nome, CPF, telefone)
+- [x] Dashboard Admin: botão exportar Excel de Limpa Nome (nome, CPF, telefone, consultora)
+- [x] Dashboard Admin: botão exportar Excel de Rating Bancário (nome, CPF, telefone, consultora)

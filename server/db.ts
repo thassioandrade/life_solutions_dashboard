@@ -805,6 +805,7 @@ export async function createPromessa(data: {
   clienteTelefone?: string;
   clienteCpfCnpj?: string;
   dataPromessa: string; // YYYY-MM-DD
+  horarioPromessa?: string; // HH:MM
   valor?: number;
   observacoes?: string;
   consultorId?: number;
@@ -817,6 +818,7 @@ export async function createPromessa(data: {
     clienteTelefone: data.clienteTelefone,
     clienteCpfCnpj: data.clienteCpfCnpj,
     dataPromessa: new Date(data.dataPromessa + "T12:00:00"),
+    horarioPromessa: data.horarioPromessa,
     observacoes: data.observacoes,
     consultorId: data.consultorId,
     agendamentoId: data.agendamentoId,
@@ -829,6 +831,7 @@ export async function updatePromessa(id: number, data: Partial<{
   clienteTelefone: string;
   clienteCpfCnpj: string;
   dataPromessa: string;
+  horarioPromessa: string;
   valor: number;
   observacoes: string;
   status: string;

@@ -120,6 +120,44 @@ export default function ServicosVendidos() {
     XLSX.writeFile(wb, `servicos_vendidos_${MESES[mes-1]}_${ano}.xlsx`);
   }
 
+  function exportarLimpaExcel() {
+    const rows = stats.clientesComServico
+      .filter(v => (v.servicos as string[] | null)?.some(s => s.toLowerCase().includes("limpa")))
+      .map(v => {
+        const consultor = consultores?.find(c => c.id === v.consultorId);
+        return {
+          "Nome do Cliente": v.clienteNome,
+          "CPF/CNPJ": v.clienteCpfCnpj || "",
+          "Telefone": v.clienteTelefone || "",
+          "Serviço": "Limpa Nome",
+          "Data da Venda": new Date(v.dataVenda).toLocaleDateString("pt-BR"),
+          "Consultora": consultor?.nome || "",
+        };
+      });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Limpa Nome");
+    XLSX.writeFile(wb, `limpa-nome-${MESES[mes-1]}-${ano}.xlsx`);
+  }
+  function exportarRatingExcel() {
+    const rows = stats.clientesComServico
+      .filter(v => (v.servicos as string[] | null)?.some(s => s.toLowerCase().includes("rating")))
+      .map(v => {
+        const consultor = consultores?.find(c => c.id === v.consultorId);
+        return {
+          "Nome do Cliente": v.clienteNome,
+          "CPF/CNPJ": v.clienteCpfCnpj || "",
+          "Telefone": v.clienteTelefone || "",
+          "Serviço": "Rating Bancário",
+          "Data da Venda": new Date(v.dataVenda).toLocaleDateString("pt-BR"),
+          "Consultora": consultor?.nome || "",
+        };
+      });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Rating Bancário");
+    XLSX.writeFile(wb, `rating-bancario-${MESES[mes-1]}-${ano}.xlsx`);
+  }
   function exportarDevedoresExcel() {
     const rows = devedoresFiltrados.flatMap(d =>
       d.parcelas.map(p => {
@@ -221,10 +259,20 @@ export default function ServicosVendidos() {
                 <CardTitle className="text-sm font-semibold text-gray-700">
                   Clientes com Limpa Nome / Rating — {MESES[mes-1]} {ano}
                 </CardTitle>
-                <Button size="sm" onClick={exportarExcel} className="text-white text-xs gap-1.5" style={{ background: "#0055FF" }}>
-                  <Download className="w-3.5 h-3.5" />
-                  Exportar Excel
-                </Button>
+                <div className="flex gap-2 flex-wrap">
+                  <Button size="sm" onClick={exportarLimpaExcel} className="text-white text-xs gap-1.5 bg-indigo-600 hover:bg-indigo-700">
+                    <Download className="w-3.5 h-3.5" />
+                    Limpa Nome
+                  </Button>
+                  <Button size="sm" onClick={exportarRatingExcel} className="text-white text-xs gap-1.5 bg-violet-600 hover:bg-violet-700">
+                    <Download className="w-3.5 h-3.5" />
+                    Rating
+                  </Button>
+                  <Button size="sm" onClick={exportarExcel} className="text-white text-xs gap-1.5" style={{ background: "#0055FF" }}>
+                    <Download className="w-3.5 h-3.5" />
+                    Todos
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>

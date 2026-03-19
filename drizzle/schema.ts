@@ -245,6 +245,7 @@ export const promessasPagamento = mysqlTable("promessas_pagamento", {
   clienteTelefone: varchar("clienteTelefone", { length: 30 }),
   clienteCpfCnpj: varchar("clienteCpfCnpj", { length: 20 }),
   dataPromessa: date("dataPromessa").notNull(),
+  horarioPromessa: varchar("horarioPromessa", { length: 5 }), // HH:MM
   valor: decimal("valor", { precision: 10, scale: 2 }),
   observacoes: text("observacoes"),
   consultorId: int("consultorId"),

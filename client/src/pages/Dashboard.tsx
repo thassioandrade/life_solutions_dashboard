@@ -7,10 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   DollarSign, TrendingUp, Users, CalendarDays,
   ChevronLeft, ChevronRight, ArrowUpCircle, ArrowDownCircle,
-  Wallet, CreditCard, AlertCircle, CheckCircle2, Bell, Phone
+  Wallet, CreditCard, AlertCircle, CheckCircle2, Bell, Phone, Download
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
+import * as XLSX from "xlsx";
 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -66,6 +67,29 @@ export default function Dashboard() {
   const { data: stats, isLoading } = trpc.dashboard.stats.useQuery({ mes, ano });
   const { data: consultores } = trpc.consultores.list.useQuery();
   const { data: promessasHoje } = trpc.promessas.hoje.useQuery();
+  const { data: servicosVendidos } = trpc.servicosVendidos.byPeriodo.useQuery({ mes, ano });
+
+  const qtdLimpaAdmin = (servicosVendidos || []).filter(v => (v.servicos as string[] | null)?.some(s => s.toLowerCase().includes("limpa"))).length;
+  const qtdRatingAdmin = (servicosVendidos || []).filter(v => (v.servicos as string[] | null)?.some(s => s.toLowerCase().includes("rating"))).length;
+
+  function exportarLimpaExcel() {
+    const rows = (servicosVendidos || []).filter(v => (v.servicos as string[] | null)?.some(s => s.toLowerCase().includes("limpa"))).map(v => {
+      const consultor = consultores?.find(c => c.id === v.consultorId);
+      return { "Nome do Cliente": v.clienteNome, "CPF/CNPJ": v.clienteCpfCnpj || "", "Telefone": v.clienteTelefone || "", "Serviço": "Limpa Nome", "Data da Venda": new Date(v.dataVenda).toLocaleDateString("pt-BR"), "Consultora": consultor?.nome || "" };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Limpa Nome");
+    XLSX.writeFile(wb, `limpa-nome-${MESES[mes-1]}-${ano}.xlsx`);
+  }
+  function exportarRatingExcel() {
+    const rows = (servicosVendidos || []).filter(v => (v.servicos as string[] | null)?.some(s => s.toLowerCase().includes("rating"))).map(v => {
+      const consultor = consultores?.find(c => c.id === v.consultorId);
+      return { "Nome do Cliente": v.clienteNome, "CPF/CNPJ": v.clienteCpfCnpj || "", "Telefone": v.clienteTelefone || "", "Serviço": "Rating Bancário", "Data da Venda": new Date(v.dataVenda).toLocaleDateString("pt-BR"), "Consultora": consultor?.nome || "" };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Rating Bancário");
+    XLSX.writeFile(wb, `rating-bancario-${MESES[mes-1]}-${ano}.xlsx`);
+  }
 
   const handlePrevMes = () => {
     if (mes === 1) { setMes(12); setAno(ano - 1); } else setMes(mes - 1);
@@ -146,6 +170,39 @@ export default function Dashboard() {
               <MetricCard title="A Receber" value={formatCurrency(stats.totalParcelasPendentes)} subtitle="Parcelas pendentes" icon={CreditCard} color="amber" />
               <MetricCard title="Comissões" value={formatCurrency(stats.totalComissoes)} subtitle="A pagar consultores" icon={Users} color="purple" />
             </div>
+            {/* Serviços vendidos com exportação Excel */}
+            {(qtdLimpaAdmin > 0 || qtdRatingAdmin > 0) && (
+              <div className="grid grid-cols-2 gap-3">
+                {qtdLimpaAdmin > 0 && (
+                  <div className="rounded-xl p-3 border bg-indigo-50 border-indigo-200">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-base">🧹</div>
+                      <div>
+                        <p className="text-sm font-bold text-indigo-700">{qtdLimpaAdmin}x Limpa Nome</p>
+                        <p className="text-xs text-indigo-500">{MESES[mes-1]} {ano}</p>
+                      </div>
+                    </div>
+                    <Button size="sm" onClick={exportarLimpaExcel} className="w-full text-white text-xs gap-1.5 bg-indigo-600 hover:bg-indigo-700">
+                      <Download className="w-3.5 h-3.5" /> Exportar Excel Jurídico
+                    </Button>
+                  </div>
+                )}
+                {qtdRatingAdmin > 0 && (
+                  <div className="rounded-xl p-3 border bg-violet-50 border-violet-200">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center text-base">⭐</div>
+                      <div>
+                        <p className="text-sm font-bold text-violet-700">{qtdRatingAdmin}x Rating Bancário</p>
+                        <p className="text-xs text-violet-500">{MESES[mes-1]} {ano}</p>
+                      </div>
+                    </div>
+                    <Button size="sm" onClick={exportarRatingExcel} className="w-full text-white text-xs gap-1.5 bg-violet-600 hover:bg-violet-700">
+                      <Download className="w-3.5 h-3.5" /> Exportar Excel Jurídico
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Financial summary */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

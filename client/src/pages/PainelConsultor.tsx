@@ -1,4 +1,6 @@
 import { useState, useRef, useMemo } from "react";
+import { usePromessaAlarm } from "@/hooks/usePromessaAlarm";
+import * as XLSX from "xlsx";
 import LifeDashboardLayout from "@/components/LifeDashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -103,6 +105,9 @@ export default function PainelConsultor() {
   const [uploadingComprovante, setUploadingComprovante] = useState(false);
   const [abaPainel, setAbaPainel] = useState<"agenda" | "parcelas" | "devedores">("agenda");
   const [filtroParcelas, setFiltroParcelas] = useState<"todas" | "pendentes" | "pagas" | "atrasadas">("todas");
+  const [modalPromessaAberto, setModalPromessaAberto] = useState(false);
+  const [promessaData, setPromessaData] = useState({ dataPromessa: "", horarioPromessa: "", valor: "", observacoes: "" });
+  const [salvandoPromessa, setSalvandoPromessa] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [venda, setVenda] = useState<ModalVendaState>({
@@ -173,6 +178,36 @@ export default function PainelConsultor() {
     onSuccess: () => utils.parcelasCompletas.byConsultor.invalidate(),
     onError: (e) => toast.error("Erro: " + e.message),
   });
+  const createPromessaMutation = trpc.promessas.create.useMutation({
+    onSuccess: () => {
+      utils.promessas.hojeByConsultor.invalidate();
+      toast.success("Promessa registrada! Alarme configurado para " + promessaData.dataPromessa + (promessaData.horarioPromessa ? " às " + promessaData.horarioPromessa : ""));
+      setModalPromessaAberto(false);
+      setModalAberto(false);
+      setPromessaData({ dataPromessa: "", horarioPromessa: "", valor: "", observacoes: "" });
+    },
+    onError: (e) => toast.error("Erro ao registrar promessa: " + e.message),
+  });
+  async function handleSalvarPromessa() {
+    if (!promessaData.dataPromessa) { toast.error("Informe a data da promessa"); return; }
+    if (!agSelecionado) return;
+    setSalvandoPromessa(true);
+    try {
+      await createPromessaMutation.mutateAsync({
+        clienteNome: agSelecionado.clienteNome,
+        clienteTelefone: agSelecionado.clienteTelefone || undefined,
+        clienteCpfCnpj: agSelecionado.clienteCpfCnpj || undefined,
+        dataPromessa: promessaData.dataPromessa,
+        horarioPromessa: promessaData.horarioPromessa || undefined,
+        valor: promessaData.valor ? parseFloat(promessaData.valor) : undefined,
+        observacoes: promessaData.observacoes || undefined,
+        consultorId: consultor?.id,
+        agendamentoId: agSelecionado.id,
+      });
+    } finally {
+      setSalvandoPromessa(false);
+    }
+  }
 
   // Métricas
   const totalColetado = vendas?.reduce((s, v) => s + parseFloat(String(v.valorColetado || 0)), 0) || 0;
@@ -239,6 +274,9 @@ export default function PainelConsultor() {
   const qtdDevedores = devedores.length;
   const qtdVencendoHoje = parcelasVencendo?.filter(p => p.consultorId === consultor?.id).length || 0;
   const qtdPromessasHoje = promessasHoje?.length || 0;
+
+  // Alarme em tempo real para promessas no horário
+  const { alarmeAtivo, dispensarAlarme, dispensarTodos } = usePromessaAlarm(promessasHoje);
 
   const diasNoMes = getDiasNoMes(ano, mes);
   const primeiroDia = getPrimeiroDiaSemana(ano, mes);
@@ -368,6 +406,49 @@ export default function PainelConsultor() {
   return (
     <LifeDashboardLayout title="Meu Painel">
       <div className="space-y-6">
+        {/* Alarme de Promessa - Overlay pulsante */}
+        {alarmeAtivo.length > 0 && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-in fade-in">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-4 overflow-hidden border-4 border-violet-500">
+              <div className="bg-violet-600 px-6 py-4 text-white text-center">
+                <div className="text-3xl mb-1">⏰</div>
+                <h2 className="text-xl font-bold">Hora de Ligar!</h2>
+                <p className="text-violet-200 text-sm">Promessa de fechamento agora</p>
+              </div>
+              <div className="p-5 space-y-3">
+                {alarmeAtivo.map(p => (
+                  <div key={p.id} className="bg-violet-50 border border-violet-200 rounded-xl p-4">
+                    <p className="font-bold text-gray-900 text-lg">{p.clienteNome}</p>
+                    {p.clienteTelefone && (
+                      <a href={`tel:${p.clienteTelefone}`} className="flex items-center gap-2 mt-1 text-blue-600 font-bold text-base hover:underline">
+                        📞 {p.clienteTelefone}
+                      </a>
+                    )}
+                    {p.valor && (
+                      <p className="text-emerald-700 font-semibold text-sm mt-1">
+                        Valor estimado: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(parseFloat(p.valor))}
+                      </p>
+                    )}
+                    {p.observacoes && (
+                      <p className="text-gray-500 text-xs mt-1 italic">{p.observacoes}</p>
+                    )}
+                    <button
+                      onClick={() => dispensarAlarme(p.id)}
+                      className="mt-3 w-full py-2 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors"
+                    >
+                      ✔ Entendido, vou ligar!
+                    </button>
+                  </div>
+                ))}
+                {alarmeAtivo.length > 1 && (
+                  <button onClick={dispensarTodos} className="w-full py-2 text-sm text-gray-500 hover:text-gray-700">
+                    Dispensar todos
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
@@ -453,21 +534,63 @@ export default function PainelConsultor() {
             {(qtdLimpaName > 0 || qtdRating > 0) && (
               <div className="grid grid-cols-2 gap-3">
                 {qtdLimpaName > 0 && (
-                  <div className="rounded-xl p-3 border bg-indigo-50 border-indigo-200 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-lg">🧹</div>
-                    <div>
-                      <p className="text-sm font-bold text-indigo-700">{qtdLimpaName}x Limpa Nome</p>
-                      <p className="text-xs text-indigo-500">Custo: {formatCurrency(qtdLimpaName * custoLimpaName)}</p>
+                  <div className="rounded-xl p-3 border bg-indigo-50 border-indigo-200">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-lg">🧹</div>
+                      <div>
+                        <p className="text-sm font-bold text-indigo-700">{qtdLimpaName}x Limpa Nome</p>
+                        <p className="text-xs text-indigo-500">Custo: {formatCurrency(qtdLimpaName * custoLimpaName)}</p>
+                      </div>
                     </div>
+                    <button
+                      onClick={() => {
+                        const clientes = vendas?.filter(v => (v.servicos as string[] | null)?.some(s => s.toLowerCase().includes("limpa"))).map(v => ({
+                          "Nome": v.clienteNome,
+                          "CPF/CNPJ": v.clienteCpfCnpj || "",
+                          "Telefone": v.clienteTelefone || "",
+                          "Serviço": "Limpa Nome",
+                          "Data Venda": new Date(v.dataVenda).toLocaleDateString("pt-BR"),
+                        })) || [];
+                        const ws = XLSX.utils.json_to_sheet(clientes);
+                        const wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, ws, "Limpa Nome");
+                        XLSX.writeFile(wb, `limpa-nome-${MESES[mes-1]}-${ano}.xlsx`);
+                        toast.success("Excel exportado!");
+                      }}
+                      className="w-full py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-100 hover:bg-indigo-200 rounded-lg transition-colors flex items-center justify-center gap-1"
+                    >
+                      📅 Exportar Excel
+                    </button>
                   </div>
                 )}
                 {qtdRating > 0 && (
-                  <div className="rounded-xl p-3 border bg-violet-50 border-violet-200 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center text-lg">⭐</div>
-                    <div>
-                      <p className="text-sm font-bold text-violet-700">{qtdRating}x Rating Bancário</p>
-                      <p className="text-xs text-violet-500">Custo: {formatCurrency(qtdRating * custoRating)}</p>
+                  <div className="rounded-xl p-3 border bg-violet-50 border-violet-200">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center text-lg">⭐</div>
+                      <div>
+                        <p className="text-sm font-bold text-violet-700">{qtdRating}x Rating Bancário</p>
+                        <p className="text-xs text-violet-500">Custo: {formatCurrency(qtdRating * custoRating)}</p>
+                      </div>
                     </div>
+                    <button
+                      onClick={() => {
+                        const clientes = vendas?.filter(v => (v.servicos as string[] | null)?.some(s => s.toLowerCase().includes("rating"))).map(v => ({
+                          "Nome": v.clienteNome,
+                          "CPF/CNPJ": v.clienteCpfCnpj || "",
+                          "Telefone": v.clienteTelefone || "",
+                          "Serviço": "Rating Bancário",
+                          "Data Venda": new Date(v.dataVenda).toLocaleDateString("pt-BR"),
+                        })) || [];
+                        const ws = XLSX.utils.json_to_sheet(clientes);
+                        const wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, ws, "Rating Bancário");
+                        XLSX.writeFile(wb, `rating-bancario-${MESES[mes-1]}-${ano}.xlsx`);
+                        toast.success("Excel exportado!");
+                      }}
+                      className="w-full py-1.5 text-xs font-semibold text-violet-700 bg-violet-100 hover:bg-violet-200 rounded-lg transition-colors flex items-center justify-center gap-1"
+                    >
+                      📅 Exportar Excel
+                    </button>
                   </div>
                 )}
               </div>
@@ -972,8 +1095,93 @@ export default function PainelConsultor() {
 
             <div className="flex gap-2 pt-2">
               <Button variant="outline" className="flex-1" onClick={() => setModalAberto(false)}>Cancelar</Button>
+              <Button
+                variant="outline"
+                className="flex-1 border-violet-300 text-violet-700 hover:bg-violet-50"
+                onClick={() => {
+                  setPromessaData({ dataPromessa: "", horarioPromessa: "", valor: "", observacoes: "" });
+                  setModalPromessaAberto(true);
+                }}
+              >
+                📌 Vai Fechar
+              </Button>
               <Button className="flex-1 text-white" style={{ background: "#0055FF" }} onClick={handleSalvar} disabled={salvando}>
                 {salvando ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Salvando...</> : "Salvar"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Vai Fechar - Promessa de Pagamento */}
+      <Dialog open={modalPromessaAberto} onOpenChange={setModalPromessaAberto}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-violet-800">
+              📌 Registrar Promessa de Fechamento
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            <div className="bg-violet-50 border border-violet-200 rounded-lg p-3">
+              <p className="text-sm font-semibold text-violet-800">{agSelecionado?.clienteNome}</p>
+              {agSelecionado?.clienteTelefone && (
+                <p className="text-xs text-violet-600 mt-0.5">📞 {agSelecionado.clienteTelefone}</p>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs font-semibold text-gray-600 mb-1 block">Data do fechamento *</Label>
+                <Input
+                  type="date"
+                  value={promessaData.dataPromessa}
+                  onChange={e => setPromessaData(p => ({ ...p, dataPromessa: e.target.value }))}
+                  className="text-sm"
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-gray-600 mb-1 block">Horário do alarme</Label>
+                <Input
+                  type="time"
+                  value={promessaData.horarioPromessa}
+                  onChange={e => setPromessaData(p => ({ ...p, horarioPromessa: e.target.value }))}
+                  className="text-sm"
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs font-semibold text-gray-600 mb-1 block">Valor estimado (R$)</Label>
+              <Input
+                type="number"
+                placeholder="0,00"
+                value={promessaData.valor}
+                onChange={e => setPromessaData(p => ({ ...p, valor: e.target.value }))}
+                className="text-sm"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold text-gray-600 mb-1 block">Observações</Label>
+              <Textarea
+                placeholder="O que o cliente disse? Qual o motivo do retorno?"
+                value={promessaData.observacoes}
+                onChange={e => setPromessaData(p => ({ ...p, observacoes: e.target.value }))}
+                className="text-sm resize-none"
+                rows={2}
+              />
+            </div>
+            {promessaData.horarioPromessa && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-xs text-amber-800">
+                ⏰ Um alarme tocará em <strong>{promessaData.dataPromessa} às {promessaData.horarioPromessa}</strong> para lembrar de ligar e fechar a venda!
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setModalPromessaAberto(false)}>Cancelar</Button>
+              <Button
+                className="flex-1 text-white bg-violet-600 hover:bg-violet-700"
+                onClick={handleSalvarPromessa}
+                disabled={salvandoPromessa || !promessaData.dataPromessa}
+              >
+                {salvandoPromessa ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Salvando...</> : "📌 Registrar Promessa"}
               </Button>
             </div>
           </div>

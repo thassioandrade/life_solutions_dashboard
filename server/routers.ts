@@ -777,6 +777,7 @@ export const appRouter = router({
         clienteTelefone: z.string().optional(),
         clienteCpfCnpj: z.string().optional(),
         dataPromessa: z.string(),
+        horarioPromessa: z.string().optional(), // HH:MM
         valor: z.number().optional(),
         observacoes: z.string().optional(),
         consultorId: z.number().optional(),
@@ -793,6 +794,7 @@ export const appRouter = router({
         clienteTelefone: z.string().optional(),
         clienteCpfCnpj: z.string().optional(),
         dataPromessa: z.string().optional(),
+        horarioPromessa: z.string().optional(),
         valor: z.number().optional(),
         observacoes: z.string().optional(),
         status: z.string().optional(),
