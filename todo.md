@@ -316,3 +316,16 @@
 - [x] Adicionado botão de edição (Edit2) na lista de vendas do Consultor (PainelConsultor.tsx)
 - [x] Adicionado modal de edição completo no Consultor com todos os campos
 - [x] Backend: procedure vendas.update expandido para aceitar todos os campos (servicos, consultorId, custoServico, comissaoPercent, dataVenda, tipo)
+
+## Migração de Dados: Preencher campo servicos nas vendas existentes (Mar 2026)
+- [ ] Atualizar campo servicos de todas as vendas com base no custoServico já salvo (70=limpa_nome, 110=rating, 180=ambos)
+
+## Aba Prazo de Serviços (Mar 2026)
+- [x] Backend: procedure vendas.listPrazos — lista vendas ativas com dataVenda e dias decorridos
+- [x] Frontend: página PrazoServicos.tsx com lista de clientes, data início, dias decorridos, status
+- [x] Frontend: alerta visual por cor (verde ok, amarelo 5 dias restantes, vermelho atrasado)
+- [x] Frontend: barra de progresso visual por cliente
+- [x] Frontend: cards de resumo (fora do prazo, vencendo em breve, no prazo)
+- [x] Frontend: busca por cliente ou consultora
+- [x] Frontend: atualiza automaticamente a cada 1 minuto
+- [x] Menu lateral: aba "Prazo de Serviços" (Timer) para Admin e Consultoras

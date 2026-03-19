@@ -30,6 +30,7 @@ import {
   ChevronDown,
   Pencil,
   Check,
+  Timer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -56,6 +57,7 @@ const navItems = [
   { href: "/vendas", label: "Vendas", icon: DollarSign, adminOnly: false },
   { href: "/parcelas", label: "Parcelas Pendentes", icon: CreditCard, adminOnly: true },
   { href: "/servicos-vendidos", label: "Serviços Vendidos", icon: FileText, adminOnly: false },
+  { href: "/prazo-servicos", label: "Prazo de Serviços", icon: Timer, adminOnly: false },
   { href: "/promessas", label: "Promessas de Pgto", icon: Bell, adminOnly: false },
   { href: "/ranking", label: "Ranking", icon: Trophy, adminOnly: false },
   { href: "/despesas", label: "Despesas", icon: Receipt, adminOnly: true },

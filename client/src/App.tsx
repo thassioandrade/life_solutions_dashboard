@@ -19,6 +19,7 @@ import Parcelas from "./pages/Parcelas";
 import ServicosVendidos from "./pages/ServicosVendidos";
 import Promessas from "./pages/Promessas";
 import Ranking from "./pages/Ranking";
+import PrazoServicos from "./pages/PrazoServicos";
 
 function Router() {
   return (
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/vendas" component={Vendas} />
       <Route path="/parcelas" component={Parcelas} />
       <Route path="/servicos-vendidos" component={ServicosVendidos} />
+      <Route path="/prazo-servicos" component={PrazoServicos} />
       <Route path="/promessas" component={Promessas} />
       <Route path="/ranking" component={Ranking} />
       <Route path="/404" component={NotFound} />

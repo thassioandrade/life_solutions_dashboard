@@ -1,0 +1,114 @@
+{
+  "query": "SELECT id, clienteNome, custoServico, servicos, valorColetado, valorFaturado FROM vendas ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute SELECT id, clienteNome, custoServico, servicos, valorColetado, valorFaturado FROM vendas ORDER BY id;",
+  "rows": [
+    {
+      "id": "60001",
+      "clienteNome": "Liz Pereira Barbosa Junior ",
+      "custoServico": "1500.00",
+      "servicos": "NULL",
+      "valorColetado": "1500.00",
+      "valorFaturado": "1500.00"
+    },
+    {
+      "id": "60002",
+      "clienteNome": "Everton Antonio de Oliveira ",
+      "custoServico": "0.00",
+      "servicos": "NULL",
+      "valorColetado": "1500.00",
+      "valorFaturado": "1500.00"
+    },
+    {
+      "id": "60003",
+      "clienteNome": "Cauan Jose schwanz",
+      "custoServico": "0.00",
+      "servicos": "NULL",
+      "valorColetado": "300.00",
+      "valorFaturado": "1500.00"
+    },
+    {
+      "id": "60004",
+      "clienteNome": "Gabriel Rocha Silva ",
+      "custoServico": "0.00",
+      "servicos": "NULL",
+      "valorColetado": "550.00",
+      "valorFaturado": "550.00"
+    },
+    {
+      "id": "60005",
+      "clienteNome": "Eduardo Vinicius Sampaio carvalho Matias",
+      "custoServico": "0.00",
+      "servicos": "NULL",
+      "valorColetado": "750.00",
+      "valorFaturado": "1500.00"
+    },
+    {
+      "id": "60006",
+      "clienteNome": "Dardane Soares Gomes",
+      "custoServico": "0.00",
+      "servicos": "NULL",
+      "valorColetado": "500.00",
+      "valorFaturado": "1500.00"
+    },
+    {
+      "id": "60007",
+      "clienteNome": "Ozito Ferreira Peçanha",
+      "custoServico": "0.00",
+      "servicos": "NULL",
+      "valorColetado": "650.00",
+      "valorFaturado": "1500.00"
+    },
+    {
+      "id": "60008",
+      "clienteNome": "Edilaine Freitas Dias Oliveira",
+      "custoServico": "0.00",
+      "servicos": "NULL",
+      "valorColetado": "650.00",
+      "valorFaturado": "1500.00"
+    },
+    {
+      "id": "60009",
+      "clienteNome": "Michele Nunes Bezerra",
+      "custoServico": "0.00",
+      "servicos": "NULL",
+      "valorColetado": "500.00",
+      "valorFaturado": "1500.00"
+    },
+    {
+      "id": "60010",
+      "clienteNome": "Osmário Santos de Melo Junior",
+      "custoServico": "0.00",
+      "servicos": "NULL",
+      "valorColetado": "500.00",
+      "valorFaturado": "1500.00"
+    },
+    {
+      "id": "60011",
+      "clienteNome": "Anderson Barreto Santos ",
+      "custoServico": "0.00",
+      "servicos": "NULL",
+      "valorColetado": "600.00",
+      "valorFaturado": "1500.00"
+    },
+    {
+      "id": "90001",
+      "clienteNome": "Luiz Pereira Barbosa Junior",
+      "custoServico": "0.00",
+      "servicos": "NULL",
+      "valorColetado": "1500.00",
+      "valorFaturado": "1500.00"
+    },
+    {
+      "id": "90002",
+      "clienteNome": "Lenaldo Gama Santos Junior ",
+      "custoServico": "0.00",
+      "servicos": "NULL",
+      "valorColetado": "400.00",
+      "valorFaturado": "400.00"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclienteNome\tcustoServico\tservicos\tvalorColetado\tvalorFaturado\n60001\tLiz Pereira Barbosa Junior \t1500.00\tNULL\t1500.00\t1500.00\n60002\tEverton Antonio de Oliveira \t0.00\tNULL\t1500.00\t1500.00\n60003\tCauan Jose schwanz\t0.00\tNULL\t300.00\t1500.00\n60004\tGabriel Rocha Silva \t0.00\tNULL\t550.00\t550.00\n60005\tEduardo Vinicius Sampaio carvalho Matias\t0.00\tNULL\t750.00\t1500.00\n60006\tDardane Soares Gomes\t0.00\tNULL\t500.00\t1500.00\n60007\tOzito Ferreira Peçanha\t0.00\tNULL\t650.00\t1500.00\n60008\tEdilaine Freitas Dias Oliveira\t0.00\tNULL\t650.00\t1500.00\n60009\tMichele Nunes Bezerra\t0.00\tNULL\t500.00\t1500.00\n60010\tOsmário Santos de Melo Junior\t0.00\tNULL\t500.00\t1500.00\n60011\tAnderson Barreto Santos \t0.00\tNULL\t600.00\t1500.00\n90001\tLuiz Pereira Barbosa Junior\t0.00\tNULL\t1500.00\t1500.00\n90002\tLenaldo Gama Santos Junior \t0.00\tNULL\t400.00\t400.00\n",
+  "stderr": "",
+  "execution_time_ms": 368
+}

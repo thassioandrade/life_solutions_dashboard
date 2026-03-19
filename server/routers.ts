@@ -293,6 +293,54 @@ export const appRouter = router({
           andFn(gteFn(vendasTable.dataVenda, inicio), lteFn(vendasTable.dataVenda, fim), eqFn(vendasTable.cancelada, true))
         );
       }),
+    listPrazos: protectedProcedure
+      .input(z.object({ consultorId: z.number().optional() }))
+      .query(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) return [];
+        const { vendas: vendasTable, consultores } = await import("../drizzle/schema");
+        const { eq: eqFn, and: andFn, isNull } = await import("drizzle-orm");
+        const hoje = new Date();
+        const PRAZO_DIAS = 25;
+        // Admin vê todas, consultor vê só as suas
+        const isAdmin = ctx.user?.role === "admin";
+        const rows = await db
+          .select({
+            id: vendasTable.id,
+            clienteNome: vendasTable.clienteNome,
+            clienteTelefone: vendasTable.clienteTelefone,
+            dataVenda: vendasTable.dataVenda,
+            servicos: vendasTable.servicos,
+            consultorId: vendasTable.consultorId,
+            consultorNome: consultores.nome,
+            cancelada: vendasTable.cancelada,
+          })
+          .from(vendasTable)
+          .leftJoin(consultores, eqFn(vendasTable.consultorId, consultores.id))
+          .where(
+            andFn(
+              eqFn(vendasTable.cancelada, false),
+              isAdmin ? undefined : (input.consultorId ? eqFn(vendasTable.consultorId, input.consultorId) : undefined)
+            )
+          );
+        const now = hoje.getTime();
+        return rows
+          .filter(r => r.dataVenda)
+          .map(r => {
+            const dataInicio = new Date(r.dataVenda!);
+            const diasDecorridos = Math.floor((now - dataInicio.getTime()) / (1000 * 60 * 60 * 24));
+            const diasRestantes = PRAZO_DIAS - diasDecorridos;
+            const status = diasDecorridos > PRAZO_DIAS ? "atrasado" : diasDecorridos >= PRAZO_DIAS - 5 ? "alerta" : "ok";
+            return {
+              ...r,
+              diasDecorridos,
+              diasRestantes,
+              status,
+              prazo: PRAZO_DIAS,
+            };
+          })
+          .sort((a, b) => b.diasDecorridos - a.diasDecorridos);
+      }),
   }),
 
   parcelas: router({
