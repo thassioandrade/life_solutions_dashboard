@@ -18,6 +18,7 @@ import {
   Bell,
   User,
   FileText,
+  Trophy,
   AlertTriangle,
   StickyNote,
   Save,
@@ -56,6 +57,7 @@ const navItems = [
   { href: "/parcelas", label: "Parcelas Pendentes", icon: CreditCard, adminOnly: true },
   { href: "/servicos-vendidos", label: "Serviços Vendidos", icon: FileText, adminOnly: false },
   { href: "/promessas", label: "Promessas de Pgto", icon: Bell, adminOnly: false },
+  { href: "/ranking", label: "Ranking", icon: Trophy, adminOnly: false },
   { href: "/despesas", label: "Despesas", icon: Receipt, adminOnly: true },
   { href: "/configuracoes", label: "Configurações", icon: Settings, adminOnly: true },
 ];

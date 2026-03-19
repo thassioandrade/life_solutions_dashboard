@@ -18,6 +18,7 @@ import Vendas from "./pages/Vendas";
 import Parcelas from "./pages/Parcelas";
 import ServicosVendidos from "./pages/ServicosVendidos";
 import Promessas from "./pages/Promessas";
+import Ranking from "./pages/Ranking";
 
 function Router() {
   return (
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/parcelas" component={Parcelas} />
       <Route path="/servicos-vendidos" component={ServicosVendidos} />
       <Route path="/promessas" component={Promessas} />
+      <Route path="/ranking" component={Ranking} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

@@ -240,3 +240,15 @@
 - [x] Ao registrar promessa, redirecionar automaticamente para /promessas
 - [x] Coluna fixa "Vai Fechar" criada no Pipeline (exibe promessas pendentes com data, telefone e valor)
 - [x] Admin vê o Pipeline com a coluna Vai Fechar e todas as promessas (mesmo router)
+
+## Comissão Líquida, Despesas e Ranking (Mar 2026)
+- [x] Corrigido cálculo comissão líquida: coletado - custos dos serviços da venda
+- [x] Painel Consultor: comissão líquida correta exibida nos cards
+- [x] Dashboard Admin: comissão líquida correta por consultora
+- [x] Despesas Admin: resumo financeiro completo com gráficos recharts
+- [x] Despesas Admin: aba de custos avulsos (tráfego, consultas, investimentos) com CRUD
+- [x] Despesas Admin: gráficos de desempenho financeiro e por consultora (barras + pizza)
+- [x] Ranking: página visível para Admin e Consultoras (/ranking)
+- [x] Ranking: campos — valor faturado, reuniões feitas, vendas fechadas, % fechamento, coletado
+- [x] Ranking: calcula em tempo real do banco (zera automaticamente na virada do mês)
+- [x] Ranking: confetes + pódio animado + banner de celebração no último dia do mês

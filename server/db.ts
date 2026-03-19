@@ -850,3 +850,80 @@ export async function deletePromessa(id: number) {
   if (!db) return;
   await db.delete(promessasPagamento).where(eq(promessasPagamento.id, id));
 }
+
+// ─── Ranking Automático (calculado em tempo real) ─────────────────────────────
+export async function getRankingAutomatico(mes: number, ano: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const inicio = new Date(ano, mes - 1, 1);
+  const fim = new Date(ano, mes, 0, 23, 59, 59);
+
+  // Buscar todas as vendas do mês com consultores
+  const vendasMes = await db.select({
+    consultorId: vendas.consultorId,
+    valorColetado: vendas.valorColetado,
+    valorFaturado: vendas.valorFaturado,
+    dataVenda: vendas.dataVenda,
+  }).from(vendas).where(and(gte(vendas.dataVenda, inicio), lte(vendas.dataVenda, fim)));
+
+  // Buscar todos os agendamentos do mês
+  const agendsMes = await db.select({
+    consultorId: agendamentos.consultorId,
+    status: agendamentos.status,
+  }).from(agendamentos).where(and(gte(agendamentos.dataHora, inicio), lte(agendamentos.dataHora, fim)));
+
+  // Buscar todos os consultores
+  const consultoresList = await db.select().from(consultores);
+
+  // Agrupar por consultor
+  const map = new Map<number, {
+    consultorId: number;
+    nomeConsultor: string;
+    valorColetado: number;
+    valorFaturado: number;
+    totalVendas: number;
+    totalReunioesFeitas: number;
+    percentualFechamento: number;
+  }>();
+
+  for (const c of consultoresList) {
+    map.set(c.id, {
+      consultorId: c.id,
+      nomeConsultor: c.nome,
+      valorColetado: 0,
+      valorFaturado: 0,
+      totalVendas: 0,
+      totalReunioesFeitas: 0,
+      percentualFechamento: 0,
+    });
+  }
+
+  for (const v of vendasMes) {
+    if (!v.consultorId) continue;
+    const entry = map.get(v.consultorId);
+    if (!entry) continue;
+    entry.valorColetado += parseFloat(String(v.valorColetado || 0));
+    entry.valorFaturado += parseFloat(String(v.valorFaturado || 0));
+    entry.totalVendas += 1;
+  }
+
+  for (const a of agendsMes) {
+    if (!a.consultorId) continue;
+    const entry = map.get(a.consultorId);
+    if (!entry) continue;
+    if (a.status === "realizado") entry.totalReunioesFeitas += 1;
+  }
+
+  // Calcular percentual de fechamento
+  Array.from(map.values()).forEach(entry => {
+    entry.percentualFechamento = entry.totalReunioesFeitas > 0
+      ? Math.round((entry.totalVendas / entry.totalReunioesFeitas) * 100)
+      : 0;
+  });
+
+  // Ordenar por coletado (maior primeiro)
+  return Array.from(map.values())
+    .filter(e => e.totalVendas > 0 || e.totalReunioesFeitas > 0)
+    .sort((a, b) => b.valorColetado - a.valorColetado)
+    .map((e, i) => ({ ...e, posicao: i + 1 }));
+}

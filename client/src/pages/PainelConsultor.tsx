@@ -250,7 +250,9 @@ export default function PainelConsultor() {
   const custoLimpaName = custosServicos?.custo_limpa_nome ?? 70;
   const custoRating = custosServicos?.custo_rating ?? 110;
   const custosDoConsultor = (qtdLimpaName * custoLimpaName) + (qtdRating * custoRating);
-  const comissaoLiquida = comissaoTotal - custosDoConsultor;
+  // Comissão líquida = coletado - custos dos serviços (Limpa Nome + Rating)
+  // Os custos saem do coletado pois são o custo da operação para executar o serviço
+  const comissaoLiquida = totalColetado - custosDoConsultor;
 
   const realizadas = agendamentos?.filter(a => a.status === "realizado").length || 0;
   const noshow = agendamentos?.filter(a => a.status === "noshow").length || 0;

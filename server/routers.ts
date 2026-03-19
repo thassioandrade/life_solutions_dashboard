@@ -28,6 +28,7 @@ import {
   getCustosServicos, setCustoServico, getDashboardFinanceiro, getParcelasCompletasByConsultor,
   getPromessas, getPromessasByConsultor, getPromessasHoje, getPromessasHojeByConsultor,
   createPromessa, updatePromessa, deletePromessa,
+  getRankingAutomatico,
 } from "./db";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
@@ -677,6 +678,9 @@ export const appRouter = router({
     listByPeriod: protectedProcedure
       .input(z.object({ mes: z.number(), ano: z.number() }))
       .query(async ({ input }) => getRankingsByPeriod(input.mes, input.ano)),
+    automatico: protectedProcedure
+      .input(z.object({ mes: z.number(), ano: z.number() }))
+      .query(async ({ input }) => getRankingAutomatico(input.mes, input.ano)),
     listAll: protectedProcedure.query(async () => getAllRankings()),
     upsert: adminProcedure
       .input(z.object({
