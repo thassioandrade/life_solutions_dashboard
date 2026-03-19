@@ -223,3 +223,11 @@
 - [x] Painel Consultor: botão exportar Excel de Rating Bancário (nome, CPF, telefone)
 - [x] Dashboard Admin: botão exportar Excel de Limpa Nome (nome, CPF, telefone, consultora)
 - [x] Dashboard Admin: botão exportar Excel de Rating Bancário (nome, CPF, telefone, consultora)
+
+## Correções e Novas Funcionalidades (Mar 2026)
+- [x] Pipeline: corrigir drag-and-drop para todas as colunas (useDroppable em cada coluna)
+- [x] Parcelas: botão "Recebi" da consultora move parcela para status "pago" (visível no Admin)
+- [x] Dados de teste: limpar todos os registros de teste do banco
+- [x] Painel Consultor: seção de comissões futuras mês a mês (cards por mês com comissão projetada)
+- [x] Barra lateral: bloco de anotações persistente (auto-save 1.5s, salvar manual, apagar)
+- [x] Barra lateral: calendário pessoal com eventos, alarmes sonoros e notificações do sistema

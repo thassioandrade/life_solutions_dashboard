@@ -16,6 +16,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
   type DragStartEvent,
   type DragEndEvent,
   type DragOverEvent,
@@ -123,7 +124,7 @@ function LeadCard({ lead, consultores, colunas, onDelete, onMove }: {
 }
 
 // ─── Coluna Kanban ────────────────────────────────────────────────────────────
-function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDeleteLead, onMoveLead, onRenameColuna, onDeleteColuna, isVendaRealizada }: {
+function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDeleteLead, onMoveLead, onRenameColuna, onDeleteColuna, isVendaRealizada, isOver }: {
   coluna: any;
   leads: any[];
   consultores: any[];
@@ -134,6 +135,7 @@ function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDelete
   onRenameColuna: (id: number, nome: string, cor: string) => void;
   onDeleteColuna: (id: number, nome: string) => void;
   isVendaRealizada: boolean;
+  isOver?: boolean;
 }) {
   const [editando, setEditando] = useState(false);
   const [novoNome, setNovoNome] = useState(coluna.nome);
@@ -147,9 +149,10 @@ function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDelete
     setEditando(false);
   };
 
+  const { setNodeRef: setDropRef } = useDroppable({ id: `coluna-${coluna.id}` });
   return (
     <div className="flex-shrink-0 w-72">
-      <div className="rounded-xl bg-gray-50 border border-gray-200 overflow-hidden">
+      <div ref={setDropRef} className={`rounded-xl bg-gray-50 border overflow-hidden transition-all ${isOver ? "border-blue-400 ring-2 ring-blue-300 ring-offset-1 bg-blue-50" : "border-gray-200"}`}>
         {/* Header */}
         <div className="px-3 py-2.5" style={{ borderTop: `3px solid ${coluna.cor || "#0055FF"}` }}>
           {editando ? (
@@ -216,8 +219,8 @@ function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDelete
             ))}
           </SortableContext>
           {leads.length === 0 && (
-            <div className="text-center py-6 text-gray-400 text-xs border-2 border-dashed border-gray-200 rounded-lg">
-              Arraste um lead aqui
+            <div className={`text-center py-6 text-xs border-2 border-dashed rounded-lg transition-all ${isOver ? "border-blue-400 text-blue-500 bg-blue-50" : "border-gray-200 text-gray-400"}`}>
+              {isOver ? "Soltar aqui" : "Arraste um lead aqui"}
             </div>
           )}
         </div>
@@ -428,24 +431,20 @@ export default function Pipeline() {
           >
             <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: "60vh" }}>
               {colunas.map((coluna: any) => (
-                <div
+                <KanbanColuna
                   key={coluna.id}
-                  id={`coluna-${coluna.id}`}
-                  className={`transition-all ${overColunaId === coluna.id ? "ring-2 ring-blue-400 ring-offset-1 rounded-xl" : ""}`}
-                >
-                  <KanbanColuna
-                    coluna={coluna}
-                    leads={leadsByColuna(coluna.id)}
-                    consultores={consultores || []}
-                    colunas={colunas}
-                    onAddLead={handleAddLead}
-                    onDeleteLead={(id) => { if (confirm("Remover este lead?")) deleteLeadMutation.mutate({ id }); }}
-                    onMoveLead={(leadId, colunaId) => moverLeadMutation.mutate({ id: leadId, colunaId })}
-                    onRenameColuna={(id, nome, cor) => updateColunaMutation.mutate({ id, nome, cor })}
-                    onDeleteColuna={(id, nome) => { if (confirm(`Remover a coluna "${nome}"? Todos os leads serão excluídos.`)) deleteColunaMutation.mutate({ id }); }}
-                    isVendaRealizada={isVendaRealizada(coluna)}
-                  />
-                </div>
+                  coluna={coluna}
+                  leads={leadsByColuna(coluna.id)}
+                  consultores={consultores || []}
+                  colunas={colunas}
+                  onAddLead={handleAddLead}
+                  onDeleteLead={(id) => { if (confirm("Remover este lead?")) deleteLeadMutation.mutate({ id }); }}
+                  onMoveLead={(leadId, colunaId) => moverLeadMutation.mutate({ id: leadId, colunaId })}
+                  onRenameColuna={(id, nome, cor) => updateColunaMutation.mutate({ id, nome, cor })}
+                  onDeleteColuna={(id, nome) => { if (confirm(`Remover a coluna "${nome}"? Todos os leads serão excluídos.`)) deleteColunaMutation.mutate({ id }); }}
+                  isVendaRealizada={isVendaRealizada(coluna)}
+                  isOver={overColunaId === coluna.id}
+                />
               ))}
             </div>
 

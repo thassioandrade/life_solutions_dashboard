@@ -257,9 +257,12 @@ export const appRouter = router({
     okConsultor: protectedProcedure
       .input(z.object({ id: z.number(), ok: z.boolean() }))
       .mutation(async ({ input }) => {
+        // Ao marcar como recebido, muda status para pago (visível no Admin também)
         await updateParcela(input.id, {
           okConsultor: input.ok,
           dataOkConsultor: input.ok ? new Date() : undefined,
+          status: input.ok ? "pago" : "pendente",
+          dataPagamento: input.ok ? new Date() : undefined,
         });
         return { success: true };
       }),

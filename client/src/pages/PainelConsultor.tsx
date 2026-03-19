@@ -153,6 +153,10 @@ export default function PainelConsultor() {
     { consultorId: consultor?.id || 0 },
     { enabled: !!consultor?.id }
   );
+  const { data: parcelasFuturas } = trpc.parcelas.futurasConsultor.useQuery(
+    { consultorId: consultor?.id || 0 },
+    { enabled: !!consultor?.id }
+  );
 
   const updateAgendamento = trpc.agendamentos.update.useMutation({
     onSuccess: () => {
@@ -654,6 +658,53 @@ export default function PainelConsultor() {
                 </Card>
               )}
             </div>
+
+            {/* Projeção de Comissões Futuras - Mês a Mês */}
+            {parcelasFuturas && parcelasFuturas.length > 0 && (() => {
+              // Agrupar parcelas por mês/ano, usando comissaoPercent de cada venda
+              const grupos: Record<string, { mes: number; ano: number; label: string; valor: number; comissao: number; qtd: number }> = {};
+              parcelasFuturas.forEach(p => {
+                const d = new Date(p.vencimento);
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+                if (!grupos[key]) {
+                  grupos[key] = { mes: d.getMonth() + 1, ano: d.getFullYear(), label: `${MESES[d.getMonth()]} ${d.getFullYear()}`, valor: 0, comissao: 0, qtd: 0 };
+                }
+                const valorParcela = parseFloat(String(p.valor || 0));
+                const pct = parseFloat(String(p.comissaoPercent || 10)) / 100;
+                grupos[key].valor += valorParcela;
+                grupos[key].comissao += valorParcela * pct;
+                grupos[key].qtd += 1;
+              });
+              const mesesOrdenados = Object.values(grupos).sort((a, b) => a.ano !== b.ano ? a.ano - b.ano : a.mes - b.mes);
+              const totalFuturo = mesesOrdenados.reduce((s, m) => s + m.comissao, 0);
+              return (
+                <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="w-4 h-4 text-blue-600" />
+                      <p className="text-sm font-bold text-blue-800">Projeção de Comissões Futuras</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] text-blue-500 uppercase tracking-wide">Total projetado</p>
+                      <p className="text-base font-bold text-blue-700">{formatCurrency(totalFuturo)}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {mesesOrdenados.map(g => {
+                      const isAtual = g.mes === mes && g.ano === ano;
+                      return (
+                        <div key={`${g.mes}-${g.ano}`} className={`rounded-lg p-3 border text-center transition-all ${isAtual ? "bg-blue-600 border-blue-700" : "bg-white border-blue-200 hover:border-blue-400"}`}>
+                          <p className={`text-xs font-semibold mb-1 ${isAtual ? "text-blue-100" : "text-gray-500"}`}>{g.label}</p>
+                          <p className={`text-sm font-bold ${isAtual ? "text-white" : "text-blue-700"}`}>{formatCurrency(g.comissao)}</p>
+                          <p className={`text-[10px] mt-0.5 ${isAtual ? "text-blue-200" : "text-gray-400"}`}>{g.qtd} parcela{g.qtd > 1 ? "s" : ""} · {formatCurrency(g.valor)}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-blue-400 mt-2 text-center">* Estimativa com base nas parcelas pendentes agendadas. O mês atual está destacado.</p>
+                </div>
+              );
+            })()}
 
             {/* Abas */}
             <div className="flex gap-1 border-b border-gray-200">

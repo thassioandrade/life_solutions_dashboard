@@ -566,6 +566,7 @@ export async function getParcelasFuturasConsultor(consultorId: number) {
     status: parcelas.status,
     okConsultor: parcelas.okConsultor,
     clienteNome: vendas.clienteNome,
+    comissaoPercent: vendas.comissaoPercent,
   })
     .from(parcelas)
     .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
