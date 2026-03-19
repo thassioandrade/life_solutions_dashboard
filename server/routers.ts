@@ -11,7 +11,7 @@ import { upsertUser } from "./db";
 import {
   getAllUsers, updateUserRole, updateUserAvatar,
   getAllConsultores, getConsultorById, getConsultorByEmail, createConsultor, updateConsultor, deleteConsultor,
-  getVendasByPeriod, getVendasByConsultor, createVenda, updateVenda, deleteVenda,
+  getVendasByPeriod, getVendasByConsultor, createVenda, updateVenda, deleteVenda, cancelarVenda, getVendaById,
   getParcelasByVenda, getParcelasPendentes, getParcelasByConsultor, createParcelas, updateParcela,
   getAgendamentosByPeriod, getAgendamentosByConsultor, createAgendamento, updateAgendamento, deleteAgendamento, getAgendamentoById,
   getMetricasByPeriod, getAllMetricas, createMetrica, updateMetrica, deleteMetrica,
@@ -224,6 +224,63 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         await deleteVenda(input.id);
         return { success: true };
+      }),
+    cancelar: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        motivo: z.string().min(1, "Informe o motivo do cancelamento"),
+      }))
+      .mutation(async ({ input }) => {
+        // Cancelar a venda e parcelas pendentes
+        await cancelarVenda(input.id, input.motivo);
+
+        // Criar lead na coluna "Estorno" do pipeline
+        try {
+          const venda = await getVendaById(input.id);
+          if (venda) {
+            const colunas = await getColunasPipeline();
+            let colunaEstorno = colunas.find(c => c.nome.toLowerCase().includes("estorno"));
+            if (!colunaEstorno) {
+              // Criar coluna fixa "Estorno" se não existir
+              await createColuna({
+                nome: "Estorno",
+                ordem: 9999,
+                cor: "#ef4444",
+              });
+              const colunasAtualizadas = await getColunasPipeline();
+              colunaEstorno = colunasAtualizadas.find(c => c.nome.toLowerCase().includes("estorno"));
+            }
+            if (colunaEstorno) {
+              const dataVenda = new Date(venda.dataVenda);
+              await createLead({
+                colunaId: colunaEstorno.id,
+                nome: venda.clienteNome,
+                valor: String(venda.valorColetado || 0),
+                consultorId: venda.consultorId ?? undefined,
+                observacoes: `Estorno: ${input.motivo}`,
+                mes: dataVenda.getMonth() + 1,
+                ano: dataVenda.getFullYear(),
+                ordem: 0,
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("[vendas.cancelar] Falha ao criar lead de estorno:", e);
+        }
+        return { success: true };
+      }),
+    listCanceladas: protectedProcedure
+      .input(z.object({ mes: z.number(), ano: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        const { vendas: vendasTable } = await import("../drizzle/schema");
+        const { eq: eqFn, and: andFn, gte: gteFn, lte: lteFn } = await import("drizzle-orm");
+        const inicio = new Date(input.ano, input.mes - 1, 1);
+        const fim = new Date(input.ano, input.mes, 0, 23, 59, 59);
+        return db.select().from(vendasTable).where(
+          andFn(gteFn(vendasTable.dataVenda, inicio), lteFn(vendasTable.dataVenda, fim), eqFn(vendasTable.cancelada, true))
+        );
       }),
   }),
 

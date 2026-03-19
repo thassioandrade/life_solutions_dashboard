@@ -295,3 +295,15 @@
 - [x] Frontend Promessas: botão "Pago" abre modal de confirmação com todos os campos
 - [x] Frontend Promessas: resumo de comissão líquida em tempo real no modal
 - [x] Frontend Promessas: badge "Venda criada" após concluir pagamento
+
+## Cancelamento/Estorno de Vendas e Exclusão no Pipeline (Mar 2026)
+- [x] Schema: adicionar campos cancelada, motivoCancelamento, canceladaEm na tabela vendas (migração aplicada)
+- [x] Backend: getVendaById e cancelarVenda adicionados ao db.ts
+- [x] Backend: procedure vendas.cancelar — marca venda como cancelada, cancela parcelas pendentes, cria lead na coluna "Estorno" (cria coluna se não existir)
+- [x] Backend: procedure vendas.listCanceladas para listar vendas canceladas
+- [x] Backend: getVendasByPeriod, getVendasByConsultor, getDashboardFinanceiro, getServicosVendidos, getRankingAutomatico excluem vendas canceladas
+- [x] Backend: getParcelasByPeriodo, getParcelasFuturasConsultor, getParcelasCompletasByConsultor, getParcelasByConsultor excluem parcelas de vendas canceladas
+- [x] Frontend Admin Vendas: botão "Estorno" com modal de confirmação e campo de motivo
+- [x] Frontend Consultor PainelConsultor: botão de estorno (XCircle) na lista de vendas com modal
+- [x] Pipeline: coluna "Estorno" criada automaticamente ao cancelar primeira venda
+- [x] Pipeline: botão de exclusão de lead já existia para todos os usuários (protectedProcedure)

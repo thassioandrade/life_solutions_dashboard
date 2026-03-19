@@ -61,6 +61,9 @@ export const vendas = mysqlTable("vendas", {
   comprovanteUrl: text("comprovanteUrl"),
   comissaoPercent: decimal("comissaoPercent", { precision: 5, scale: 2 }).default("10"),
   custoServico: decimal("custoServico", { precision: 10, scale: 2 }).default("0"),
+  cancelada: boolean("cancelada").default(false).notNull(),
+  motivoCancelamento: text("motivoCancelamento"),
+  canceladaEm: timestamp("canceladaEm"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

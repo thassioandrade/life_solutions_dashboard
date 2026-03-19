@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ChevronLeft, ChevronRight, DollarSign, Trash2, Edit2, CreditCard, CheckCircle } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, DollarSign, Trash2, Edit2, CreditCard, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 
@@ -27,6 +27,8 @@ export default function Vendas() {
   const [ano, setAno] = useState(now.getFullYear());
   const [openCreate, setOpenCreate] = useState(false);
   const [openParcelas, setOpenParcelas] = useState<any | null>(null);
+  const [openEstorno, setOpenEstorno] = useState<any | null>(null);
+  const [motivoEstorno, setMotivoEstorno] = useState("");
   const [form, setForm] = useState({
     clienteNome: "", clienteEmail: "", clienteCpfCnpj: "", tipo: "PF",
     valorFaturado: "", valorColetado: "", formaPagamento: "", qtdParcelas: "1",
@@ -43,6 +45,10 @@ export default function Vendas() {
   });
   const deleteMutation = trpc.vendas.delete.useMutation({
     onSuccess: () => { toast.success("Removido!"); refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const cancelarMutation = trpc.vendas.cancelar.useMutation({
+    onSuccess: () => { toast.success("Venda cancelada e cliente movido para Estorno no Pipeline!"); setOpenEstorno(null); setMotivoEstorno(""); refetch(); },
     onError: (e) => toast.error(e.message),
   });
   const pagarParcelaMutation = trpc.parcelas.markPaid.useMutation({
@@ -265,12 +271,18 @@ export default function Vendas() {
                           </div>
                         )}
                       </div>
-                      {user?.role === "admin" && (
-                        <Button variant="outline" size="sm" className="h-8 w-8 p-0 text-red-600 border-red-200 hover:bg-red-50"
-                          onClick={() => { if (confirm("Remover venda?")) deleteMutation.mutate({ id: venda.id }); }}>
-                          <Trash2 className="w-3.5 h-3.5" />
+                      <div className="flex gap-1.5">
+                        <Button variant="outline" size="sm" className="h-8 px-2 text-orange-600 border-orange-200 hover:bg-orange-50 text-xs gap-1"
+                          onClick={() => { setOpenEstorno(venda); setMotivoEstorno(""); }}>
+                          <XCircle className="w-3.5 h-3.5" /> Estorno
                         </Button>
-                      )}
+                        {user?.role === "admin" && (
+                          <Button variant="outline" size="sm" className="h-8 w-8 p-0 text-red-600 border-red-200 hover:bg-red-50"
+                            onClick={() => { if (confirm("Remover venda permanentemente?")) deleteMutation.mutate({ id: venda.id }); }}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -279,6 +291,52 @@ export default function Vendas() {
           </div>
         )}
       </div>
+
+      {/* Modal de Estorno */}
+      <Dialog open={!!openEstorno} onOpenChange={(o) => { if (!o) { setOpenEstorno(null); setMotivoEstorno(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-orange-700">
+              <AlertTriangle className="w-5 h-5" /> Cancelar Venda / Estorno
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm">
+              <p className="font-medium text-orange-800">{openEstorno?.clienteNome}</p>
+              <p className="text-orange-600 mt-0.5">
+                Faturado: {formatCurrency(parseFloat(String(openEstorno?.valorFaturado || 0)))} · Coletado: {formatCurrency(parseFloat(String(openEstorno?.valorColetado || 0)))}
+              </p>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-800">
+              <p className="font-medium mb-1">⚠️ Esta ação irá:</p>
+              <ul className="space-y-0.5 list-disc list-inside">
+                <li>Cancelar todas as parcelas pendentes</li>
+                <li>Remover esta venda de todos os cálculos (comissão, ranking, faturamento)</li>
+                <li>Mover o cliente para a coluna "Estorno" no Pipeline</li>
+              </ul>
+            </div>
+            <div>
+              <Label>Motivo do Cancelamento *</Label>
+              <Input
+                placeholder="Ex: Pedido de estorno pelo cliente, desistência..."
+                value={motivoEstorno}
+                onChange={e => setMotivoEstorno(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" onClick={() => { setOpenEstorno(null); setMotivoEstorno(""); }} className="flex-1">Voltar</Button>
+              <Button
+                className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
+                disabled={!motivoEstorno.trim() || cancelarMutation.isPending}
+                onClick={() => cancelarMutation.mutate({ id: openEstorno.id, motivo: motivoEstorno.trim() })}
+              >
+                {cancelarMutation.isPending ? "Cancelando..." : "Confirmar Estorno"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </LifeDashboardLayout>
   );
 }

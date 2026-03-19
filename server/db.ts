@@ -139,7 +139,7 @@ export async function getVendasByPeriod(mes: number, ano: number) {
   const startDate = new Date(ano, mes - 1, 1);
   const endDate = new Date(ano, mes, 0, 23, 59, 59);
   return db.select().from(vendas)
-    .where(and(gte(vendas.dataVenda, startDate), lte(vendas.dataVenda, endDate)))
+    .where(and(gte(vendas.dataVenda, startDate), lte(vendas.dataVenda, endDate), eq(vendas.cancelada, false)))
     .orderBy(desc(vendas.dataVenda));
 }
 
@@ -149,7 +149,7 @@ export async function getVendasByConsultor(consultorId: number, mes: number, ano
   const startDate = new Date(ano, mes - 1, 1);
   const endDate = new Date(ano, mes, 0, 23, 59, 59);
   return db.select().from(vendas)
-    .where(and(eq(vendas.consultorId, consultorId), gte(vendas.dataVenda, startDate), lte(vendas.dataVenda, endDate)))
+    .where(and(eq(vendas.consultorId, consultorId), gte(vendas.dataVenda, startDate), lte(vendas.dataVenda, endDate), eq(vendas.cancelada, false)))
     .orderBy(desc(vendas.dataVenda));
 }
 
@@ -172,6 +172,28 @@ export async function deleteVenda(id: number) {
   await db.delete(vendas).where(eq(vendas.id, id));
 }
 
+export async function getVendaById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(vendas).where(eq(vendas.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function cancelarVenda(id: number, motivo: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // 1. Marcar venda como cancelada
+  await db.update(vendas).set({
+    cancelada: true,
+    motivoCancelamento: motivo,
+    canceladaEm: new Date(),
+  }).where(eq(vendas.id, id));
+  // 2. Cancelar todas as parcelas pendentes desta venda
+  await db.update(parcelas)
+    .set({ status: "cancelado" as unknown as "pendente" | "pago" | "atrasado" })
+    .where(and(eq(parcelas.vendaId, id), eq(parcelas.status, "pendente")));
+}
+
 // ─── Parcelas ────────────────────────────────────────────────────────────────
 
 export async function getParcelasByVenda(vendaId: number) {
@@ -189,7 +211,7 @@ export async function getParcelasPendentes() {
 export async function getParcelasByConsultor(consultorId: number) {
   const db = await getDb();
   if (!db) return [];
-  const vendasDoConsultor = await db.select({ id: vendas.id }).from(vendas).where(eq(vendas.consultorId, consultorId));
+  const vendasDoConsultor = await db.select({ id: vendas.id }).from(vendas).where(and(eq(vendas.consultorId, consultorId), eq(vendas.cancelada, false)));
   if (vendasDoConsultor.length === 0) return [];
   const ids = vendasDoConsultor.map(v => v.id);
   return db.select().from(parcelas)
@@ -553,6 +575,7 @@ export async function getParcelasByPeriodo(mes: number, ano: number) {
     .where(and(
       gte(parcelas.vencimento, inicio),
       lte(parcelas.vencimento, fim),
+      eq(vendas.cancelada, false),
     ))
     .orderBy(parcelas.vencimento);
 }
@@ -583,6 +606,7 @@ export async function getParcelasFuturasConsultor(consultorId: number) {
       sql`${parcelas.vendaId} IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})`,
       gte(parcelas.vencimento, hoje),
       eq(parcelas.status, "pendente"),
+      eq(vendas.cancelada, false),
     ))
     .orderBy(parcelas.vencimento);
 }
@@ -608,6 +632,7 @@ export async function getServicosVendidosByPeriod(mes: number, ano: number) {
     .where(and(
       gte(vendas.dataVenda, inicio),
       lte(vendas.dataVenda, fim),
+      eq(vendas.cancelada, false),
     ))
     .orderBy(vendas.dataVenda);
 }
@@ -632,6 +657,7 @@ export async function getServicosVendidosByConsultor(consultorId: number, mes: n
       eq(vendas.consultorId, consultorId),
       gte(vendas.dataVenda, inicio),
       lte(vendas.dataVenda, fim),
+      eq(vendas.cancelada, false),
     ))
     .orderBy(vendas.dataVenda);
 }
@@ -674,7 +700,7 @@ export async function getDashboardFinanceiro(mes: number, ano: number) {
   const fim = new Date(ano, mes, 0, 23, 59, 59);
 
   const [vendasMes, parcelasMes, custos] = await Promise.all([
-    db.select().from(vendas).where(and(gte(vendas.dataVenda, inicio), lte(vendas.dataVenda, fim))),
+    db.select().from(vendas).where(and(gte(vendas.dataVenda, inicio), lte(vendas.dataVenda, fim), eq(vendas.cancelada, false))),
     db.select({
       id: parcelas.id,
       valor: parcelas.valor,
@@ -749,7 +775,7 @@ export async function getDashboardFinanceiro(mes: number, ano: number) {
 export async function getParcelasCompletasByConsultor(consultorId: number) {
   const db = await getDb();
   if (!db) return [];
-  const vendasDoConsultor = await db.select({ id: vendas.id }).from(vendas).where(eq(vendas.consultorId, consultorId));
+  const vendasDoConsultor = await db.select({ id: vendas.id }).from(vendas).where(and(eq(vendas.consultorId, consultorId), eq(vendas.cancelada, false)));
   if (vendasDoConsultor.length === 0) return [];
   const ids = vendasDoConsultor.map(v => v.id);
   return db.select({
@@ -898,7 +924,7 @@ export async function getRankingAutomatico(mes: number, ano: number) {
     valorColetado: vendas.valorColetado,
     valorFaturado: vendas.valorFaturado,
     dataVenda: vendas.dataVenda,
-  }).from(vendas).where(and(gte(vendas.dataVenda, inicio), lte(vendas.dataVenda, fim)));
+  }).from(vendas).where(and(gte(vendas.dataVenda, inicio), lte(vendas.dataVenda, fim), eq(vendas.cancelada, false)));
 
   // Buscar todos os agendamentos do mês
   const agendsMes = await db.select({

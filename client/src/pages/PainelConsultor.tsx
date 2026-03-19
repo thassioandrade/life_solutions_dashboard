@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   ChevronLeft, ChevronRight, CalendarDays, DollarSign, TrendingUp,
   Clock, Upload, X, CheckCircle2, Trophy, Target, Loader2,
-  CreditCard, AlertTriangle, Bell, FileText
+  CreditCard, AlertTriangle, Bell, FileText, XCircle
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -104,7 +104,9 @@ export default function PainelConsultor() {
   const [modalAberto, setModalAberto] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [uploadingComprovante, setUploadingComprovante] = useState(false);
-  const [abaPainel, setAbaPainel] = useState<"agenda" | "parcelas" | "devedores">("agenda");
+  const [abaPainel, setAbaPainel] = useState<"agenda" | "parcelas" | "devedores" | "vendas">("agenda");
+  const [openEstornoConsultor, setOpenEstornoConsultor] = useState<any | null>(null);
+  const [motivoEstornoConsultor, setMotivoEstornoConsultor] = useState("");
   const [filtroParcelas, setFiltroParcelas] = useState<"todas" | "pendentes" | "pagas" | "atrasadas">("todas");
   const [modalPromessaAberto, setModalPromessaAberto] = useState(false);
   const [promessaData, setPromessaData] = useState({ dataPromessa: "", horarioPromessa: "", valor: "", observacoes: "" });
@@ -187,6 +189,10 @@ export default function PainelConsultor() {
   });
   const uploadComprovante = trpc.upload.comprovante.useMutation({
     onError: (e) => toast.error("Erro no upload: " + e.message),
+  });
+  const cancelarVendaMutation = trpc.vendas.cancelar.useMutation({
+    onSuccess: () => { toast.success("Venda cancelada! Cliente movido para Estorno no Pipeline."); setOpenEstornoConsultor(null); setMotivoEstornoConsultor(""); utils.vendas.listByConsultor.invalidate(); },
+    onError: (e) => toast.error(e.message),
   });
   const okConsultorMutation = trpc.parcelas.okConsultor.useMutation({
     onSuccess: () => utils.parcelasCompletas.byConsultor.invalidate(),
@@ -826,7 +832,7 @@ export default function PainelConsultor() {
                       <div className="space-y-2">
                         {vendas.map(v => (
                           <div key={v.id} className="flex items-start justify-between py-2.5 px-3 rounded-lg border border-gray-100 bg-gray-50/50">
-                            <div>
+                            <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-800">{v.clienteNome}</p>
                               <p className="text-xs text-gray-400">{new Date(v.dataVenda).toLocaleDateString("pt-BR")}</p>
                               {v.servicos && (v.servicos as string[]).length > 0 && (
@@ -835,10 +841,16 @@ export default function PainelConsultor() {
                                 </div>
                               )}
                             </div>
-                            <div className="text-right">
-                              <p className="text-sm font-semibold" style={{ color: "#0055FF" }}>{formatCurrency(parseFloat(String(v.valorColetado || 0)))}</p>
-                              <p className="text-xs text-gray-400">Fat: {formatCurrency(parseFloat(String(v.valorFaturado || 0)))}</p>
-                              <p className="text-xs text-amber-600">Com: {formatCurrency((parseFloat(String(v.valorColetado || 0)) - parseFloat(String(v.custoServico || 0))) * parseFloat(String(v.comissaoPercent || 10)) / 100)}</p>
+                            <div className="flex items-start gap-2">
+                              <div className="text-right">
+                                <p className="text-sm font-semibold" style={{ color: "#0055FF" }}>{formatCurrency(parseFloat(String(v.valorColetado || 0)))}</p>
+                                <p className="text-xs text-gray-400">Fat: {formatCurrency(parseFloat(String(v.valorFaturado || 0)))}</p>
+                                <p className="text-xs text-amber-600">Com: {formatCurrency((parseFloat(String(v.valorColetado || 0)) - parseFloat(String(v.custoServico || 0))) * parseFloat(String(v.comissaoPercent || 10)) / 100)}</p>
+                              </div>
+                              <Button variant="outline" size="sm" className="h-7 px-1.5 text-orange-600 border-orange-200 hover:bg-orange-50 flex-shrink-0"
+                                onClick={() => { setOpenEstornoConsultor(v); setMotivoEstornoConsultor(""); }}>
+                                <XCircle className="w-3.5 h-3.5" />
+                              </Button>
                             </div>
                           </div>
                         ))}
@@ -1242,6 +1254,52 @@ export default function PainelConsultor() {
                 disabled={salvandoPromessa || !promessaData.dataPromessa}
               >
                 {salvandoPromessa ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Salvando...</> : "📌 Registrar Promessa"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Estorno de Venda */}
+      <Dialog open={!!openEstornoConsultor} onOpenChange={(o) => { if (!o) { setOpenEstornoConsultor(null); setMotivoEstornoConsultor(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-orange-700">
+              <AlertTriangle className="w-5 h-5" /> Cancelar Venda / Estorno
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm">
+              <p className="font-medium text-orange-800">{openEstornoConsultor?.clienteNome}</p>
+              <p className="text-orange-600 mt-0.5">
+                Coletado: {formatCurrency(parseFloat(String(openEstornoConsultor?.valorColetado || 0)))}
+              </p>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-800">
+              <p className="font-medium mb-1">⚠️ Esta ação irá:</p>
+              <ul className="space-y-0.5 list-disc list-inside">
+                <li>Cancelar todas as parcelas pendentes</li>
+                <li>Remover esta venda dos seus cálculos de comissão e ranking</li>
+                <li>Mover o cliente para a coluna "Estorno" no Pipeline</li>
+              </ul>
+            </div>
+            <div>
+              <Label>Motivo do Cancelamento *</Label>
+              <Input
+                placeholder="Ex: Pedido de estorno pelo cliente, desistência..."
+                value={motivoEstornoConsultor}
+                onChange={e => setMotivoEstornoConsultor(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" onClick={() => { setOpenEstornoConsultor(null); setMotivoEstornoConsultor(""); }} className="flex-1">Voltar</Button>
+              <Button
+                className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
+                disabled={!motivoEstornoConsultor.trim() || cancelarVendaMutation.isPending}
+                onClick={() => cancelarVendaMutation.mutate({ id: openEstornoConsultor.id, motivo: motivoEstornoConsultor.trim() })}
+              >
+                {cancelarVendaMutation.isPending ? "Cancelando..." : "Confirmar Estorno"}
               </Button>
             </div>
           </div>
