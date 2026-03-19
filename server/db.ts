@@ -462,3 +462,297 @@ export async function upsertRanking(data: typeof rankings.$inferInsert) {
   await db.insert(rankings).values(data)
     .onDuplicateKeyUpdate({ set: { posicao: data.posicao, valorColetado: data.valorColetado, totalVendas: data.totalVendas } });
 }
+
+// ─── Funções avançadas de parcelas ───────────────────────────────────────────
+export async function getParcelasVencidas() {
+  const db = await getDb();
+  if (!db) return [];
+  const hoje = new Date();
+  hoje.setHours(23, 59, 59, 999);
+  return db.select({
+    id: parcelas.id,
+    vendaId: parcelas.vendaId,
+    valor: parcelas.valor,
+    vencimento: parcelas.vencimento,
+    status: parcelas.status,
+    okConsultor: parcelas.okConsultor,
+    notificacaoEnviada: parcelas.notificacaoEnviada,
+    clienteNome: vendas.clienteNome,
+    clienteCpfCnpj: vendas.clienteCpfCnpj,
+    clienteTelefone: vendas.clienteTelefone,
+    consultorId: vendas.consultorId,
+  })
+    .from(parcelas)
+    .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
+    .where(and(
+      eq(parcelas.status, "pendente"),
+      lte(parcelas.vencimento, hoje),
+    ))
+    .orderBy(parcelas.vencimento);
+}
+
+export async function getParcelasVencendoHoje() {
+  const db = await getDb();
+  if (!db) return [];
+  const hoje = new Date();
+  const inicioHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate(), 0, 0, 0);
+  const fimHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate(), 23, 59, 59);
+  return db.select({
+    id: parcelas.id,
+    vendaId: parcelas.vendaId,
+    valor: parcelas.valor,
+    vencimento: parcelas.vencimento,
+    status: parcelas.status,
+    okConsultor: parcelas.okConsultor,
+    notificacaoEnviada: parcelas.notificacaoEnviada,
+    clienteNome: vendas.clienteNome,
+    clienteCpfCnpj: vendas.clienteCpfCnpj,
+    clienteTelefone: vendas.clienteTelefone,
+    consultorId: vendas.consultorId,
+  })
+    .from(parcelas)
+    .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
+    .where(and(
+      eq(parcelas.status, "pendente"),
+      gte(parcelas.vencimento, inicioHoje),
+      lte(parcelas.vencimento, fimHoje),
+    ))
+    .orderBy(parcelas.vencimento);
+}
+
+export async function getParcelasByPeriodo(mes: number, ano: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const inicio = new Date(ano, mes - 1, 1);
+  const fim = new Date(ano, mes, 0, 23, 59, 59);
+  return db.select({
+    id: parcelas.id,
+    vendaId: parcelas.vendaId,
+    valor: parcelas.valor,
+    vencimento: parcelas.vencimento,
+    status: parcelas.status,
+    dataPagamento: parcelas.dataPagamento,
+    okConsultor: parcelas.okConsultor,
+    notificacaoEnviada: parcelas.notificacaoEnviada,
+    clienteNome: vendas.clienteNome,
+    clienteCpfCnpj: vendas.clienteCpfCnpj,
+    clienteTelefone: vendas.clienteTelefone,
+    consultorId: vendas.consultorId,
+    servicos: vendas.servicos,
+  })
+    .from(parcelas)
+    .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
+    .where(and(
+      gte(parcelas.vencimento, inicio),
+      lte(parcelas.vencimento, fim),
+    ))
+    .orderBy(parcelas.vencimento);
+}
+
+export async function getParcelasFuturasConsultor(consultorId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const vendasDoConsultor = await db.select({ id: vendas.id }).from(vendas).where(eq(vendas.consultorId, consultorId));
+  if (vendasDoConsultor.length === 0) return [];
+  const ids = vendasDoConsultor.map(v => v.id);
+  return db.select({
+    id: parcelas.id,
+    vendaId: parcelas.vendaId,
+    valor: parcelas.valor,
+    vencimento: parcelas.vencimento,
+    status: parcelas.status,
+    okConsultor: parcelas.okConsultor,
+    clienteNome: vendas.clienteNome,
+  })
+    .from(parcelas)
+    .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
+    .where(and(
+      sql`${parcelas.vendaId} IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})`,
+      gte(parcelas.vencimento, hoje),
+      eq(parcelas.status, "pendente"),
+    ))
+    .orderBy(parcelas.vencimento);
+}
+
+// ─── Serviços Vendidos (Limpa Nome / Rating) ─────────────────────────────────
+export async function getServicosVendidosByPeriod(mes: number, ano: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const inicio = new Date(ano, mes - 1, 1);
+  const fim = new Date(ano, mes, 0, 23, 59, 59);
+  return db.select({
+    id: vendas.id,
+    clienteNome: vendas.clienteNome,
+    clienteCpfCnpj: vendas.clienteCpfCnpj,
+    clienteTelefone: vendas.clienteTelefone,
+    servicos: vendas.servicos,
+    valorColetado: vendas.valorColetado,
+    valorFaturado: vendas.valorFaturado,
+    dataVenda: vendas.dataVenda,
+    consultorId: vendas.consultorId,
+  })
+    .from(vendas)
+    .where(and(
+      gte(vendas.dataVenda, inicio),
+      lte(vendas.dataVenda, fim),
+    ))
+    .orderBy(vendas.dataVenda);
+}
+
+export async function getServicosVendidosByConsultor(consultorId: number, mes: number, ano: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const inicio = new Date(ano, mes - 1, 1);
+  const fim = new Date(ano, mes, 0, 23, 59, 59);
+  return db.select({
+    id: vendas.id,
+    clienteNome: vendas.clienteNome,
+    clienteCpfCnpj: vendas.clienteCpfCnpj,
+    clienteTelefone: vendas.clienteTelefone,
+    servicos: vendas.servicos,
+    valorColetado: vendas.valorColetado,
+    valorFaturado: vendas.valorFaturado,
+    dataVenda: vendas.dataVenda,
+  })
+    .from(vendas)
+    .where(and(
+      eq(vendas.consultorId, consultorId),
+      gte(vendas.dataVenda, inicio),
+      lte(vendas.dataVenda, fim),
+    ))
+    .orderBy(vendas.dataVenda);
+}
+
+// ─── Custos de Serviços (Limpa Nome, Rating, Salário Fixo) ───────────────────
+const CUSTOS_DEFAULTS: Record<string, number> = {
+  "custo_limpa_nome": 70,
+  "custo_rating": 110,
+  "salario_fixo": 1600,
+};
+
+export async function getCustosServicos() {
+  const db = await getDb();
+  const result: Record<string, number> = { ...CUSTOS_DEFAULTS };
+  if (!db) return result;
+  try {
+    const rows = await db.select().from(configuracoes).where(
+      sql`${configuracoes.chave} IN ('custo_limpa_nome', 'custo_rating', 'salario_fixo')`
+    );
+    for (const row of rows) {
+      if (row.valor) result[row.chave] = parseFloat(row.valor);
+    }
+  } catch (_) {}
+  return result;
+}
+
+export async function setCustoServico(chave: string, valor: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(configuracoes)
+    .values({ chave, valor: String(valor) })
+    .onDuplicateKeyUpdate({ set: { valor: String(valor) } });
+}
+
+// ─── Dashboard Financeiro Completo ───────────────────────────────────────────
+export async function getDashboardFinanceiro(mes: number, ano: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const inicio = new Date(ano, mes - 1, 1);
+  const fim = new Date(ano, mes, 0, 23, 59, 59);
+
+  const [vendasMes, parcelasMes, custos] = await Promise.all([
+    db.select().from(vendas).where(and(gte(vendas.dataVenda, inicio), lte(vendas.dataVenda, fim))),
+    db.select({
+      id: parcelas.id,
+      valor: parcelas.valor,
+      vencimento: parcelas.vencimento,
+      status: parcelas.status,
+      dataPagamento: parcelas.dataPagamento,
+      okConsultor: parcelas.okConsultor,
+      vendaId: parcelas.vendaId,
+    }).from(parcelas).where(and(gte(parcelas.vencimento, inicio), lte(parcelas.vencimento, fim))),
+    getCustosServicos(),
+  ]);
+
+  const totalFaturado = vendasMes.reduce((s, v) => s + parseFloat(String(v.valorFaturado || 0)), 0);
+  const totalColetado = vendasMes.reduce((s, v) => s + parseFloat(String(v.valorColetado || 0)), 0);
+
+  // Contar serviços vendidos
+  let qtdLimpaName = 0;
+  let qtdRating = 0;
+  for (const v of vendasMes) {
+    const servs = v.servicos as string[] | null;
+    if (!servs) continue;
+    for (const s of servs) {
+      if (s.toLowerCase().includes("limpa")) qtdLimpaName++;
+      if (s.toLowerCase().includes("rating")) qtdRating++;
+    }
+  }
+
+  const custoCustoLimpaName = qtdLimpaName * custos["custo_limpa_nome"];
+  const custoCustoRating = qtdRating * custos["custo_rating"];
+  const totalCustosServicos = custoCustoLimpaName + custoCustoRating;
+  const salarioFixo = custos["salario_fixo"];
+
+  // Comissão total (10% do coletado por padrão)
+  const totalComissoes = vendasMes.reduce((s, v) => {
+    const coletado = parseFloat(String(v.valorColetado || 0));
+    const pct = parseFloat(String(v.comissaoPercent || 10));
+    return s + (coletado * pct / 100);
+  }, 0);
+
+  // Parcelas do mês
+  const parcelasPagas = parcelasMes.filter(p => p.status === "pago");
+  const parcelasPendentes = parcelasMes.filter(p => p.status === "pendente");
+  const totalParcelasPagas = parcelasPagas.reduce((s, p) => s + parseFloat(String(p.valor || 0)), 0);
+  const totalParcelasPendentes = parcelasPendentes.reduce((s, p) => s + parseFloat(String(p.valor || 0)), 0);
+
+  const liquido = totalColetado - totalCustosServicos - salarioFixo - totalComissoes;
+
+  return {
+    totalFaturado,
+    totalColetado,
+    totalComissoes,
+    totalCustosServicos,
+    custoCustoLimpaName,
+    custoCustoRating,
+    salarioFixo,
+    liquido,
+    qtdLimpaName,
+    qtdRating,
+    totalParcelasPagas,
+    totalParcelasPendentes,
+    totalVendas: vendasMes.length,
+    custos,
+  };
+}
+
+// ─── Parcelas por consultor com dados do cliente ──────────────────────────────
+export async function getParcelasCompletasByConsultor(consultorId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const vendasDoConsultor = await db.select({ id: vendas.id }).from(vendas).where(eq(vendas.consultorId, consultorId));
+  if (vendasDoConsultor.length === 0) return [];
+  const ids = vendasDoConsultor.map(v => v.id);
+  return db.select({
+    id: parcelas.id,
+    vendaId: parcelas.vendaId,
+    valor: parcelas.valor,
+    vencimento: parcelas.vencimento,
+    status: parcelas.status,
+    dataPagamento: parcelas.dataPagamento,
+    okConsultor: parcelas.okConsultor,
+    dataOkConsultor: parcelas.dataOkConsultor,
+    comprovanteUrl: parcelas.comprovanteUrl,
+    clienteNome: vendas.clienteNome,
+    clienteCpfCnpj: vendas.clienteCpfCnpj,
+    clienteTelefone: vendas.clienteTelefone,
+    servicos: vendas.servicos,
+  })
+    .from(parcelas)
+    .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
+    .where(sql`${parcelas.vendaId} IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})`)
+    .orderBy(parcelas.vencimento);
+}

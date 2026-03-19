@@ -175,3 +175,29 @@
 - [x] Pipeline: admin vê pipeline de todos os vendedores (filtro por vendedor)
 - [x] Backend: router pipeline.moverLead (mover lead para outra coluna)
 - [x] Backend: garantir coluna "Venda Realizada" ao criar venda manual
+
+## Sistema de Parcelas com Datas, Comissões e Alertas
+- [x] Schema: campo dataVencimento nas parcelas (já existia como vencimento)
+- [x] Schema: campos clienteNome, clienteCpfCnpj, clienteTelefone nas vendas e parcelas
+- [x] Schema: tabela configuracoes reutilizada para custos (custo_limpa_nome, custo_rating, salario_fixo)
+- [x] Backend: router custosServicos (get, set) para admin configurar
+- [x] Backend: cálculo de comissão líquida (coletado * % - custos dos serviços)
+- [x] Backend: router parcelas com vencendoHoje, devedores, okConsultor
+- [x] Backend: router servicosVendidos (listar por mês com dados do cliente)
+- [x] Backend: router devedores (parcelas vencidas com dias de atraso)
+- [x] Formulário de venda: campo data 1ª parcela (auto-calcula datas seguintes) + datas individuais editáveis
+- [x] Formulário de venda: campos nome completo, CPF e telefone do cliente
+- [x] Formulário de venda: seleção de serviços (Limpa Nome R$70 / Rating R$110) com custo visível
+- [x] Painel Consultor: exibir comissão mensal líquida (coletado - custos serviços)
+- [x] Painel Consultor: contador de Limpa Nome e Rating vendidos no mês
+- [x] Painel Consultor: checkbox OK de recebimento de parcela pelo consultor
+- [x] Painel Consultor: alertas de parcelas vencendo hoje
+- [x] Painel Consultor: lista de devedores em vermelho com dias de atraso
+- [x] Dashboard Admin: visão de comissões por mês (atual + futuros)
+- [x] Dashboard Admin: contador de Limpa Nome e Rating do mês
+- [x] Dashboard Admin: lista de devedores em destaque vermelho
+- [x] Dashboard Admin: alertas de vencimento de parcelas
+- [x] Página Serviços Vendidos: lista de clientes com nome, CPF, telefone, serviço
+- [x] Página Serviços Vendidos: exportar para Excel (.xlsx)
+- [x] Configurações Admin: custos editáveis (Limpa Nome, Rating, Salário base)
+- [x] Configurações Admin: visão financeira completa (coletado, faturado, custos, salário, líquido)

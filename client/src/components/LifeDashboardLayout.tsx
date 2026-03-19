@@ -17,6 +17,8 @@ import {
   ChevronRight,
   Bell,
   User,
+  FileText,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -40,6 +42,7 @@ const navItems = [
   { href: "/pipeline", label: "Pipeline", icon: Kanban, adminOnly: false },
   { href: "/vendas", label: "Vendas", icon: DollarSign, adminOnly: false },
   { href: "/parcelas", label: "Parcelas Pendentes", icon: CreditCard, adminOnly: true },
+  { href: "/servicos-vendidos", label: "Serviços Vendidos", icon: FileText, adminOnly: false },
   { href: "/despesas", label: "Despesas", icon: Receipt, adminOnly: true },
   { href: "/configuracoes", label: "Configurações", icon: Settings, adminOnly: true },
 ];

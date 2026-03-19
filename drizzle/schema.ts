@@ -48,6 +48,7 @@ export const vendas = mysqlTable("vendas", {
   id: int("id").autoincrement().primaryKey(),
   clienteNome: varchar("clienteNome", { length: 255 }).notNull(),
   clienteCpfCnpj: varchar("clienteCpfCnpj", { length: 20 }),
+  clienteTelefone: varchar("clienteTelefone", { length: 30 }),
   tipo: mysqlEnum("tipo", ["PF", "PJ"]).default("PF").notNull(),
   consultorId: int("consultorId"),
   dataVenda: timestamp("dataVenda").notNull(),
@@ -75,10 +76,12 @@ export const parcelas = mysqlTable("parcelas", {
   status: mysqlEnum("status", ["pendente", "pago", "atrasado"]).default("pendente").notNull(),
   dataPagamento: timestamp("dataPagamento"),
   comprovanteUrl: text("comprovanteUrl"),
+  okConsultor: boolean("okConsultor").default(false),
+  dataOkConsultor: timestamp("dataOkConsultor"),
+  notificacaoEnviada: boolean("notificacaoEnviada").default(false),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
-
 export type Parcela = typeof parcelas.$inferSelect;
 export type InsertParcela = typeof parcelas.$inferInsert;
 

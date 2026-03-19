@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO configuracoes (chave, valor) VALUES ('custo_limpa_nome', '70'), ('custo_rating', '110'), ('salario_fixo', '1600') ON DUPLICATE KEY UPDATE valor = VALUES(valor);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute INSERT INTO configuracoes (chave, valor) VALUES ('custo_limpa_nome', '70'), ('custo_rating', '110'), ('salario_fixo', '1600') ON DUPLICATE KEY UPDATE valor = VALUES(valor);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 382
+}

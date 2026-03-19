@@ -23,6 +23,9 @@ import {
   getConfiguracao, setConfiguracao,
   getRankingsByPeriod, getAllRankings, upsertRanking,
   getDb,
+  getParcelasVencidas, getParcelasVencendoHoje, getParcelasByPeriodo, getParcelasFuturasConsultor,
+  getServicosVendidosByPeriod, getServicosVendidosByConsultor,
+  getCustosServicos, setCustoServico, getDashboardFinanceiro, getParcelasCompletasByConsultor,
 } from "./db";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
@@ -147,6 +150,7 @@ export const appRouter = router({
       .input(z.object({
         clienteNome: z.string().min(1),
         clienteCpfCnpj: z.string().optional(),
+        clienteTelefone: z.string().optional(),
         tipo: z.enum(["PF", "PJ"]).default("PF"),
         consultorId: z.number().optional(),
         dataVenda: z.string(),
@@ -242,14 +246,44 @@ export const appRouter = router({
         })));
         return { success: true };
       }),
-    markPaid: protectedProcedure
+     markPaid: protectedProcedure
       .input(z.object({ id: z.number(), comprovanteUrl: z.string().optional() }))
       .mutation(async ({ input }) => {
         await updateParcela(input.id, { status: "pago", dataPagamento: new Date(), comprovanteUrl: input.comprovanteUrl });
         return { success: true };
       }),
+    okConsultor: protectedProcedure
+      .input(z.object({ id: z.number(), ok: z.boolean() }))
+      .mutation(async ({ input }) => {
+        await updateParcela(input.id, {
+          okConsultor: input.ok,
+          dataOkConsultor: input.ok ? new Date() : undefined,
+        });
+        return { success: true };
+      }),
+    devedores: protectedProcedure.query(async () => getParcelasVencidas()),
+    vencendoHoje: protectedProcedure.query(async () => getParcelasVencendoHoje()),
+    byPeriodo: protectedProcedure
+      .input(z.object({ mes: z.number(), ano: z.number() }))
+      .query(async ({ input }) => getParcelasByPeriodo(input.mes, input.ano)),
+    futurasConsultor: protectedProcedure
+      .input(z.object({ consultorId: z.number() }))
+      .query(async ({ input }) => getParcelasFuturasConsultor(input.consultorId)),
+    atualizarStatus: protectedProcedure
+      .input(z.object({ id: z.number(), status: z.enum(["pendente", "pago", "atrasado"]) }))
+      .mutation(async ({ input }) => {
+        await updateParcela(input.id, { status: input.status });
+        return { success: true };
+      }),
   }),
-
+  servicosVendidos: router({
+    byPeriodo: protectedProcedure
+      .input(z.object({ mes: z.number(), ano: z.number() }))
+      .query(async ({ input }) => getServicosVendidosByPeriod(input.mes, input.ano)),
+    byConsultor: protectedProcedure
+      .input(z.object({ consultorId: z.number(), mes: z.number(), ano: z.number() }))
+      .query(async ({ input }) => getServicosVendidosByConsultor(input.consultorId, input.mes, input.ano)),
+  }),
   agendamentos: router({
     listByPeriod: protectedProcedure
       .input(z.object({ mes: z.number(), ano: z.number() }))
@@ -353,6 +387,8 @@ export const appRouter = router({
         resultouVenda: z.boolean().optional(),
         comprovanteUrl: z.string().optional(),
         observacoes: z.string().optional(),
+        clienteTelefone: z.string().optional(),
+        clienteCpfCnpj: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
@@ -694,6 +730,25 @@ export const appRouter = router({
       }),
   }),
 
+  custosServicos: router({
+    get: protectedProcedure.query(async () => getCustosServicos()),
+    set: adminProcedure
+      .input(z.object({ chave: z.string(), valor: z.number() }))
+      .mutation(async ({ input }) => {
+        await setCustoServico(input.chave, input.valor);
+        return { success: true };
+      }),
+  }),
+  dashboardFinanceiro: router({
+    get: protectedProcedure
+      .input(z.object({ mes: z.number(), ano: z.number() }))
+      .query(async ({ input }) => getDashboardFinanceiro(input.mes, input.ano)),
+  }),
+  parcelasCompletas: router({
+    byConsultor: protectedProcedure
+      .input(z.object({ consultorId: z.number() }))
+      .query(async ({ input }) => getParcelasCompletasByConsultor(input.consultorId)),
+  }),
   upload: router({
     comprovante: protectedProcedure
       .input(z.object({ fileBase64: z.string(), mimeType: z.string(), tipo: z.string().default("comprovante") }))

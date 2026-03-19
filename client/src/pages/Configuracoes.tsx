@@ -12,7 +12,7 @@ import {
 import {
   User, Users, Shield, Camera, Save, Settings, Bell, Target, Trophy,
   Eye, EyeOff, RefreshCw, Plus, Pencil, Trash2, Lock, Link, Mail,
-  ChevronDown, ChevronUp, Check, X, History,
+  ChevronDown, ChevronUp, Check, X, History, DollarSign, TrendingUp, BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -123,6 +123,17 @@ export default function Configuracoes() {
   });
   const metaAtual = metaData?.meta || 0;
 
+  // ── Custos de Serviços ──
+  const { data: custosServicos, refetch: refetchCustos } = trpc.custosServicos.get.useQuery(undefined, { enabled: user?.role === "admin" });
+  const [custoLimpaInput, setCustoLimpaInput] = useState("");
+  const [custoRatingInput, setCustoRatingInput] = useState("");
+  const [custoSalarioInput, setCustoSalarioInput] = useState("");
+  const setCustoMut = trpc.custosServicos.set.useMutation({
+    onSuccess: () => { refetchCustos(); toast.success("Custo atualizado!"); },
+    onError: (e) => toast.error("Erro: " + e.message),
+  });
+  // ── Dashboard Financeiro ──
+  const { data: dashFinanceiro } = trpc.dashboardFinanceiro.get.useQuery({ mes, ano }, { enabled: user?.role === "admin" });
   // ── Histórico de Rankings ──
   const salvarSnapshotMut = trpc.rankingHistorico.salvarSnapshot.useMutation({
     onSuccess: (r) => toast.success(`Ranking do mês salvo! ${r.total} consultoras registradas.`),
@@ -481,6 +492,105 @@ export default function Configuracoes() {
                 <Trophy className="w-4 h-4" />
                 {salvarSnapshotMut.isPending ? "Salvando..." : `Salvar Ranking de ${mes}/${ano}`}
               </Button>
+            </div>
+
+            {/* ── Dashboard Financeiro do Mês ── */}
+            <div className="rounded-xl border border-border bg-card p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-primary" />
+                Dashboard Financeiro — {MESES[mes-1]} {ano}
+              </h3>
+              {dashFinanceiro ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="p-3 rounded-lg border bg-blue-50 border-blue-200">
+                      <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">Coletado</p>
+                      <p className="text-lg font-bold text-blue-700">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(dashFinanceiro.totalColetado || 0)}</p>
+                      <p className="text-xs text-blue-500">{dashFinanceiro.totalVendas || 0} vendas</p>
+                    </div>
+                    <div className="p-3 rounded-lg border bg-indigo-50 border-indigo-200">
+                      <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">Faturado</p>
+                      <p className="text-lg font-bold text-indigo-700">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(dashFinanceiro.totalFaturado || 0)}</p>
+                      <p className="text-xs text-indigo-500">Total contratado</p>
+                    </div>
+                    <div className="p-3 rounded-lg border bg-orange-50 border-orange-200">
+                      <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-1">Custos Operação</p>
+                      <p className="text-lg font-bold text-orange-700">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((dashFinanceiro.totalCustosServicos || 0) + (dashFinanceiro.salarioFixo || 0) + (dashFinanceiro.totalComissoes || 0))}</p>
+                      <p className="text-xs text-orange-500">Serviços + Salário</p>
+                    </div>
+                    <div className={`p-3 rounded-lg border ${(dashFinanceiro.liquido || 0) >= 0 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
+                      <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${(dashFinanceiro.liquido || 0) >= 0 ? "text-emerald-600" : "text-red-600"}`}>Líquido</p>
+                      <p className={`text-lg font-bold ${(dashFinanceiro.liquido || 0) >= 0 ? "text-emerald-700" : "text-red-700"}`}>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(dashFinanceiro.liquido || 0)}</p>
+                      <p className="text-xs text-gray-400">Coletado - Custos</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="p-3 rounded-lg border bg-indigo-50 border-indigo-200 text-center">
+                      <p className="text-xs font-semibold text-indigo-600 mb-1">Limpa Nome</p>
+                      <p className="text-2xl font-bold text-indigo-700">{dashFinanceiro.qtdLimpaName || 0}</p>
+                      <p className="text-xs text-indigo-500">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((dashFinanceiro.qtdLimpaName || 0) * (custosServicos?.custo_limpa_nome || 70))}</p>
+                    </div>
+                    <div className="p-3 rounded-lg border bg-violet-50 border-violet-200 text-center">
+                      <p className="text-xs font-semibold text-violet-600 mb-1">Rating Bancário</p>
+                      <p className="text-2xl font-bold text-violet-700">{dashFinanceiro.qtdRating || 0}</p>
+                      <p className="text-xs text-violet-500">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((dashFinanceiro.qtdRating || 0) * (custosServicos?.custo_rating || 110))}</p>
+                    </div>
+                    <div className="p-3 rounded-lg border bg-amber-50 border-amber-200 text-center">
+                      <p className="text-xs font-semibold text-amber-600 mb-1">Comissões Pagas</p>
+                      <p className="text-lg font-bold text-amber-700">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(dashFinanceiro.totalComissoes || 0)}</p>
+                      <p className="text-xs text-amber-500">10% do coletado</p>
+                    </div>
+                    <div className="p-3 rounded-lg border bg-rose-50 border-rose-200 text-center">
+                      <p className="text-xs font-semibold text-rose-600 mb-1">Salário Fixo</p>
+                      <p className="text-lg font-bold text-rose-700">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(custosServicos?.salario_fixo || 1600)}</p>
+                      <p className="text-xs text-rose-500">Custo fixo mensal</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Carregando dados financeiros...</p>
+              )}
+            </div>
+
+            {/* ── Custos de Serviços ── */}
+            <div className="rounded-xl border border-border bg-card p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-primary" />
+                Custos de Serviços
+              </h3>
+              <p className="text-xs text-muted-foreground mb-4">Defina os custos por serviço e o salário fixo. Esses valores são descontados do coletado para calcular o líquido da operação.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">Custo Limpa Nome (R$)</Label>
+                  <div className="flex gap-2">
+                    <Input type="number" min="0" step="1" placeholder={String(custosServicos?.custo_limpa_nome ?? 70)} value={custoLimpaInput} onChange={e => setCustoLimpaInput(e.target.value)} className="h-8 text-sm" />
+                    <Button size="sm" className="h-8 px-3" disabled={!custoLimpaInput || setCustoMut.isPending} onClick={() => { const v = parseFloat(custoLimpaInput); if (!isNaN(v)) { setCustoMut.mutate({ chave: "custo_limpa_nome", valor: v }); setCustoLimpaInput(""); } }}>
+                      <Save className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Atual: R$ {custosServicos?.custo_limpa_nome ?? 70}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">Custo Rating Bancário (R$)</Label>
+                  <div className="flex gap-2">
+                    <Input type="number" min="0" step="1" placeholder={String(custosServicos?.custo_rating ?? 110)} value={custoRatingInput} onChange={e => setCustoRatingInput(e.target.value)} className="h-8 text-sm" />
+                    <Button size="sm" className="h-8 px-3" disabled={!custoRatingInput || setCustoMut.isPending} onClick={() => { const v = parseFloat(custoRatingInput); if (!isNaN(v)) { setCustoMut.mutate({ chave: "custo_rating", valor: v }); setCustoRatingInput(""); } }}>
+                      <Save className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Atual: R$ {custosServicos?.custo_rating ?? 110}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">Salário Fixo (R$)</Label>
+                  <div className="flex gap-2">
+                    <Input type="number" min="0" step="100" placeholder={String(custosServicos?.salario_fixo ?? 1600)} value={custoSalarioInput} onChange={e => setCustoSalarioInput(e.target.value)} className="h-8 text-sm" />
+                    <Button size="sm" className="h-8 px-3" disabled={!custoSalarioInput || setCustoMut.isPending} onClick={() => { const v = parseFloat(custoSalarioInput); if (!isNaN(v)) { setCustoMut.mutate({ chave: "salario_fixo", valor: v }); setCustoSalarioInput(""); } }}>
+                      <Save className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Atual: R$ {custosServicos?.salario_fixo ?? 1600}</p>
+                </div>
+              </div>
             </div>
 
             {/* ── Notificações ao Proprietário ── */}
