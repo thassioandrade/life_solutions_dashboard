@@ -248,7 +248,15 @@ export const promessasPagamento = mysqlTable("promessas_pagamento", {
   clienteCpfCnpj: varchar("clienteCpfCnpj", { length: 20 }),
   dataPromessa: date("dataPromessa").notNull(),
   horarioPromessa: varchar("horarioPromessa", { length: 5 }), // HH:MM
-  valor: decimal("valor", { precision: 10, scale: 2 }),
+  valor: decimal("valor", { precision: 10, scale: 2 }), // valor prometido
+  // Campos de pagamento (preenchidos ao marcar como pago)
+  valorColetado: decimal("valorColetado", { precision: 10, scale: 2 }), // quanto realmente pagou
+  valorFaturado: decimal("valorFaturado", { precision: 10, scale: 2 }), // total do contrato
+  servicos: json("servicos").$type<string[]>(), // ["limpa_nome", "rating"]
+  formaPagamento: varchar("formaPagamento", { length: 50 }),
+  parcelasQtd: int("parcelasQtd").default(1),
+  comprovanteUrl: text("comprovanteUrl"),
+  vendaId: int("vendaId"), // FK para venda criada ao concluir
   observacoes: text("observacoes"),
   consultorId: int("consultorId"),
   agendamentoId: int("agendamentoId"),

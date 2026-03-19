@@ -282,3 +282,16 @@
 - [x] Frontend Agendamentos: checkbox "Vai Fechar" no modal de edição (mutuamente exclusivo com Resultou em Venda)
 - [x] Frontend Agendamentos: badge visual "🤝 Vai fechar" no card do agendamento
 - [x] Pipeline: lead sai automaticamente de "Novos Agendamentos" ao marcar Vai Fechar ou Venda Realizada
+
+## Promessa de Pagamento = Venda Completa (Mar 2026)
+- [x] Schema: adicionar campos valorColetado, valorFaturado, servicos, formaPagamento, comprovanteUrl, parcelasQtd, vendaId à tabela promessas (migração aplicada)
+- [x] Backend: getPromessaById adicionado ao db.ts
+- [x] Backend: updatePromessa aceita novos campos de pagamento
+- [x] Backend: ao marcar promessa como paga, criar venda automaticamente com todos os campos
+- [x] Backend: ao criar venda via promessa, mover lead para "Venda Realizada" no pipeline
+- [x] Backend: ao criar venda via promessa, atualizar agendamento de origem (resultouVenda=true)
+- [x] Backend: venda criada via promessa conta em comissão, ranking, serviços vendidos, Excel (pois é uma venda normal)
+- [x] Frontend Promessas: modal de pagamento com valorColetado, valorFaturado, serviços, formaPagamento, parcelas, comprovante
+- [x] Frontend Promessas: botão "Pago" abre modal de confirmação com todos os campos
+- [x] Frontend Promessas: resumo de comissão líquida em tempo real no modal
+- [x] Frontend Promessas: badge "Venda criada" após concluir pagamento

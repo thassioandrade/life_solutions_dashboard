@@ -27,7 +27,7 @@ import {
   getServicosVendidosByPeriod, getServicosVendidosByConsultor,
   getCustosServicos, setCustoServico, getDashboardFinanceiro, getParcelasCompletasByConsultor,
   getPromessas, getPromessasByConsultor, getPromessasHoje, getPromessasHojeByConsultor,
-  createPromessa, updatePromessa, deletePromessa,
+  getPromessaById, createPromessa, updatePromessa, deletePromessa,
   getRankingAutomatico,
 } from "./db";
 import { storagePut } from "./storage";
@@ -857,10 +857,117 @@ export const appRouter = router({
         valor: z.number().optional(),
         observacoes: z.string().optional(),
         status: z.string().optional(),
+        // Campos de pagamento (preenchidos ao marcar como pago)
+        valorColetado: z.number().optional(),
+        valorFaturado: z.number().optional(),
+        servicos: z.array(z.string()).optional(),
+        formaPagamento: z.string().optional(),
+        parcelasQtd: z.number().optional(),
+        comprovanteUrl: z.string().optional(),
+        datesVencimento: z.array(z.string()).optional(), // datas das parcelas futuras
       }))
       .mutation(async ({ input }) => {
-        const { id, ...data } = input;
+        const { id, datesVencimento, ...data } = input;
         await updatePromessa(id, data);
+
+        // Se marcou como concluído com valorColetado, criar venda automaticamente
+        if (data.status === "concluido" && data.valorColetado && data.valorColetado > 0) {
+          try {
+            const promessa = await getPromessaById(id);
+            if (!promessa) throw new Error("Promessa não encontrada");
+
+            // Calcular custo do serviço
+            const custos = await getCustosServicos();
+            const servicos = data.servicos || promessa.servicos || [];
+            let custoServico = 0;
+            if (servicos.includes("limpa_nome")) custoServico += custos["custo_limpa_nome"] ?? 70;
+            if (servicos.includes("rating")) custoServico += custos["custo_rating"] ?? 110;
+
+            const valorColetado = data.valorColetado;
+            const valorFaturado = data.valorFaturado || valorColetado;
+            const parcelasQtd = data.parcelasQtd || 0;
+            const consultorId = promessa.consultorId ?? undefined;
+
+            // Criar a venda
+            const db = await getDb();
+            if (!db) throw new Error("DB not available");
+
+            await createVenda({
+              clienteNome: promessa.clienteNome,
+              clienteCpfCnpj: promessa.clienteCpfCnpj || undefined,
+              clienteTelefone: promessa.clienteTelefone || undefined,
+              tipo: "PF",
+              consultorId: consultorId,
+              dataVenda: new Date(),
+              valorFaturado: String(valorFaturado),
+              valorColetado: String(valorColetado),
+              parcelasRestantes: parcelasQtd,
+              servicos: servicos,
+              observacoes: promessa.observacoes || undefined,
+              comprovanteUrl: data.comprovanteUrl || undefined,
+              comissaoPercent: "10",
+              custoServico: String(custoServico),
+            });
+
+            // Buscar a venda recém-criada para obter o ID
+            const { vendas: vendasTable, eq: eqFn, desc } = await import("./db").then(async () => {
+              const { vendas: v } = await import("../drizzle/schema");
+              const { eq: e, desc: d } = await import("drizzle-orm");
+              return { vendas: v, eq: e, desc: d };
+            });
+            const vendasRows = consultorId
+              ? await db.select().from(vendasTable).where(eqFn(vendasTable.consultorId, consultorId)).orderBy(desc(vendasTable.id)).limit(1)
+              : await db.select().from(vendasTable).orderBy(desc(vendasTable.id)).limit(1);
+            const novaVenda = vendasRows[0] ?? null;
+
+            // Criar parcelas se houver
+            if (parcelasQtd > 0 && datesVencimento && datesVencimento.length > 0 && novaVenda) {
+              const valorParcela = (valorFaturado - valorColetado) / parcelasQtd;
+              if (valorParcela > 0) {
+                await createParcelas(datesVencimento.map((d, idx) => ({
+                  vendaId: novaVenda.id,
+                  valor: String(valorParcela),
+                  vencimento: new Date(d),
+                  status: "pendente" as const,
+                  numeroParcela: idx + 2, // 1ª parcela já foi coletada
+                })));
+              }
+            }
+
+            // Salvar vendaId na promessa
+            if (novaVenda) {
+              await updatePromessa(id, { vendaId: novaVenda.id });
+            }
+
+            // Mover lead para "Venda Realizada" no pipeline
+            const colunas = await getColunasPipeline();
+            const colunaVenda = colunas.find(c => c.nome.toLowerCase().includes("venda realizada"));
+            if (colunaVenda) {
+              await createLead({
+                colunaId: colunaVenda.id,
+                nome: promessa.clienteNome,
+                valor: String(valorColetado),
+                consultorId: consultorId,
+                observacoes: `Venda via promessa de pagamento`,
+                mes: new Date().getMonth() + 1,
+                ano: new Date().getFullYear(),
+                ordem: 0,
+              });
+            }
+
+            // Atualizar agendamento de origem se houver
+            if (promessa.agendamentoId) {
+              await updateAgendamento(promessa.agendamentoId, {
+                resultouVenda: true,
+                valorColetado: String(valorColetado),
+                valorFaturado: String(valorFaturado),
+              });
+            }
+          } catch (e) {
+            console.error("[promessas.update] Erro ao criar venda:", e);
+          }
+        }
+
         return { success: true };
       }),
     delete: protectedProcedure

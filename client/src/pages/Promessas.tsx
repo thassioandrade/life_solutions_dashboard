@@ -7,11 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Bell, Plus, Edit2, Trash2, CheckCircle2, XCircle,
-  Phone, User, Calendar, DollarSign, Clock, AlertTriangle, FileText
+  Phone, User, Calendar, DollarSign, Clock, AlertTriangle, FileText,
+  Upload, CreditCard, Package
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -37,6 +39,13 @@ type Promessa = {
   clienteCpfCnpj?: string | null;
   dataPromessa: Date | string;
   valor?: string | null;
+  valorColetado?: string | null;
+  valorFaturado?: string | null;
+  servicos?: string[] | null;
+  formaPagamento?: string | null;
+  parcelasQtd?: number | null;
+  comprovanteUrl?: string | null;
+  vendaId?: number | null;
   observacoes?: string | null;
   consultorId?: number | null;
   agendamentoId?: number | null;
@@ -54,6 +63,16 @@ type FormState = {
   consultorId: string;
 };
 
+type PagamentoForm = {
+  valorColetado: string;
+  valorFaturado: string;
+  servicos: string[];
+  formaPagamento: string;
+  parcelasQtd: number;
+  comprovanteUrl: string;
+  datesVencimento: string[];
+};
+
 const FORM_VAZIO: FormState = {
   clienteNome: "",
   clienteTelefone: "",
@@ -64,15 +83,35 @@ const FORM_VAZIO: FormState = {
   consultorId: "",
 };
 
+const PAGAMENTO_VAZIO: PagamentoForm = {
+  valorColetado: "",
+  valorFaturado: "",
+  servicos: [],
+  formaPagamento: "",
+  parcelasQtd: 0,
+  comprovanteUrl: "",
+  datesVencimento: [],
+};
+
+const SERVICOS_OPCOES = [
+  { value: "limpa_nome", label: "Limpa Nome" },
+  { value: "rating", label: "Rating Bancário" },
+];
+
+const FORMAS_PAGAMENTO = ["PIX", "Cartão de Crédito", "Cartão de Débito", "Boleto", "Dinheiro", "Transferência"];
+
 export default function Promessas() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
 
   const [modalAberto, setModalAberto] = useState(false);
+  const [modalPagamento, setModalPagamento] = useState<Promessa | null>(null);
   const [editando, setEditando] = useState<Promessa | null>(null);
   const [form, setForm] = useState<FormState>(FORM_VAZIO);
+  const [pagForm, setPagForm] = useState<PagamentoForm>(PAGAMENTO_VAZIO);
   const [filtroStatus, setFiltroStatus] = useState<"todas" | "pendente" | "concluido" | "cancelado">("todas");
   const [filtroConsultor, setFiltroConsultor] = useState<string>("todos");
+  const [uploadingComprovante, setUploadingComprovante] = useState(false);
 
   const utils = trpc.useUtils();
   const { data: promessas, isLoading } = trpc.promessas.list.useQuery(undefined, { enabled: isAdmin });
@@ -95,9 +134,12 @@ export default function Promessas() {
       toast.success("Promessa atualizada!");
       utils.promessas.list.invalidate();
       utils.promessas.hoje.invalidate();
+      utils.vendas.listByPeriod.invalidate();
       setModalAberto(false);
+      setModalPagamento(null);
       setEditando(null);
       setForm(FORM_VAZIO);
+      setPagForm(PAGAMENTO_VAZIO);
     },
     onError: (e) => toast.error("Erro: " + e.message),
   });
@@ -109,6 +151,19 @@ export default function Promessas() {
       utils.promessas.hoje.invalidate();
     },
     onError: (e) => toast.error("Erro: " + e.message),
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const uploadComprovanteMut = (trpc.agendamentos as any).uploadComprovante?.useMutation?.({
+    onSuccess: (data: { url: string }) => {
+      setPagForm(f => ({ ...f, comprovanteUrl: data.url }));
+      setUploadingComprovante(false);
+      toast.success("Comprovante enviado!");
+    },
+    onError: () => {
+      setUploadingComprovante(false);
+      toast.error("Erro ao enviar comprovante");
+    },
   });
 
   const promessasFiltradas = useMemo(() => {
@@ -150,6 +205,19 @@ export default function Promessas() {
     setModalAberto(true);
   }
 
+  function abrirPagamento(p: Promessa) {
+    setModalPagamento(p);
+    setPagForm({
+      valorColetado: p.valor ? String(parseFloat(p.valor)) : "",
+      valorFaturado: p.valor ? String(parseFloat(p.valor)) : "",
+      servicos: p.servicos || [],
+      formaPagamento: p.formaPagamento || "",
+      parcelasQtd: p.parcelasQtd || 0,
+      comprovanteUrl: p.comprovanteUrl || "",
+      datesVencimento: [],
+    });
+  }
+
   function handleSalvar() {
     if (!form.clienteNome.trim()) { toast.error("Nome do cliente é obrigatório"); return; }
     if (!form.dataPromessa) { toast.error("Data da promessa é obrigatória"); return; }
@@ -169,22 +237,96 @@ export default function Promessas() {
     }
   }
 
-  function marcarConcluido(p: Promessa) {
-    updateMut.mutate({ id: p.id, status: "concluido" });
+  function handleParcelasChange(qtd: number) {
+    setPagForm(f => {
+      const coletado = parseFloat(f.valorColetado) || 0;
+      const faturado = parseFloat(f.valorFaturado) || coletado;
+      const dates = Array.from({ length: qtd }, (_, i) => {
+        const d = new Date();
+        d.setMonth(d.getMonth() + i + 1);
+        return d.toISOString().split("T")[0];
+      });
+      return { ...f, parcelasQtd: qtd, datesVencimento: dates };
+    });
+  }
+
+  function handleConfirmarPagamento() {
+    if (!modalPagamento) return;
+    if (!pagForm.valorColetado || parseFloat(pagForm.valorColetado) <= 0) {
+      toast.error("Informe o valor coletado");
+      return;
+    }
+    if (!pagForm.formaPagamento) {
+      toast.error("Informe a forma de pagamento");
+      return;
+    }
+
+    updateMut.mutate({
+      id: modalPagamento.id,
+      status: "concluido",
+      valorColetado: parseFloat(pagForm.valorColetado),
+      valorFaturado: parseFloat(pagForm.valorFaturado) || parseFloat(pagForm.valorColetado),
+      servicos: pagForm.servicos,
+      formaPagamento: pagForm.formaPagamento,
+      parcelasQtd: pagForm.parcelasQtd,
+      comprovanteUrl: pagForm.comprovanteUrl || undefined,
+      datesVencimento: pagForm.datesVencimento.length > 0 ? pagForm.datesVencimento : undefined,
+    });
   }
 
   function marcarCancelado(p: Promessa) {
     updateMut.mutate({ id: p.id, status: "cancelado" });
   }
 
+  function toggleServico(v: string) {
+    setPagForm(f => ({
+      ...f,
+      servicos: f.servicos.includes(v) ? f.servicos.filter(s => s !== v) : [...f.servicos, v],
+    }));
+  }
+
+  async function handleUploadComprovante(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("Arquivo muito grande (máx 5MB)"); return; }
+    setUploadingComprovante(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = (reader.result as string).split(",")[1];
+        if (uploadComprovanteMut) {
+          uploadComprovanteMut.mutate({ base64, mimeType: file.type, filename: file.name });
+        } else {
+          // Fallback: usar URL de objeto local temporário
+          const url = URL.createObjectURL(file);
+          setPagForm(f => ({ ...f, comprovanteUrl: url }));
+          setUploadingComprovante(false);
+          toast.success("Comprovante selecionado (será enviado ao salvar)");
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setUploadingComprovante(false);
+      toast.error("Erro ao processar arquivo");
+    }
+  }
+
   function getStatusBadge(p: Promessa) {
     const dias = calcDias(p.dataPromessa);
-    if (p.status === "concluido") return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px]">Concluído</Badge>;
+    if (p.status === "concluido") return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px]">✅ Pago</Badge>;
     if (p.status === "cancelado") return <Badge className="bg-gray-100 text-gray-500 border-gray-200 text-[10px]">Cancelado</Badge>;
     if (dias < 0) return <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px]">{Math.abs(dias)}d atrasado</Badge>;
     if (dias === 0) return <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[10px]">Hoje!</Badge>;
     return <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-[10px]">Em {dias}d</Badge>;
   }
+
+  // Cálculo de comissão líquida no modal de pagamento
+  const coletadoModal = parseFloat(pagForm.valorColetado) || 0;
+  const custoLimpaModal = pagForm.servicos.includes("limpa_nome") ? 70 : 0;
+  const custoRatingModal = pagForm.servicos.includes("rating") ? 110 : 0;
+  const custoTotalModal = custoLimpaModal + custoRatingModal;
+  const baseComissaoModal = Math.max(0, coletadoModal - custoTotalModal);
+  const comissaoModal = baseComissaoModal * 0.10;
 
   return (
     <LifeDashboardLayout title="Promessas de Pagamento">
@@ -237,7 +379,7 @@ export default function Promessas() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
-                        onClick={() => marcarConcluido(p)} disabled={updateMut.isPending}>
+                        onClick={() => abrirPagamento(p)} disabled={updateMut.isPending}>
                         <CheckCircle2 className="w-3 h-3" />
                         Fechou!
                       </Button>
@@ -342,6 +484,7 @@ export default function Promessas() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-semibold text-gray-800">{p.clienteNome}</p>
                           {getStatusBadge(p)}
+                          {p.vendaId && <Badge className="bg-purple-100 text-purple-700 border-purple-200 text-[10px]">Venda criada</Badge>}
                         </div>
                         <div className="flex items-center gap-3 mt-1 flex-wrap text-xs text-gray-500">
                           <span className="flex items-center gap-1">
@@ -357,7 +500,13 @@ export default function Promessas() {
                           {p.valor && (
                             <span className="flex items-center gap-1 text-emerald-600 font-medium">
                               <DollarSign className="w-3 h-3" />
-                              {formatCurrency(parseFloat(p.valor))}
+                              Prometido: {formatCurrency(parseFloat(p.valor))}
+                            </span>
+                          )}
+                          {p.valorColetado && (
+                            <span className="flex items-center gap-1 text-blue-600 font-bold">
+                              <DollarSign className="w-3 h-3" />
+                              Pago: {formatCurrency(parseFloat(p.valorColetado))}
                             </span>
                           )}
                           {consultor && <span className="text-gray-400">{consultor.nome}</span>}
@@ -372,8 +521,9 @@ export default function Promessas() {
                         {p.status === "pendente" && (
                           <>
                             <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
-                              onClick={() => marcarConcluido(p)} disabled={updateMut.isPending} title="Marcar como fechado">
+                              onClick={() => abrirPagamento(p)} disabled={updateMut.isPending} title="Registrar pagamento">
                               <CheckCircle2 className="w-3 h-3" />
+                              Pago
                             </Button>
                             <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
                               onClick={() => abrirEditar(p)} title="Editar">
@@ -463,6 +613,166 @@ export default function Promessas() {
                 {editando ? "Salvar Alterações" : "Registrar Promessa"}
               </Button>
               <Button variant="outline" onClick={() => { setModalAberto(false); setEditando(null); setForm(FORM_VAZIO); }}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Pagamento — Registrar venda */}
+      <Dialog open={!!modalPagamento} onOpenChange={open => { if (!open) { setModalPagamento(null); setPagForm(PAGAMENTO_VAZIO); } }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              Registrar Pagamento — {modalPagamento?.clienteNome}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5 mt-2">
+
+            {/* Valores */}
+            <div>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5" /> Valores
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs font-semibold text-gray-600 mb-1 block">Valor Coletado (entrada) *</Label>
+                  <Input type="number" placeholder="0,00" min="0" step="0.01"
+                    value={pagForm.valorColetado}
+                    onChange={e => setPagForm(f => ({ ...f, valorColetado: e.target.value }))} />
+                  <p className="text-[10px] text-gray-400 mt-0.5">Quanto o cliente pagou agora</p>
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold text-gray-600 mb-1 block">Valor Faturado (total contrato)</Label>
+                  <Input type="number" placeholder="0,00" min="0" step="0.01"
+                    value={pagForm.valorFaturado}
+                    onChange={e => setPagForm(f => ({ ...f, valorFaturado: e.target.value }))} />
+                  <p className="text-[10px] text-gray-400 mt-0.5">Valor total do contrato</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Serviços */}
+            <div>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                <Package className="w-3.5 h-3.5" /> Serviços Contratados
+              </p>
+              <div className="flex gap-4">
+                {SERVICOS_OPCOES.map(s => (
+                  <div key={s.value} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`srv-${s.value}`}
+                      checked={pagForm.servicos.includes(s.value)}
+                      onCheckedChange={() => toggleServico(s.value)}
+                    />
+                    <label htmlFor={`srv-${s.value}`} className="text-sm text-gray-700 cursor-pointer">{s.label}</label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Forma de pagamento */}
+            <div>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                <CreditCard className="w-3.5 h-3.5" /> Forma de Pagamento *
+              </p>
+              <Select value={pagForm.formaPagamento} onValueChange={v => setPagForm(f => ({ ...f, formaPagamento: v }))}>
+                <SelectTrigger className="text-sm"><SelectValue placeholder="Selecionar forma de pagamento" /></SelectTrigger>
+                <SelectContent>
+                  {FORMAS_PAGAMENTO.map(fp => <SelectItem key={fp} value={fp}>{fp}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Parcelas */}
+            <div>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5" /> Parcelas Restantes
+              </p>
+              <Select value={String(pagForm.parcelasQtd)} onValueChange={v => handleParcelasChange(parseInt(v))}>
+                <SelectTrigger className="text-sm w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => (
+                    <SelectItem key={n} value={String(n)}>{n === 0 ? "À vista (sem parcelas)" : `${n} parcela${n > 1 ? "s" : ""}`}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {pagForm.parcelasQtd > 0 && pagForm.datesVencimento.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-gray-500 font-medium">Datas de vencimento das parcelas:</p>
+                  {pagForm.datesVencimento.map((d, i) => {
+                    const faturado = parseFloat(pagForm.valorFaturado) || parseFloat(pagForm.valorColetado) || 0;
+                    const coletado = parseFloat(pagForm.valorColetado) || 0;
+                    const valorParcela = pagForm.parcelasQtd > 0 ? (faturado - coletado) / pagForm.parcelasQtd : 0;
+                    return (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 w-16">Parcela {i + 1}:</span>
+                        <Input type="date" value={d} className="text-xs h-7 flex-1"
+                          onChange={e => {
+                            const newDates = [...pagForm.datesVencimento];
+                            newDates[i] = e.target.value;
+                            setPagForm(f => ({ ...f, datesVencimento: newDates }));
+                          }} />
+                        {valorParcela > 0 && <span className="text-xs text-emerald-600 font-medium w-24 text-right">{formatCurrency(valorParcela)}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Comprovante */}
+            <div>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                <Upload className="w-3.5 h-3.5" /> Comprovante de Pagamento
+              </p>
+              {pagForm.comprovanteUrl ? (
+                <div className="flex items-center gap-2 p-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs text-emerald-700 flex-1 truncate">Comprovante anexado</span>
+                  <Button size="sm" variant="outline" className="h-6 text-xs"
+                    onClick={() => setPagForm(f => ({ ...f, comprovanteUrl: "" }))}>
+                    Remover
+                  </Button>
+                </div>
+              ) : (
+                <label className="flex items-center gap-2 p-3 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50/30 transition-all">
+                  <Upload className="w-4 h-4 text-gray-400" />
+                  <span className="text-xs text-gray-500">{uploadingComprovante ? "Enviando..." : "Clique para anexar comprovante (JPG, PNG, PDF)"}</span>
+                  <input type="file" accept="image/*,.pdf" className="hidden" onChange={handleUploadComprovante} disabled={uploadingComprovante} />
+                </label>
+              )}
+            </div>
+
+            {/* Resumo de comissão */}
+            {coletadoModal > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-2">Resumo da Comissão</p>
+                <div className="space-y-1 text-xs text-gray-600">
+                  <div className="flex justify-between">
+                    <span>Valor coletado:</span>
+                    <span className="font-medium">{formatCurrency(coletadoModal)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Base de cálculo (coletado - custos):</span>
+                    <span className="font-medium">{formatCurrency(baseComissaoModal)}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-blue-200 pt-1 mt-1">
+                    <span className="font-bold text-blue-700">Comissão líquida (10%):</span>
+                    <span className="font-bold text-blue-700">{formatCurrency(comissaoModal)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={handleConfirmarPagamento} disabled={updateMut.isPending}>
+                {updateMut.isPending ? "Registrando..." : "✅ Confirmar Pagamento e Criar Venda"}
+              </Button>
+              <Button variant="outline" onClick={() => { setModalPagamento(null); setPagForm(PAGAMENTO_VAZIO); }}>
                 Cancelar
               </Button>
             </div>

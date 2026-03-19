@@ -844,6 +844,13 @@ export async function createPromessa(data: {
   });
 }
 
+export async function getPromessaById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(promessasPagamento).where(eq(promessasPagamento.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+
 export async function updatePromessa(id: number, data: Partial<{
   clienteNome: string;
   clienteTelefone: string;
@@ -853,11 +860,21 @@ export async function updatePromessa(id: number, data: Partial<{
   valor: number;
   observacoes: string;
   status: string;
+  // Campos de pagamento
+  valorColetado: number;
+  valorFaturado: number;
+  servicos: string[];
+  formaPagamento: string;
+  parcelasQtd: number;
+  comprovanteUrl: string;
+  vendaId: number;
 }>) {
   const db = await getDb();
   if (!db) return;
   const updateData: Record<string, unknown> = { ...data };
   if (data.valor !== undefined) updateData.valor = String(data.valor);
+  if (data.valorColetado !== undefined) updateData.valorColetado = String(data.valorColetado);
+  if (data.valorFaturado !== undefined) updateData.valorFaturado = String(data.valorFaturado);
   if (data.dataPromessa !== undefined) updateData.dataPromessa = new Date(data.dataPromessa + "T12:00:00");
   await db.update(promessasPagamento).set(updateData).where(eq(promessasPagamento.id, id));
 }
