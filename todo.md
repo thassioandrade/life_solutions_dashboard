@@ -307,3 +307,12 @@
 - [x] Frontend Consultor PainelConsultor: botão de estorno (XCircle) na lista de vendas com modal
 - [x] Pipeline: coluna "Estorno" criada automaticamente ao cancelar primeira venda
 - [x] Pipeline: botão de exclusão de lead já existia para todos os usuários (protectedProcedure)
+
+## Correção Serviços Vendidos e Edição de Venda (Mar 2026)
+- [x] Corrigido: formulário Nova Venda agora usa checkboxes de serviços (limpa_nome/rating) em vez de texto livre
+- [x] Corrigido: custo do serviço calculado automaticamente com base nos serviços selecionados
+- [x] Adicionado botão "Editar" (Edit2) na lista de vendas do Admin (Vendas.tsx)
+- [x] Adicionado modal de edição completo no Admin com todos os campos
+- [x] Adicionado botão de edição (Edit2) na lista de vendas do Consultor (PainelConsultor.tsx)
+- [x] Adicionado modal de edição completo no Consultor com todos os campos
+- [x] Backend: procedure vendas.update expandido para aceitar todos os campos (servicos, consultorId, custoServico, comissaoPercent, dataVenda, tipo)

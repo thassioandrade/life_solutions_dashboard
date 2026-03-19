@@ -33,14 +33,20 @@ export default function Vendas() {
     clienteNome: "", clienteEmail: "", clienteCpfCnpj: "", tipo: "PF",
     valorFaturado: "", valorColetado: "", formaPagamento: "", qtdParcelas: "1",
     consultorId: "", comissaoPercent: "10", dataVenda: new Date().toISOString().split("T")[0],
-    servicoDescricao: "", custoServico: "",
+    servicos: [] as string[], custoServico: "",
   });
+  const [openEdit, setOpenEdit] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState<any>({});
 
   const { data: vendas, refetch } = trpc.vendas.listByPeriod.useQuery({ mes, ano });
   const { data: consultores } = trpc.consultores.list.useQuery();
 
   const createMutation = trpc.vendas.create.useMutation({
-    onSuccess: () => { toast.success("Venda registrada!"); setOpenCreate(false); setForm({ clienteNome: "", clienteEmail: "", clienteCpfCnpj: "", tipo: "PF", valorFaturado: "", valorColetado: "", formaPagamento: "", qtdParcelas: "1", consultorId: "", comissaoPercent: "10", dataVenda: new Date().toISOString().split("T")[0], servicoDescricao: "", custoServico: "" }); refetch(); },
+    onSuccess: () => { toast.success("Venda registrada!"); setOpenCreate(false); setForm({ clienteNome: "", clienteEmail: "", clienteCpfCnpj: "", tipo: "PF", valorFaturado: "", valorColetado: "", formaPagamento: "", qtdParcelas: "1", consultorId: "", comissaoPercent: "10", dataVenda: new Date().toISOString().split("T")[0], servicos: [], custoServico: "" }); refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateMutation = trpc.vendas.update.useMutation({
+    onSuccess: () => { toast.success("Venda atualizada!"); setOpenEdit(null); refetch(); },
     onError: (e) => toast.error(e.message),
   });
   const deleteMutation = trpc.vendas.delete.useMutation({
@@ -68,6 +74,10 @@ export default function Vendas() {
   const handleCreate = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
     if (!form.clienteNome || !form.valorFaturado) { toast.error("Preencha os campos obrigatórios"); return; }
+    // Calcular custo automaticamente baseado nos serviços selecionados
+    const custoAuto = form.servicos.includes("limpa_nome") && form.servicos.includes("rating") ? 180
+      : form.servicos.includes("limpa_nome") ? 70
+      : form.servicos.includes("rating") ? 110 : 0;
     createMutation.mutate({
       clienteNome: form.clienteNome,
       clienteCpfCnpj: form.clienteCpfCnpj || undefined,
@@ -78,8 +88,8 @@ export default function Vendas() {
       consultorId: form.consultorId ? parseInt(form.consultorId) : undefined,
       comissaoPercent: parseFloat(form.comissaoPercent) || 10,
       dataVenda: form.dataVenda,
-
-      custoServico: form.custoServico ? parseFloat(form.custoServico) : undefined,
+      servicos: form.servicos,
+      custoServico: form.custoServico ? parseFloat(form.custoServico) : custoAuto,
     });
   };
 
@@ -167,12 +177,17 @@ export default function Vendas() {
                       <Input type="number" step="0.1" value={form.comissaoPercent} onChange={e => setForm({ ...form, comissaoPercent: e.target.value })} />
                     </div>
                     <div className="col-span-2">
-                      <Label>Descrição do Serviço</Label>
-                      <Input placeholder="Ex: Planejamento financeiro..." value={form.servicoDescricao} onChange={e => setForm({ ...form, servicoDescricao: e.target.value })} />
-                    </div>
-                    <div>
-                      <Label>Custo do Serviço (R$)</Label>
-                      <Input type="number" step="0.01" placeholder="0,00" value={form.custoServico} onChange={e => setForm({ ...form, custoServico: e.target.value })} />
+                      <Label>Serviços Contratados</Label>
+                      <div className="flex gap-4 mt-1">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={form.servicos.includes("limpa_nome")} onChange={e => setForm({ ...form, servicos: e.target.checked ? [...form.servicos, "limpa_nome"] : form.servicos.filter(s => s !== "limpa_nome") })} className="w-4 h-4 rounded" />
+                          <span className="text-sm">🧹 Limpa Nome</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={form.servicos.includes("rating")} onChange={e => setForm({ ...form, servicos: e.target.checked ? [...form.servicos, "rating"] : form.servicos.filter(s => s !== "rating") })} className="w-4 h-4 rounded" />
+                          <span className="text-sm">⭐ Rating Bancário</span>
+                        </label>
+                      </div>
                     </div>
                   </div>
                   <div className="flex gap-2 pt-2">
@@ -272,6 +287,27 @@ export default function Vendas() {
                         )}
                       </div>
                       <div className="flex gap-1.5">
+                        <Button variant="outline" size="sm" className="h-8 px-2 text-blue-600 border-blue-200 hover:bg-blue-50 text-xs gap-1"
+                          onClick={() => {
+                            const servs = Array.isArray(venda.servicos) ? venda.servicos : [];
+                            setEditForm({
+                              id: venda.id,
+                              clienteNome: venda.clienteNome || "",
+                              clienteCpfCnpj: venda.clienteCpfCnpj || "",
+                              tipo: venda.tipo || "PF",
+                              valorFaturado: String(venda.valorFaturado || ""),
+                              valorColetado: String(venda.valorColetado || ""),
+                              consultorId: String(venda.consultorId || ""),
+                              comissaoPercent: String(venda.comissaoPercent || "10"),
+                              dataVenda: new Date(venda.dataVenda).toISOString().split("T")[0],
+                              servicos: servs,
+                              custoServico: String(venda.custoServico || ""),
+                              observacoes: venda.observacoes || "",
+                            });
+                            setOpenEdit(venda);
+                          }}>
+                          <Edit2 className="w-3.5 h-3.5" /> Editar
+                        </Button>
                         <Button variant="outline" size="sm" className="h-8 px-2 text-orange-600 border-orange-200 hover:bg-orange-50 text-xs gap-1"
                           onClick={() => { setOpenEstorno(venda); setMotivoEstorno(""); }}>
                           <XCircle className="w-3.5 h-3.5" /> Estorno
@@ -291,6 +327,98 @@ export default function Vendas() {
           </div>
         )}
       </div>
+
+      {/* Modal de Edição */}
+      <Dialog open={!!openEdit} onOpenChange={(o) => { if (!o) setOpenEdit(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Editar Venda</DialogTitle></DialogHeader>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            if (!editForm.clienteNome || !editForm.valorFaturado) { toast.error("Preencha os campos obrigatórios"); return; }
+            const custoAuto = editForm.servicos.includes("limpa_nome") && editForm.servicos.includes("rating") ? 180
+              : editForm.servicos.includes("limpa_nome") ? 70
+              : editForm.servicos.includes("rating") ? 110 : 0;
+            updateMutation.mutate({
+              id: editForm.id,
+              clienteNome: editForm.clienteNome,
+              clienteCpfCnpj: editForm.clienteCpfCnpj || undefined,
+              tipo: editForm.tipo as "PF" | "PJ",
+              valorFaturado: parseFloat(editForm.valorFaturado),
+              valorColetado: parseFloat(editForm.valorColetado || editForm.valorFaturado),
+              consultorId: editForm.consultorId ? parseInt(editForm.consultorId) : undefined,
+              comissaoPercent: parseFloat(editForm.comissaoPercent) || 10,
+              dataVenda: editForm.dataVenda,
+              servicos: editForm.servicos,
+              custoServico: editForm.custoServico ? parseFloat(editForm.custoServico) : custoAuto,
+              observacoes: editForm.observacoes || undefined,
+            });
+          }} className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <Label>Nome do Cliente *</Label>
+                <Input value={editForm.clienteNome || ""} onChange={e => setEditForm({ ...editForm, clienteNome: e.target.value })} />
+              </div>
+              <div>
+                <Label>CPF/CNPJ</Label>
+                <Input value={editForm.clienteCpfCnpj || ""} onChange={e => setEditForm({ ...editForm, clienteCpfCnpj: e.target.value })} />
+              </div>
+              <div>
+                <Label>Tipo</Label>
+                <Select value={editForm.tipo || "PF"} onValueChange={v => setEditForm({ ...editForm, tipo: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{TIPOS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Data da Venda</Label>
+                <Input type="date" value={editForm.dataVenda || ""} onChange={e => setEditForm({ ...editForm, dataVenda: e.target.value })} />
+              </div>
+              <div>
+                <Label>Valor Faturado (R$) *</Label>
+                <Input type="number" step="0.01" value={editForm.valorFaturado || ""} onChange={e => setEditForm({ ...editForm, valorFaturado: e.target.value })} />
+              </div>
+              <div>
+                <Label>Valor Coletado (R$)</Label>
+                <Input type="number" step="0.01" value={editForm.valorColetado || ""} onChange={e => setEditForm({ ...editForm, valorColetado: e.target.value })} />
+              </div>
+              <div>
+                <Label>Consultor</Label>
+                <Select value={editForm.consultorId || ""} onValueChange={v => setEditForm({ ...editForm, consultorId: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                  <SelectContent>
+                    {consultores?.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Comissão (%)</Label>
+                <Input type="number" step="0.1" value={editForm.comissaoPercent || "10"} onChange={e => setEditForm({ ...editForm, comissaoPercent: e.target.value })} />
+              </div>
+              <div className="col-span-2">
+                <Label>Serviços Contratados</Label>
+                <div className="flex gap-4 mt-1">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={(editForm.servicos || []).includes("limpa_nome")} onChange={e => setEditForm({ ...editForm, servicos: e.target.checked ? [...(editForm.servicos || []), "limpa_nome"] : (editForm.servicos || []).filter((s: string) => s !== "limpa_nome") })} className="w-4 h-4 rounded" />
+                    <span className="text-sm">🧹 Limpa Nome</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={(editForm.servicos || []).includes("rating")} onChange={e => setEditForm({ ...editForm, servicos: e.target.checked ? [...(editForm.servicos || []), "rating"] : (editForm.servicos || []).filter((s: string) => s !== "rating") })} className="w-4 h-4 rounded" />
+                    <span className="text-sm">⭐ Rating Bancário</span>
+                  </label>
+                </div>
+              </div>
+              <div className="col-span-2">
+                <Label>Observações</Label>
+                <Input value={editForm.observacoes || ""} onChange={e => setEditForm({ ...editForm, observacoes: e.target.value })} />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setOpenEdit(null)} className="flex-1">Cancelar</Button>
+              <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white" disabled={updateMutation.isPending}>Salvar Alterações</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de Estorno */}
       <Dialog open={!!openEstorno} onOpenChange={(o) => { if (!o) { setOpenEstorno(null); setMotivoEstorno(""); } }}>

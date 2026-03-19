@@ -206,16 +206,27 @@ export const appRouter = router({
       .input(z.object({
         id: z.number(),
         clienteNome: z.string().optional(),
+        clienteCpfCnpj: z.string().optional(),
+        clienteTelefone: z.string().optional(),
+        tipo: z.enum(["PF", "PJ"]).optional(),
         valorFaturado: z.number().optional(),
         valorColetado: z.number().optional(),
         status: z.string().optional(),
         observacoes: z.string().optional(),
+        servicos: z.array(z.string()).optional(),
+        consultorId: z.number().optional(),
+        custoServico: z.number().optional(),
+        comissaoPercent: z.number().optional(),
+        dataVenda: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         const updateData: Record<string, unknown> = { ...data };
         if (data.valorFaturado !== undefined) updateData.valorFaturado = String(data.valorFaturado);
         if (data.valorColetado !== undefined) updateData.valorColetado = String(data.valorColetado);
+        if (data.custoServico !== undefined) updateData.custoServico = String(data.custoServico);
+        if (data.comissaoPercent !== undefined) updateData.comissaoPercent = String(data.comissaoPercent);
+        if (data.dataVenda !== undefined) updateData.dataVenda = new Date(data.dataVenda);
         await updateVenda(id, updateData as Parameters<typeof updateVenda>[1]);
         return { success: true };
       }),

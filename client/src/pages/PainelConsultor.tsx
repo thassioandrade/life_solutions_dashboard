@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   ChevronLeft, ChevronRight, CalendarDays, DollarSign, TrendingUp,
   Clock, Upload, X, CheckCircle2, Trophy, Target, Loader2,
-  CreditCard, AlertTriangle, Bell, FileText, XCircle
+  CreditCard, AlertTriangle, Bell, FileText, XCircle, Edit2
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -107,6 +107,8 @@ export default function PainelConsultor() {
   const [abaPainel, setAbaPainel] = useState<"agenda" | "parcelas" | "devedores" | "vendas">("agenda");
   const [openEstornoConsultor, setOpenEstornoConsultor] = useState<any | null>(null);
   const [motivoEstornoConsultor, setMotivoEstornoConsultor] = useState("");
+  const [openEditVenda, setOpenEditVenda] = useState<any | null>(null);
+  const [editVendaForm, setEditVendaForm] = useState<any>({});
   const [filtroParcelas, setFiltroParcelas] = useState<"todas" | "pendentes" | "pagas" | "atrasadas">("todas");
   const [modalPromessaAberto, setModalPromessaAberto] = useState(false);
   const [promessaData, setPromessaData] = useState({ dataPromessa: "", horarioPromessa: "", valor: "", observacoes: "" });
@@ -192,6 +194,10 @@ export default function PainelConsultor() {
   });
   const cancelarVendaMutation = trpc.vendas.cancelar.useMutation({
     onSuccess: () => { toast.success("Venda cancelada! Cliente movido para Estorno no Pipeline."); setOpenEstornoConsultor(null); setMotivoEstornoConsultor(""); utils.vendas.listByConsultor.invalidate(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateVendaMutation = trpc.vendas.update.useMutation({
+    onSuccess: () => { toast.success("Venda atualizada!"); setOpenEditVenda(null); utils.vendas.listByConsultor.invalidate(); },
     onError: (e) => toast.error(e.message),
   });
   const okConsultorMutation = trpc.parcelas.okConsultor.useMutation({
@@ -847,10 +853,32 @@ export default function PainelConsultor() {
                                 <p className="text-xs text-gray-400">Fat: {formatCurrency(parseFloat(String(v.valorFaturado || 0)))}</p>
                                 <p className="text-xs text-amber-600">Com: {formatCurrency((parseFloat(String(v.valorColetado || 0)) - parseFloat(String(v.custoServico || 0))) * parseFloat(String(v.comissaoPercent || 10)) / 100)}</p>
                               </div>
-                              <Button variant="outline" size="sm" className="h-7 px-1.5 text-orange-600 border-orange-200 hover:bg-orange-50 flex-shrink-0"
-                                onClick={() => { setOpenEstornoConsultor(v); setMotivoEstornoConsultor(""); }}>
-                                <XCircle className="w-3.5 h-3.5" />
-                              </Button>
+                              <div className="flex gap-1">
+                                <Button variant="outline" size="sm" className="h-7 px-1.5 text-blue-600 border-blue-200 hover:bg-blue-50 flex-shrink-0"
+                                  onClick={() => {
+                                    const servs = Array.isArray(v.servicos) ? v.servicos : [];
+                                    setEditVendaForm({
+                                      id: v.id,
+                                      clienteNome: v.clienteNome || "",
+                                      clienteCpfCnpj: v.clienteCpfCnpj || "",
+                                      tipo: v.tipo || "PF",
+                                      valorFaturado: String(v.valorFaturado || ""),
+                                      valorColetado: String(v.valorColetado || ""),
+                                      comissaoPercent: String(v.comissaoPercent || "10"),
+                                      dataVenda: new Date(v.dataVenda).toISOString().split("T")[0],
+                                      servicos: servs,
+                                      custoServico: String(v.custoServico || ""),
+                                      observacoes: v.observacoes || "",
+                                    });
+                                    setOpenEditVenda(v);
+                                  }}>
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button variant="outline" size="sm" className="h-7 px-1.5 text-orange-600 border-orange-200 hover:bg-orange-50 flex-shrink-0"
+                                  onClick={() => { setOpenEstornoConsultor(v); setMotivoEstornoConsultor(""); }}>
+                                  <XCircle className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -1257,6 +1285,87 @@ export default function PainelConsultor() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Edição de Venda */}
+      <Dialog open={!!openEditVenda} onOpenChange={(o) => { if (!o) setOpenEditVenda(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Editar Venda</DialogTitle></DialogHeader>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            if (!editVendaForm.clienteNome || !editVendaForm.valorFaturado) { toast.error("Preencha os campos obrigatórios"); return; }
+            const custoAuto = (editVendaForm.servicos || []).includes("limpa_nome") && (editVendaForm.servicos || []).includes("rating") ? 180
+              : (editVendaForm.servicos || []).includes("limpa_nome") ? 70
+              : (editVendaForm.servicos || []).includes("rating") ? 110 : 0;
+            updateVendaMutation.mutate({
+              id: editVendaForm.id,
+              clienteNome: editVendaForm.clienteNome,
+              clienteCpfCnpj: editVendaForm.clienteCpfCnpj || undefined,
+              tipo: editVendaForm.tipo as "PF" | "PJ",
+              valorFaturado: parseFloat(editVendaForm.valorFaturado),
+              valorColetado: parseFloat(editVendaForm.valorColetado || editVendaForm.valorFaturado),
+              comissaoPercent: parseFloat(editVendaForm.comissaoPercent) || 10,
+              dataVenda: editVendaForm.dataVenda,
+              servicos: editVendaForm.servicos || [],
+              custoServico: editVendaForm.custoServico ? parseFloat(editVendaForm.custoServico) : custoAuto,
+              observacoes: editVendaForm.observacoes || undefined,
+            });
+          }} className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <Label>Nome do Cliente *</Label>
+                <Input value={editVendaForm.clienteNome || ""} onChange={e => setEditVendaForm({ ...editVendaForm, clienteNome: e.target.value })} />
+              </div>
+              <div>
+                <Label>CPF/CNPJ</Label>
+                <Input value={editVendaForm.clienteCpfCnpj || ""} onChange={e => setEditVendaForm({ ...editVendaForm, clienteCpfCnpj: e.target.value })} />
+              </div>
+              <div>
+                <Label>Tipo</Label>
+                <Select value={editVendaForm.tipo || "PF"} onValueChange={v => setEditVendaForm({ ...editVendaForm, tipo: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PF">PF</SelectItem>
+                    <SelectItem value="PJ">PJ</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Data da Venda</Label>
+                <Input type="date" value={editVendaForm.dataVenda || ""} onChange={e => setEditVendaForm({ ...editVendaForm, dataVenda: e.target.value })} />
+              </div>
+              <div>
+                <Label>Valor Faturado (R$) *</Label>
+                <Input type="number" step="0.01" value={editVendaForm.valorFaturado || ""} onChange={e => setEditVendaForm({ ...editVendaForm, valorFaturado: e.target.value })} />
+              </div>
+              <div>
+                <Label>Valor Coletado (R$)</Label>
+                <Input type="number" step="0.01" value={editVendaForm.valorColetado || ""} onChange={e => setEditVendaForm({ ...editVendaForm, valorColetado: e.target.value })} />
+              </div>
+              <div className="col-span-2">
+                <Label>Serviços Contratados</Label>
+                <div className="flex gap-4 mt-1">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={(editVendaForm.servicos || []).includes("limpa_nome")} onChange={e => setEditVendaForm({ ...editVendaForm, servicos: e.target.checked ? [...(editVendaForm.servicos || []), "limpa_nome"] : (editVendaForm.servicos || []).filter((s: string) => s !== "limpa_nome") })} className="w-4 h-4 rounded" />
+                    <span className="text-sm">🧹 Limpa Nome</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={(editVendaForm.servicos || []).includes("rating")} onChange={e => setEditVendaForm({ ...editVendaForm, servicos: e.target.checked ? [...(editVendaForm.servicos || []), "rating"] : (editVendaForm.servicos || []).filter((s: string) => s !== "rating") })} className="w-4 h-4 rounded" />
+                    <span className="text-sm">⭐ Rating Bancário</span>
+                  </label>
+                </div>
+              </div>
+              <div className="col-span-2">
+                <Label>Observações</Label>
+                <Input value={editVendaForm.observacoes || ""} onChange={e => setEditVendaForm({ ...editVendaForm, observacoes: e.target.value })} />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setOpenEditVenda(null)} className="flex-1">Cancelar</Button>
+              <Button type="submit" className="flex-1 text-white" style={{ background: "#0055FF" }} disabled={updateVendaMutation.isPending}>Salvar Alterações</Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
 

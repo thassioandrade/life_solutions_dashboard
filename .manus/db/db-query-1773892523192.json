@@ -1,0 +1,9 @@
+{
+  "query": "\n-- Limpar parcelas primeiro (FK para vendas)\nDELETE FROM parcelas;\n\n-- Limpar vendas\nDELETE FROM vendas;\n\n-- Limpar agendamentos\nDELETE FROM agendamentos;\n\n-- Limpar promessas de pagamento\nDELETE FROM promessas_pagamento;\n\n-- Limpar leads do pipeline (mantém as colunas)\nDELETE FROM leads;\n\n-- Limpar rankings\nDELETE FROM rankings;\n\n-- Limpar bloqueios de agenda\nDELETE FROM bloqueios_agenda;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute \n-- Limpar parcelas primeiro (FK para vendas)\nDELETE FROM parcelas;\n\n-- Limpar vendas\nDELETE FROM vendas;\n\n-- Limpar agendamentos\nDELETE FROM agendamentos;\n\n-- Limpar promessas de pagamento\nDELETE FROM promessas_pagamento;\n\n-- Limpar leads do pipeline (mantém as colunas)\nDELETE FROM leads;\n\n-- Limpar rankings\nDELETE FROM rankings;\n\n-- Limpar bloqueios de agenda\nDELETE FROM bloqueios_agenda;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 685
+}
