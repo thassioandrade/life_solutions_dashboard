@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import LifeDashboardLayout from "@/components/LifeDashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ChevronLeft, ChevronRight, Trash2, Edit2, User, Phone, DollarSign, Check, X, Settings2, GripVertical, Kanban } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Trash2, Edit2, User, Phone, DollarSign, Check, X, Settings2, GripVertical, Kanban, CalendarClock, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import {
@@ -33,6 +34,47 @@ const CORES = ["#0055FF","#16a34a","#dc2626","#d97706","#7c3aed","#0891b2","#db2
 
 function formatCurrency(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+}
+
+// ─── Card de Promessa (coluna Vai Fechar) ─────────────────────────────────────
+function PromessaCard({ promessa, onVerDetalhes }: { promessa: any; onVerDetalhes: () => void }) {
+  const dataPromessa = new Date(promessa.dataPromessa + "T00:00:00");
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const diasRestantes = Math.ceil((dataPromessa.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+  const isHoje = diasRestantes === 0;
+  const isAtrasado = diasRestantes < 0;
+
+  return (
+    <div className={`rounded-lg p-3 shadow-sm border transition-shadow group ${isHoje ? "bg-amber-50 border-amber-300" : isAtrasado ? "bg-red-50 border-red-300" : "bg-white border-gray-200 hover:shadow-md"}`}>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-medium text-gray-800 truncate flex-1">{promessa.clienteNome}</p>
+        <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-violet-500 flex-shrink-0" onClick={onVerDetalhes}>
+          <ExternalLink className="w-3 h-3" />
+        </Button>
+      </div>
+      {promessa.clienteTelefone && (
+        <div className="flex items-center gap-1 mt-1">
+          <Phone className="w-3 h-3 text-gray-400" />
+          <p className="text-xs text-gray-500">{promessa.clienteTelefone}</p>
+        </div>
+      )}
+      {promessa.valor && parseFloat(String(promessa.valor)) > 0 && (
+        <div className="flex items-center gap-1 mt-0.5">
+          <DollarSign className="w-3 h-3 text-violet-500" />
+          <p className="text-xs text-violet-600 font-medium">{formatCurrency(parseFloat(String(promessa.valor)))}</p>
+        </div>
+      )}
+      <div className={`flex items-center gap-1 mt-1.5 text-xs font-medium ${isHoje ? "text-amber-700" : isAtrasado ? "text-red-600" : "text-gray-500"}`}>
+        <CalendarClock className="w-3 h-3" />
+        {isHoje ? "⚡ Hoje!" : isAtrasado ? `${Math.abs(diasRestantes)}d atrasado` : `em ${diasRestantes}d — ${promessa.dataPromessa}`}
+        {promessa.horarioPromessa && ` às ${promessa.horarioPromessa}`}
+      </div>
+      {promessa.observacoes && (
+        <p className="text-xs text-gray-400 mt-1 line-clamp-2">{promessa.observacoes}</p>
+      )}
+    </div>
+  );
 }
 
 // ─── Card Arrastável ──────────────────────────────────────────────────────────
@@ -124,7 +166,7 @@ function LeadCard({ lead, consultores, colunas, onDelete, onMove }: {
 }
 
 // ─── Coluna Kanban ────────────────────────────────────────────────────────────
-function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDeleteLead, onMoveLead, onRenameColuna, onDeleteColuna, isVendaRealizada, isOver }: {
+function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDeleteLead, onMoveLead, onRenameColuna, onDeleteColuna, isVendaRealizada, isVaiFechar, promessas, onVerPromessas, isOver }: {
   coluna: any;
   leads: any[];
   consultores: any[];
@@ -135,6 +177,9 @@ function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDelete
   onRenameColuna: (id: number, nome: string, cor: string) => void;
   onDeleteColuna: (id: number, nome: string) => void;
   isVendaRealizada: boolean;
+  isVaiFechar?: boolean;
+  promessas?: any[];
+  onVerPromessas?: () => void;
   isOver?: boolean;
 }) {
   const [editando, setEditando] = useState(false);
@@ -142,6 +187,7 @@ function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDelete
   const [novaCor, setNovaCor] = useState(coluna.cor || "#0055FF");
 
   const totalValor = leads.reduce((s, l) => s + parseFloat(String(l.valor || 0)), 0);
+  const totalPromessas = (promessas || []).reduce((s, p) => s + parseFloat(String(p.valor || 0)), 0);
 
   const handleSalvar = () => {
     if (!novoNome.trim()) return;
@@ -150,9 +196,11 @@ function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDelete
   };
 
   const { setNodeRef: setDropRef } = useDroppable({ id: `coluna-${coluna.id}` });
+  const isFixed = isVendaRealizada || isVaiFechar;
+
   return (
     <div className="flex-shrink-0 w-72">
-      <div ref={setDropRef} className={`rounded-xl bg-gray-50 border overflow-hidden transition-all ${isOver ? "border-blue-400 ring-2 ring-blue-300 ring-offset-1 bg-blue-50" : "border-gray-200"}`}>
+      <div ref={setDropRef} className={`rounded-xl bg-gray-50 border overflow-hidden transition-all ${isOver ? "border-blue-400 ring-2 ring-blue-300 ring-offset-1 bg-blue-50" : isVaiFechar ? "border-violet-300" : "border-gray-200"}`}>
         {/* Header */}
         <div className="px-3 py-2.5" style={{ borderTop: `3px solid ${coluna.cor || "#0055FF"}` }}>
           {editando ? (
@@ -185,18 +233,32 @@ function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDelete
                 <div className="flex items-center gap-1.5">
                   <p className="text-sm font-semibold text-gray-700">{coluna.nome}</p>
                   {isVendaRealizada && <Badge className="text-[10px] px-1 py-0 bg-green-100 text-green-700 border-green-200">Fixa</Badge>}
+                  {isVaiFechar && <Badge className="text-[10px] px-1 py-0 bg-violet-100 text-violet-700 border-violet-200">Fixa</Badge>}
                 </div>
-                <p className="text-xs text-gray-500">{leads.length} lead(s) · {formatCurrency(totalValor)}</p>
+                <p className="text-xs text-gray-500">
+                  {isVaiFechar
+                    ? `${(promessas || []).length} promessa(s) · ${formatCurrency(totalPromessas)}`
+                    : `${leads.length} lead(s) · ${formatCurrency(totalValor)}`
+                  }
+                </p>
               </div>
               <div className="flex items-center gap-0.5">
-                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600"
-                  onClick={() => { setNovoNome(coluna.nome); setNovaCor(coluna.cor || "#0055FF"); setEditando(true); }}>
-                  <Edit2 className="w-3 h-3" />
-                </Button>
-                {!isVendaRealizada && (
+                {!isFixed && (
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600"
+                    onClick={() => { setNovoNome(coluna.nome); setNovaCor(coluna.cor || "#0055FF"); setEditando(true); }}>
+                    <Edit2 className="w-3 h-3" />
+                  </Button>
+                )}
+                {!isFixed && (
                   <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-400 hover:text-red-600"
                     onClick={() => onDeleteColuna(coluna.id, coluna.nome)}>
                     <Trash2 className="w-3 h-3" />
+                  </Button>
+                )}
+                {isVaiFechar && onVerPromessas && (
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-violet-500 hover:text-violet-700"
+                    onClick={onVerPromessas} title="Ver todas as promessas">
+                    <ExternalLink className="w-3 h-3" />
                   </Button>
                 )}
               </div>
@@ -206,32 +268,58 @@ function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDelete
 
         {/* Cards */}
         <div className="p-2 space-y-2 min-h-[120px]">
-          <SortableContext items={leads.map(l => `lead-${l.id}`)} strategy={verticalListSortingStrategy}>
-            {leads.map(lead => (
-              <LeadCard
-                key={lead.id}
-                lead={lead}
-                consultores={consultores}
-                colunas={colunas}
-                onDelete={onDeleteLead}
-                onMove={onMoveLead}
-              />
-            ))}
-          </SortableContext>
-          {leads.length === 0 && (
-            <div className={`text-center py-6 text-xs border-2 border-dashed rounded-lg transition-all ${isOver ? "border-blue-400 text-blue-500 bg-blue-50" : "border-gray-200 text-gray-400"}`}>
-              {isOver ? "Soltar aqui" : "Arraste um lead aqui"}
-            </div>
+          {isVaiFechar ? (
+            // Coluna especial: exibe promessas pendentes
+            <>
+              {(promessas || []).length === 0 ? (
+                <div className="text-center py-6 text-xs border-2 border-dashed border-violet-200 rounded-lg text-violet-400">
+                  Nenhuma promessa pendente
+                </div>
+              ) : (
+                (promessas || []).map((p: any) => (
+                  <PromessaCard key={p.id} promessa={p} onVerDetalhes={onVerPromessas || (() => {})} />
+                ))
+              )}
+              {(promessas || []).length > 0 && onVerPromessas && (
+                <button
+                  onClick={onVerPromessas}
+                  className="w-full text-xs text-violet-600 hover:text-violet-800 py-1.5 text-center font-medium hover:underline"
+                >
+                  Ver todas no quadro de Promessas →
+                </button>
+              )}
+            </>
+          ) : (
+            // Coluna normal: exibe leads arrastáveis
+            <SortableContext items={leads.map(l => `lead-${l.id}`)} strategy={verticalListSortingStrategy}>
+              {leads.map(lead => (
+                <LeadCard
+                  key={lead.id}
+                  lead={lead}
+                  consultores={consultores}
+                  colunas={colunas}
+                  onDelete={onDeleteLead}
+                  onMove={onMoveLead}
+                />
+              ))}
+              {leads.length === 0 && (
+                <div className={`text-center py-6 text-xs border-2 border-dashed rounded-lg transition-all ${isOver ? "border-blue-400 text-blue-500 bg-blue-50" : "border-gray-200 text-gray-400"}`}>
+                  {isOver ? "Soltar aqui" : "Arraste um lead aqui"}
+                </div>
+              )}
+            </SortableContext>
           )}
         </div>
 
-        {/* Botão add lead */}
-        <div className="px-2 pb-2">
-          <Button variant="ghost" size="sm" className="w-full h-7 text-xs text-gray-500 hover:text-blue-600 hover:bg-blue-50"
-            onClick={() => onAddLead(coluna.id)}>
-            <Plus className="w-3 h-3 mr-1" /> Adicionar lead
-          </Button>
-        </div>
+        {/* Botão add lead — apenas em colunas normais */}
+        {!isVaiFechar && (
+          <div className="px-2 pb-2">
+            <Button variant="ghost" size="sm" className="w-full h-7 text-xs text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+              onClick={() => onAddLead(coluna.id)}>
+              <Plus className="w-3 h-3 mr-1" /> Adicionar lead
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -240,6 +328,7 @@ function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDelete
 // ─── Página Principal ─────────────────────────────────────────────────────────
 export default function Pipeline() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   const now = new Date();
   const [mes, setMes] = useState(now.getMonth() + 1);
   const [ano, setAno] = useState(now.getFullYear());
@@ -261,6 +350,10 @@ export default function Pipeline() {
   const { data: colunas, refetch: refetchColunas } = trpc.pipeline.getColunas.useQuery();
   const { data: leads, refetch: refetchLeads } = trpc.pipeline.getLeads.useQuery({ mes, ano });
   const { data: consultores } = trpc.consultores.list.useQuery();
+  const { data: promessasPipeline } = trpc.promessas.list.useQuery();
+
+  // Promessas pendentes para a coluna Vai Fechar
+  const promessasPendentes = (promessasPipeline || []).filter((p: any) => p.status === "pendente");
 
   const createLeadMutation = trpc.pipeline.createLead.useMutation({
     onSuccess: () => {
@@ -368,6 +461,7 @@ export default function Pipeline() {
 
   const leadsByColuna = (colunaId: number) => leadsVisiveis.filter(l => l.colunaId === colunaId);
   const isVendaRealizada = (coluna: any) => coluna.nome.toLowerCase().includes("venda realizada");
+  const isVaiFechar = (coluna: any) => coluna.nome.toLowerCase().includes("vai fechar");
 
   return (
     <LifeDashboardLayout title="Pipeline">
@@ -376,7 +470,7 @@ export default function Pipeline() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Pipeline de Vendas</h1>
-            <p className="text-sm text-gray-500">{leadsVisiveis.length} lead(s) no período</p>
+            <p className="text-sm text-gray-500">{leadsVisiveis.length} lead(s) · {promessasPendentes.length} promessa(s) pendente(s)</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {/* Filtro por consultor (admin) */}
@@ -443,6 +537,9 @@ export default function Pipeline() {
                   onRenameColuna={(id, nome, cor) => updateColunaMutation.mutate({ id, nome, cor })}
                   onDeleteColuna={(id, nome) => { if (confirm(`Remover a coluna "${nome}"? Todos os leads serão excluídos.`)) deleteColunaMutation.mutate({ id }); }}
                   isVendaRealizada={isVendaRealizada(coluna)}
+                  isVaiFechar={isVaiFechar(coluna)}
+                  promessas={isVaiFechar(coluna) ? promessasPendentes : []}
+                  onVerPromessas={() => navigate("/promessas")}
                   isOver={overColunaId === coluna.id}
                 />
               ))}
@@ -474,7 +571,7 @@ export default function Pipeline() {
               <Select value={selectedColuna ? String(selectedColuna) : ""} onValueChange={v => setSelectedColuna(parseInt(v))}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Selecionar coluna" /></SelectTrigger>
                 <SelectContent>
-                  {colunas?.map((c: any) => <SelectItem key={c.id} value={String(c.id)}>{c.nome}</SelectItem>)}
+                  {colunas?.filter((c: any) => !isVaiFechar(c)).map((c: any) => <SelectItem key={c.id} value={String(c.id)}>{c.nome}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -506,10 +603,10 @@ export default function Pipeline() {
               <Input className="mt-1" value={leadForm.observacoes} onChange={e => setLeadForm(f => ({ ...f, observacoes: e.target.value }))} placeholder="Notas sobre o lead..." />
             </div>
             <div className="flex gap-2 pt-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setOpenLead(false)}>Cancelar</Button>
               <Button type="submit" className="flex-1 bg-[#0055FF] hover:bg-[#0044CC]" disabled={createLeadMutation.isPending}>
                 {createLeadMutation.isPending ? "Adicionando..." : "Adicionar Lead"}
               </Button>
-              <Button type="button" variant="outline" onClick={() => setOpenLead(false)}>Cancelar</Button>
             </div>
           </form>
         </DialogContent>
@@ -521,48 +618,36 @@ export default function Pipeline() {
           <DialogHeader>
             <DialogTitle>Nova Coluna</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div>
               <Label>Nome da coluna *</Label>
-              <Input
-                className="mt-1"
-                value={colunaForm.nome}
-                onChange={e => setColunaForm(f => ({ ...f, nome: e.target.value }))}
-                placeholder="Ex: Em negociação, Proposta enviada..."
-                autoFocus
-                onKeyDown={e => {
-                  if (e.key === "Enter" && colunaForm.nome.trim()) {
-                    createColunaMutation.mutate({ nome: colunaForm.nome.trim(), cor: colunaForm.cor, ordem: (colunas?.length || 0) });
-                  }
-                }}
-              />
+              <Input className="mt-1" value={colunaForm.nome} onChange={e => setColunaForm(f => ({ ...f, nome: e.target.value }))} placeholder="Ex: Em Negociação" />
             </div>
             <div>
-              <Label>Cor da coluna</Label>
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <Label>Cor</Label>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
                 {CORES.map(c => (
                   <button
                     key={c}
-                    type="button"
-                    className={`w-7 h-7 rounded-full border-2 transition-transform ${colunaForm.cor === c ? "border-gray-800 scale-110" : "border-transparent"}`}
+                    className={`w-6 h-6 rounded-full border-2 transition-transform ${colunaForm.cor === c ? "border-gray-800 scale-110" : "border-transparent"}`}
                     style={{ backgroundColor: c }}
                     onClick={() => setColunaForm(f => ({ ...f, cor: c }))}
                   />
                 ))}
               </div>
             </div>
-            <div className="flex gap-2 pt-1">
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => setOpenColuna(false)}>Cancelar</Button>
               <Button
                 className="flex-1 bg-[#0055FF] hover:bg-[#0044CC]"
-                disabled={!colunaForm.nome.trim() || createColunaMutation.isPending}
                 onClick={() => {
-                  if (!colunaForm.nome.trim()) return;
-                  createColunaMutation.mutate({ nome: colunaForm.nome.trim(), cor: colunaForm.cor, ordem: (colunas?.length || 0) });
+                  if (!colunaForm.nome.trim()) { toast.error("Preencha o nome"); return; }
+                  createColunaMutation.mutate({ nome: colunaForm.nome, cor: colunaForm.cor, ordem: (colunas?.length || 0) });
                 }}
+                disabled={createColunaMutation.isPending}
               >
                 {createColunaMutation.isPending ? "Criando..." : "Criar Coluna"}
               </Button>
-              <Button variant="outline" onClick={() => setOpenColuna(false)}>Cancelar</Button>
             </div>
           </div>
         </DialogContent>

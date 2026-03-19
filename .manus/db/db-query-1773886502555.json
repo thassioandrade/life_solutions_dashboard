@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO colunas_pipeline (nome, cor, ordem)\nSELECT 'Vai Fechar', '#7c3aed', 5\nWHERE NOT EXISTS (\n  SELECT 1 FROM colunas_pipeline WHERE nome = 'Vai Fechar'\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute INSERT INTO colunas_pipeline (nome, cor, ordem)\nSELECT 'Vai Fechar', '#7c3aed', 5\nWHERE NOT EXISTS (\n  SELECT 1 FROM colunas_pipeline WHERE nome = 'Vai Fechar'\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 584
+}

@@ -234,3 +234,9 @@
 
 ## Bug: Anotações travando digitação
 - [x] Corrigido: textarea agora é uncontrolled (ref), sem re-render a cada tecla; auto-save dispara 2s após parar de digitar
+
+## Bug: Botão Vai Fechar e Pipeline
+- [x] Corrigido: fechar modal de agendamento antes de abrir modal de promessa (evita conflito Radix)
+- [x] Ao registrar promessa, redirecionar automaticamente para /promessas
+- [x] Coluna fixa "Vai Fechar" criada no Pipeline (exibe promessas pendentes com data, telefone e valor)
+- [x] Admin vê o Pipeline com a coluna Vai Fechar e todas as promessas (mesmo router)

@@ -1,4 +1,5 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
+import { useLocation } from "wouter";
 import { usePromessaAlarm } from "@/hooks/usePromessaAlarm";
 import * as XLSX from "xlsx";
 import LifeDashboardLayout from "@/components/LifeDashboardLayout";
@@ -108,6 +109,15 @@ export default function PainelConsultor() {
   const [modalPromessaAberto, setModalPromessaAberto] = useState(false);
   const [promessaData, setPromessaData] = useState({ dataPromessa: "", horarioPromessa: "", valor: "", observacoes: "" });
   const [salvandoPromessa, setSalvandoPromessa] = useState(false);
+  const [, navigate] = useLocation();
+  // Ao fechar o modal de agendamento, abre o de promessa com delay para evitar conflito Radix
+  const [pendingOpenPromessa, setPendingOpenPromessa] = useState(false);
+  useEffect(() => {
+    if (pendingOpenPromessa && !modalAberto) {
+      setPendingOpenPromessa(false);
+      setTimeout(() => setModalPromessaAberto(true), 80);
+    }
+  }, [pendingOpenPromessa, modalAberto]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [venda, setVenda] = useState<ModalVendaState>({
@@ -185,10 +195,12 @@ export default function PainelConsultor() {
   const createPromessaMutation = trpc.promessas.create.useMutation({
     onSuccess: () => {
       utils.promessas.hojeByConsultor.invalidate();
+      utils.promessas.list.invalidate();
       toast.success("Promessa registrada! Alarme configurado para " + promessaData.dataPromessa + (promessaData.horarioPromessa ? " às " + promessaData.horarioPromessa : ""));
       setModalPromessaAberto(false);
-      setModalAberto(false);
       setPromessaData({ dataPromessa: "", horarioPromessa: "", valor: "", observacoes: "" });
+      // Redirecionar para a aba de Promessas de Pagamento
+      setTimeout(() => navigate("/promessas"), 300);
     },
     onError: (e) => toast.error("Erro ao registrar promessa: " + e.message),
   });
@@ -1151,7 +1163,10 @@ export default function PainelConsultor() {
                 className="flex-1 border-violet-300 text-violet-700 hover:bg-violet-50"
                 onClick={() => {
                   setPromessaData({ dataPromessa: "", horarioPromessa: "", valor: "", observacoes: "" });
-                  setModalPromessaAberto(true);
+                  // Fechar o modal de agendamento primeiro, depois abrir o de promessa
+                  // (Radix bloqueia inputs em dialogs sobrepostos)
+                  setPendingOpenPromessa(true);
+                  setModalAberto(false);
                 }}
               >
                 📌 Vai Fechar
