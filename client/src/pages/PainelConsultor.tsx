@@ -144,6 +144,10 @@ export default function PainelConsultor() {
     { enabled: !!consultor?.id }
   );
   const { data: parcelasVencendo } = trpc.parcelas.vencendoHoje.useQuery();
+  const { data: promessasHoje } = trpc.promessas.hojeByConsultor.useQuery(
+    { consultorId: consultor?.id || 0 },
+    { enabled: !!consultor?.id }
+  );
 
   const updateAgendamento = trpc.agendamentos.update.useMutation({
     onSuccess: () => {
@@ -234,6 +238,7 @@ export default function PainelConsultor() {
 
   const qtdDevedores = devedores.length;
   const qtdVencendoHoje = parcelasVencendo?.filter(p => p.consultorId === consultor?.id).length || 0;
+  const qtdPromessasHoje = promessasHoje?.length || 0;
 
   const diasNoMes = getDiasNoMes(ano, mes);
   const primeiroDia = getPrimeiroDiaSemana(ano, mes);
@@ -375,6 +380,14 @@ export default function PainelConsultor() {
                 <Bell className="w-3 h-3" />
                 {qtdVencendoHoje} venc. hoje
               </Badge>
+            )}
+            {qtdPromessasHoje > 0 && (
+              <a href="/promessas">
+                <Badge className="bg-violet-100 text-violet-700 border border-violet-200 gap-1 cursor-pointer animate-pulse">
+                  <Bell className="w-3 h-3" />
+                  {qtdPromessasHoje} promessa{qtdPromessasHoje > 1 ? "s" : ""} hoje!
+                </Badge>
+              </a>
             )}
             {qtdDevedores > 0 && (
               <Badge className="bg-red-100 text-red-700 border border-red-200 gap-1 cursor-pointer" onClick={() => setAbaPainel("devedores")}>

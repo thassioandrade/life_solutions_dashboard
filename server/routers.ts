@@ -26,6 +26,8 @@ import {
   getParcelasVencidas, getParcelasVencendoHoje, getParcelasByPeriodo, getParcelasFuturasConsultor,
   getServicosVendidosByPeriod, getServicosVendidosByConsultor,
   getCustosServicos, setCustoServico, getDashboardFinanceiro, getParcelasCompletasByConsultor,
+  getPromessas, getPromessasByConsultor, getPromessasHoje, getPromessasHojeByConsultor,
+  createPromessa, updatePromessa, deletePromessa,
 } from "./db";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
@@ -758,6 +760,53 @@ export const appRouter = router({
         const key = `${input.tipo}/${ctx.user.id}-${nanoid(8)}.${ext}`;
         const { url } = await storagePut(key, buffer, input.mimeType);
         return { url };
+      }),
+  }),
+  promessas: router({
+    list: protectedProcedure.query(async () => getPromessas()),
+    listByConsultor: protectedProcedure
+      .input(z.object({ consultorId: z.number() }))
+      .query(async ({ input }) => getPromessasByConsultor(input.consultorId)),
+    hoje: protectedProcedure.query(async () => getPromessasHoje()),
+    hojeByConsultor: protectedProcedure
+      .input(z.object({ consultorId: z.number() }))
+      .query(async ({ input }) => getPromessasHojeByConsultor(input.consultorId)),
+    create: protectedProcedure
+      .input(z.object({
+        clienteNome: z.string().min(1),
+        clienteTelefone: z.string().optional(),
+        clienteCpfCnpj: z.string().optional(),
+        dataPromessa: z.string(),
+        valor: z.number().optional(),
+        observacoes: z.string().optional(),
+        consultorId: z.number().optional(),
+        agendamentoId: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        await createPromessa(input);
+        return { success: true };
+      }),
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        clienteNome: z.string().optional(),
+        clienteTelefone: z.string().optional(),
+        clienteCpfCnpj: z.string().optional(),
+        dataPromessa: z.string().optional(),
+        valor: z.number().optional(),
+        observacoes: z.string().optional(),
+        status: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await updatePromessa(id, data);
+        return { success: true };
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deletePromessa(input.id);
+        return { success: true };
       }),
   }),
 });

@@ -1,5 +1,6 @@
 import {
   boolean,
+  date,
   decimal,
   int,
   mysqlEnum,
@@ -236,3 +237,21 @@ export const rankings = mysqlTable("rankings", {
 
 export type Ranking = typeof rankings.$inferSelect;
 export type InsertRanking = typeof rankings.$inferInsert;
+
+// Promessas de Pagamento (follow-up de interessados)
+export const promessasPagamento = mysqlTable("promessas_pagamento", {
+  id: int("id").autoincrement().primaryKey(),
+  clienteNome: varchar("clienteNome", { length: 200 }).notNull(),
+  clienteTelefone: varchar("clienteTelefone", { length: 30 }),
+  clienteCpfCnpj: varchar("clienteCpfCnpj", { length: 20 }),
+  dataPromessa: date("dataPromessa").notNull(),
+  valor: decimal("valor", { precision: 10, scale: 2 }),
+  observacoes: text("observacoes"),
+  consultorId: int("consultorId"),
+  agendamentoId: int("agendamentoId"),
+  status: varchar("status", { length: 20 }).default("pendente").notNull(), // pendente | concluido | cancelado
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type PromessaPagamento = typeof promessasPagamento.$inferSelect;
+export type InsertPromessaPagamento = typeof promessasPagamento.$inferInsert;

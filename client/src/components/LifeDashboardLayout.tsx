@@ -43,6 +43,7 @@ const navItems = [
   { href: "/vendas", label: "Vendas", icon: DollarSign, adminOnly: false },
   { href: "/parcelas", label: "Parcelas Pendentes", icon: CreditCard, adminOnly: true },
   { href: "/servicos-vendidos", label: "Serviços Vendidos", icon: FileText, adminOnly: false },
+  { href: "/promessas", label: "Promessas de Pgto", icon: Bell, adminOnly: false },
   { href: "/despesas", label: "Despesas", icon: Receipt, adminOnly: true },
   { href: "/configuracoes", label: "Configurações", icon: Settings, adminOnly: true },
 ];

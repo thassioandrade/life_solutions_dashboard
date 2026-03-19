@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   DollarSign, TrendingUp, Users, CalendarDays,
   ChevronLeft, ChevronRight, ArrowUpCircle, ArrowDownCircle,
-  Wallet, CreditCard, AlertCircle, CheckCircle2
+  Wallet, CreditCard, AlertCircle, CheckCircle2, Bell, Phone
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
@@ -65,6 +65,7 @@ export default function Dashboard() {
 
   const { data: stats, isLoading } = trpc.dashboard.stats.useQuery({ mes, ano });
   const { data: consultores } = trpc.consultores.list.useQuery();
+  const { data: promessasHoje } = trpc.promessas.hoje.useQuery();
 
   const handlePrevMes = () => {
     if (mes === 1) { setMes(12); setAno(ano - 1); } else setMes(mes - 1);
@@ -76,6 +77,41 @@ export default function Dashboard() {
   return (
     <LifeDashboardLayout title="Dashboard Geral">
       <div className="space-y-6">
+        {/* Alerta de Promessas do Dia */}
+        {promessasHoje && promessasHoje.length > 0 && (
+          <div className="bg-violet-50 border-2 border-violet-400 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <Bell className="w-5 h-5 text-violet-600 animate-pulse" />
+              <p className="font-bold text-violet-800 text-base">
+                {promessasHoje.length} promessa{promessasHoje.length > 1 ? "s" : ""} de pagamento para HOJE!
+              </p>
+              <a href="/promessas" className="ml-auto text-xs text-violet-600 underline font-medium">Ver todas</a>
+            </div>
+            <div className="space-y-2">
+              {(promessasHoje as { id: number; clienteNome: string; clienteTelefone?: string | null; valor?: string | null; consultorId?: number | null }[]).map(p => {
+                const consultor = consultores?.find(c => c.id === p.consultorId);
+                return (
+                  <div key={p.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-violet-200 flex-wrap gap-2">
+                    <div>
+                      <p className="font-bold text-gray-800 text-sm">{p.clienteNome}</p>
+                      <div className="flex items-center gap-3 text-xs text-gray-500">
+                        {p.clienteTelefone && (
+                          <span className="flex items-center gap-1 text-blue-600 font-medium">
+                            <Phone className="w-3 h-3" />
+                            {p.clienteTelefone}
+                          </span>
+                        )}
+                        {p.valor && <span className="text-emerald-600 font-medium">{formatCurrency(parseFloat(p.valor))}</span>}
+                        {consultor && <span className="text-gray-400">Consultora: {consultor.nome}</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Period selector */}
         <div className="flex items-center justify-between">
           <div>

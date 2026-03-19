@@ -12,6 +12,7 @@ import {
   leads,
   metricasTrafego,
   parcelas,
+  promessasPagamento,
   rankings,
   users,
   vendas,
@@ -755,4 +756,93 @@ export async function getParcelasCompletasByConsultor(consultorId: number) {
     .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
     .where(sql`${parcelas.vendaId} IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})`)
     .orderBy(parcelas.vencimento);
+}
+
+// ─── Promessas de Pagamento ───────────────────────────────────────────────────
+export async function getPromessas() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(promessasPagamento).orderBy(promessasPagamento.dataPromessa);
+}
+
+export async function getPromessasByConsultor(consultorId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(promessasPagamento)
+    .where(eq(promessasPagamento.consultorId, consultorId))
+    .orderBy(promessasPagamento.dataPromessa);
+}
+
+export async function getPromessasHoje() {
+  const db = await getDb();
+  if (!db) return [];
+  const hoje = new Date();
+  const dataStr = hoje.toISOString().split("T")[0]; // YYYY-MM-DD
+  return db.select().from(promessasPagamento)
+    .where(and(
+      sql`DATE(${promessasPagamento.dataPromessa}) = ${dataStr}`,
+      eq(promessasPagamento.status, "pendente")
+    ))
+    .orderBy(promessasPagamento.dataPromessa);
+}
+
+export async function getPromessasHojeByConsultor(consultorId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const hoje = new Date();
+  const dataStr = hoje.toISOString().split("T")[0];
+  return db.select().from(promessasPagamento)
+    .where(and(
+      sql`DATE(${promessasPagamento.dataPromessa}) = ${dataStr}`,
+      eq(promessasPagamento.status, "pendente"),
+      eq(promessasPagamento.consultorId, consultorId)
+    ))
+    .orderBy(promessasPagamento.dataPromessa);
+}
+
+export async function createPromessa(data: {
+  clienteNome: string;
+  clienteTelefone?: string;
+  clienteCpfCnpj?: string;
+  dataPromessa: string; // YYYY-MM-DD
+  valor?: number;
+  observacoes?: string;
+  consultorId?: number;
+  agendamentoId?: number;
+}) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(promessasPagamento).values({
+    clienteNome: data.clienteNome,
+    clienteTelefone: data.clienteTelefone,
+    clienteCpfCnpj: data.clienteCpfCnpj,
+    dataPromessa: new Date(data.dataPromessa + "T12:00:00"),
+    observacoes: data.observacoes,
+    consultorId: data.consultorId,
+    agendamentoId: data.agendamentoId,
+    status: "pendente",
+  });
+}
+
+export async function updatePromessa(id: number, data: Partial<{
+  clienteNome: string;
+  clienteTelefone: string;
+  clienteCpfCnpj: string;
+  dataPromessa: string;
+  valor: number;
+  observacoes: string;
+  status: string;
+}>) {
+  const db = await getDb();
+  if (!db) return;
+  const updateData: Record<string, unknown> = { ...data };
+  if (data.valor !== undefined) updateData.valor = String(data.valor);
+  if (data.dataPromessa !== undefined) updateData.dataPromessa = new Date(data.dataPromessa + "T12:00:00");
+  await db.update(promessasPagamento).set(updateData).where(eq(promessasPagamento.id, id));
+}
+
+export async function deletePromessa(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(promessasPagamento).where(eq(promessasPagamento.id, id));
 }

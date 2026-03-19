@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE `promessas_pagamento` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`clienteNome` varchar(200) NOT NULL,\n\t`clienteTelefone` varchar(30),\n\t`clienteCpfCnpj` varchar(20),\n\t`dataPromessa` date NOT NULL,\n\t`valor` decimal(10,2),\n\t`observacoes` text,\n\t`consultorId` int,\n\t`agendamentoId` int,\n\t`status` varchar(20) NOT NULL DEFAULT 'pendente',\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `promessas_pagamento_id` PRIMARY KEY(`id`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute CREATE TABLE `promessas_pagamento` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`clienteNome` varchar(200) NOT NULL,\n\t`clienteTelefone` varchar(30),\n\t`clienteCpfCnpj` varchar(20),\n\t`dataPromessa` date NOT NULL,\n\t`valor` decimal(10,2),\n\t`observacoes` text,\n\t`consultorId` int,\n\t`agendamentoId` int,\n\t`status` varchar(20) NOT NULL DEFAULT 'pendente',\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `promessas_pagamento_id` PRIMARY KEY(`id`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 421
+}

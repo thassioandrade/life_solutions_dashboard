@@ -201,3 +201,13 @@
 - [x] Página Serviços Vendidos: exportar para Excel (.xlsx)
 - [x] Configurações Admin: custos editáveis (Limpa Nome, Rating, Salário base)
 - [x] Configurações Admin: visão financeira completa (coletado, faturado, custos, salário, líquido)
+
+## Promessas de Pagamento (Follow-up de Interessados)
+- [x] Schema: tabela promessas_pagamento (clienteNome, clienteTelefone, dataPromessa, valor, observacoes, consultorId, status, agendamentoId)
+- [x] Backend: router promessas (list, create, update, delete, listHoje, listByConsultor)
+- [x] Página Promessas: quadro com CRUD completo (criar, editar, excluir, marcar como concluído)
+- [x] Página Promessas: filtros por status (pendente, concluído, cancelado) e por consultora
+- [x] Alerta no Painel Consultor: badge de promessas vencendo hoje com nome e telefone
+- [x] Alerta no Dashboard Admin: banner roxo de promessas vencendo hoje com nome, telefone e consultora
+- [ ] Integração com agendamento: botão "Registrar Promessa" no modal de agendamento
+- [x] Navegação: "Promessas de Pgto" no sidebar para Admin e Consultor
