@@ -25,6 +25,8 @@ export default function Agendar() {
     dataHora: "",
     observacoes: "",
   });
+  const [dataInput, setDataInput] = useState("");
+  const [horaInput, setHoraInput] = useState("");
   const [success, setSuccess] = useState(false);
   const [consultorNome, setConsultorNome] = useState("");
   // Se veio parâmetro de consultora na URL, oculta o seletor
@@ -68,9 +70,12 @@ export default function Agendar() {
     e.preventDefault();
     if (!form.clienteNome.trim()) { toast.error("Informe seu nome completo"); return; }
     if (!form.consultorId) { toast.error("Selecione um consultor"); return; }
-    if (!form.dataHora) { toast.error("Informe a data e horário"); return; }
+    if (!dataInput || !horaInput) { toast.error("Informe a data e horário"); return; }
+    const dataHoraCombinada = `${dataInput}T${horaInput}`;
+    setForm(f => ({ ...f, dataHora: dataHoraCombinada }));
     createMutation.mutate({
       ...form,
+      dataHora: `${dataInput}T${horaInput}`,
       consultorId: parseInt(form.consultorId),
     });
   };
@@ -78,6 +83,8 @@ export default function Agendar() {
   const resetForm = () => {
     const param = getUrlParam("consultora") || getUrlParam("c");
     setSuccess(false);
+    setDataInput("");
+    setHoraInput("");
     setForm({
       clienteNome: "",
       clienteEmail: "",
@@ -245,13 +252,27 @@ export default function Agendar() {
                 <Label className="text-gray-700 text-sm font-medium flex items-center gap-1.5 mb-1.5">
                   <Clock className="w-3.5 h-3.5" /> Data e Horário *
                 </Label>
-                <Input
-                  type="datetime-local"
-                  value={form.dataHora}
-                  onChange={e => setForm({ ...form, dataHora: e.target.value })}
-                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
-                  min={new Date().toISOString().slice(0, 16)}
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs text-gray-500 mb-1 block">Data</Label>
+                    <Input
+                      type="date"
+                      value={dataInput}
+                      onChange={e => setDataInput(e.target.value)}
+                      className="border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
+                      min={new Date().toISOString().slice(0, 10)}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500 mb-1 block">Horário</Label>
+                    <Input
+                      type="time"
+                      value={horaInput}
+                      onChange={e => setHoraInput(e.target.value)}
+                      className="border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Observações */}

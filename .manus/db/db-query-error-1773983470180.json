@@ -1,0 +1,8 @@
+{
+  "query": "\nUPDATE agendamentos a\nJOIN vendas v ON LOWER(TRIM(v.clienteNome)) = LOWER(TRIM(a.clienteNome))\nSET a.vendaId = v.id\nWHERE a.resultouVenda = 1 AND a.vendaId IS NULL AND v.status = 'ativo';\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute \nUPDATE agendamentos a\nJOIN vendas v ON LOWER(TRIM(v.clienteNome)) = LOWER(TRIM(a.clienteNome))\nSET a.vendaId = v.id\nWHERE a.resultouVenda = 1 AND a.vendaId IS NULL AND v.status = 'ativo';\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 2: Unknown column 'v.status' in 'where clause'"
+  ]
+}

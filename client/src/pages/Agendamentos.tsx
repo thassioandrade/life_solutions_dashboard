@@ -42,13 +42,15 @@ export default function Agendamentos() {
   const [openCreate, setOpenCreate] = useState(false);
   const [openEdit, setOpenEdit] = useState<any | null>(null);
   const [form, setForm] = useState({ clienteNome: "", clienteEmail: "", clienteTelefone: "", consultorId: "", dataHora: "", observacoes: "" });
+  const [formData, setFormData] = useState("");
+  const [formHora, setFormHora] = useState("");
   const [editForm, setEditForm] = useState<any>({});
 
   const { data: agendamentos, refetch } = trpc.agendamentos.listByPeriod.useQuery({ mes, ano });
   const { data: consultores } = trpc.consultores.list.useQuery();
 
   const createMutation = trpc.agendamentos.create.useMutation({
-    onSuccess: () => { toast.success("Agendamento criado!"); setOpenCreate(false); setForm({ clienteNome: "", clienteEmail: "", clienteTelefone: "", consultorId: "", dataHora: "", observacoes: "" }); refetch(); },
+    onSuccess: () => { toast.success("Agendamento criado!"); setOpenCreate(false); setForm({ clienteNome: "", clienteEmail: "", clienteTelefone: "", consultorId: "", dataHora: "", observacoes: "" }); setFormData(""); setFormHora(""); refetch(); },
     onError: (e) => toast.error(e.message),
   });
   const updateMutation = trpc.agendamentos.update.useMutation({
@@ -62,9 +64,10 @@ export default function Agendamentos() {
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.clienteNome || !form.dataHora) { toast.error("Preencha os campos obrigatórios"); return; }
+    if (!form.clienteNome || !formData || !formHora) { toast.error("Preencha os campos obrigatórios"); return; }
     createMutation.mutate({
       ...form,
+      dataHora: `${formData}T${formHora}`,
       consultorId: form.consultorId ? parseInt(form.consultorId) : undefined,
     });
   };
@@ -131,7 +134,10 @@ export default function Agendamentos() {
                   </div>
                   <div>
                     <Label>Data e Hora *</Label>
-                    <Input type="datetime-local" value={form.dataHora} onChange={e => setForm({ ...form, dataHora: e.target.value })} />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input type="date" value={formData} onChange={e => setFormData(e.target.value)} min={new Date().toISOString().slice(0, 10)} />
+                      <Input type="time" value={formHora} onChange={e => setFormHora(e.target.value)} />
+                    </div>
                   </div>
                   <div>
                     <Label>Observações</Label>

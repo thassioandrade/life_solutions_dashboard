@@ -44,7 +44,7 @@ export default function Configuracoes() {
   const [showAddConsultor, setShowAddConsultor] = useState(false);
   const [novoConsultor, setNovoConsultor] = useState({ nome: "", email: "", linkAgenda: "" });
   const [editConsultorId, setEditConsultorId] = useState<number | null>(null);
-  const [editConsultorData, setEditConsultorData] = useState({ nome: "", email: "", linkAgenda: "" });
+  const [editConsultorData, setEditConsultorData] = useState({ nome: "", email: "", linkAgenda: "", salario: 0, receberSalario: false });
   const [senhaConsultorId, setSenhaConsultorId] = useState<number | null>(null);
   const [novaSenha, setNovaSenha] = useState("");
   const [showSenha, setShowSenha] = useState(false);
@@ -271,6 +271,38 @@ export default function Configuracoes() {
                                 onChange={e => setEditConsultorData(p => ({ ...p, linkAgenda: e.target.value }))} />
                             </div>
                           </div>
+                          {/* Salário */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                            <div>
+                              <Label className="text-xs text-amber-700 font-semibold">Salário (R$)</Label>
+                              <Input className="h-8 text-sm mt-1" type="number" min="0" step="100"
+                                value={editConsultorData.salario || ""}
+                                placeholder="0,00"
+                                onChange={e => setEditConsultorData(p => ({ ...p, salario: parseFloat(e.target.value) || 0 }))} />
+                              <p className="text-xs text-amber-600 mt-1">Valor do salário mensal desta consultora</p>
+                            </div>
+                            <div className="flex flex-col justify-center">
+                              <Label className="text-xs text-amber-700 font-semibold mb-2">Receber Salário?</Label>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                                    editConsultorData.receberSalario ? 'bg-green-500' : 'bg-gray-300'
+                                  }`}
+                                  onClick={() => setEditConsultorData(p => ({ ...p, receberSalario: !p.receberSalario }))}
+                                >
+                                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                    editConsultorData.receberSalario ? 'translate-x-6' : 'translate-x-1'
+                                  }`} />
+                                </button>
+                                <span className={`text-xs font-medium ${
+                                  editConsultorData.receberSalario ? 'text-green-700' : 'text-gray-500'
+                                }`}>
+                                  {editConsultorData.receberSalario ? 'Sim — será descontado do lucro' : 'Não — não afeta o lucro'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                           <div className="flex gap-2 justify-end">
                             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEditConsultorId(null)}>
                               <X className="w-3 h-3 mr-1" /> Cancelar
@@ -315,13 +347,23 @@ export default function Configuracoes() {
                               <Badge className={`text-xs ${c.ativo ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
                                 {c.ativo ? "Pode acessar" : "Bloqueada"}
                               </Badge>
+                              {c.receberSalario && parseFloat(String(c.salario || 0)) > 0 && (
+                                <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-200">
+                                  Salário: R$ {parseFloat(String(c.salario || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                </Badge>
+                              )}
+                              {!c.receberSalario && (
+                                <Badge className="text-xs bg-gray-100 text-gray-500 border-gray-200">
+                                  Sem salário
+                                </Badge>
+                              )}
                             </div>
                           </div>
 
                           {/* Ações */}
                           <div className="flex items-center gap-1.5 flex-shrink-0">
                             <Button variant="outline" size="sm" className="h-7 text-xs gap-1"
-                              onClick={() => { setEditConsultorId(c.id); setEditConsultorData({ nome: c.nome, email: c.email || "", linkAgenda: c.linkAgenda || "" }); }}>
+                              onClick={() => { setEditConsultorId(c.id); setEditConsultorData({ nome: c.nome, email: c.email || "", linkAgenda: c.linkAgenda || "", salario: parseFloat(String(c.salario || 0)), receberSalario: c.receberSalario ?? false }); }}>
                               <Pencil className="w-3 h-3" /> Editar
                             </Button>
                             <Button variant="outline" size="sm" className="h-7 text-xs gap-1"

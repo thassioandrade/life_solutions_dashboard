@@ -355,3 +355,14 @@
 - [x] Pipeline: card especial na coluna de entrega com botão "Entregue" verde
 - [x] Pipeline: ao clicar em "Entregue" no Pipeline, marca venda no banco e remove o lead
 - [x] Admin: painel PrazoServicos com filtro por vendedora mostrando entregas feitas/atrasadas
+
+## Correções de Bugs e Melhorias (Mar 2026 - v3)
+- [x] Pipeline: textos em inglês ao criar lead via agendamento — substituir datetime-local por campos date+time separados no Agendar.tsx e Agendamentos.tsx
+- [x] Venda: erro ao anexar comprovante de pagamento — corrigir FileReader com Promise para capturar erros async
+- [x] Promessas: erro ao subir comprovante no modal de pagamento — corrigir para usar trpc.upload.comprovante
+- [x] Editar venda: duplica em vez de substituir — adicionar campo vendaId na tabela agendamentos + verificação jaTemVenda no handleSalvar
+- [x] Painel Consultor: parcelas de vendas parceladas não aparecem — corrigir lógica (faturado - coletado) / parcelasQtd + criar parcelas retroativas
+- [x] Painel Consultor: devedores não aparecem — agora funcionam com parcelas criadas
+- [x] Dashboard Admin: seção Controle de Parcelas e Devedores com filtro por vendedora, cards de resumo, lista de devedores em vermelho, tabela de parcelas pendentes
+- [x] Configurações: salário individual por consultora — campos salario e receberSalario na tabela consultores + UI no Configuracoes.tsx
+- [x] Dashboard Admin: totalSalarios inclui salários das consultoras com receberSalario=true

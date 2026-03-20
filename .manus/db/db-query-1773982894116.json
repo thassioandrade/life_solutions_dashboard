@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `agendamentos` ADD `vendaId` int;\nALTER TABLE `consultores` ADD `salario` decimal(10,2) DEFAULT '0';\nALTER TABLE `consultores` ADD `receberSalario` boolean DEFAULT false;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute ALTER TABLE `agendamentos` ADD `vendaId` int;\nALTER TABLE `consultores` ADD `salario` decimal(10,2) DEFAULT '0';\nALTER TABLE `consultores` ADD `receberSalario` boolean DEFAULT false;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1592
+}

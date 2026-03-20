@@ -802,6 +802,36 @@ export async function getParcelasCompletasByConsultor(consultorId: number) {
     .orderBy(parcelas.vencimento);
 }
 
+export async function getAllParcelas() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: parcelas.id,
+    vendaId: parcelas.vendaId,
+    valor: parcelas.valor,
+    vencimento: parcelas.vencimento,
+    status: parcelas.status,
+    dataPagamento: parcelas.dataPagamento,
+    okConsultor: parcelas.okConsultor,
+    dataOkConsultor: parcelas.dataOkConsultor,
+    comprovanteUrl: parcelas.comprovanteUrl,
+    numeroParcela: parcelas.numeroParcela,
+    clienteNome: vendas.clienteNome,
+    clienteCpfCnpj: vendas.clienteCpfCnpj,
+    clienteTelefone: vendas.clienteTelefone,
+    servicos: vendas.servicos,
+    custoServico: vendas.custoServico,
+    comissaoPercent: vendas.comissaoPercent,
+    consultorId: vendas.consultorId,
+    consultorNome: consultores.nome,
+  })
+    .from(parcelas)
+    .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
+    .leftJoin(consultores, eq(vendas.consultorId, consultores.id))
+    .where(eq(vendas.cancelada, false))
+    .orderBy(parcelas.vencimento);
+}
+
 // ─── Promessas de Pagamento ───────────────────────────────────────────────────
 export async function getPromessas() {
   const db = await getDb();

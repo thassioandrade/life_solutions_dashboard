@@ -77,6 +77,7 @@ type Agendamento = {
   comprovanteUrl?: string | null;
   observacoes?: string | null;
   origem?: string;
+  vendaId?: number | null; // para evitar duplicação ao editar
 };
 
 type ModalVendaState = {
@@ -358,16 +359,23 @@ export default function PainelConsultor() {
   async function handleUploadComprovante(file: File) {
     setUploadingComprovante(true);
     try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const base64 = (e.target?.result as string).split(",")[1];
-        const result = await uploadComprovante.mutateAsync({ fileBase64: base64, mimeType: file.type, tipo: "comprovante" });
-        setVenda(v => ({ ...v, comprovanteUrl: result.url, comprovanteFile: file }));
-        toast.success("Comprovante enviado!");
-        setUploadingComprovante(false);
-      };
-      reader.readAsDataURL(file);
-    } catch {
+      // Usar Promise para capturar erros do FileReader corretamente
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const result = e.target?.result as string;
+          resolve(result.split(",")[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const result = await uploadComprovante.mutateAsync({ fileBase64: base64, mimeType: file.type, tipo: "comprovante" });
+      setVenda(v => ({ ...v, comprovanteUrl: result.url, comprovanteFile: file }));
+      toast.success("Comprovante enviado!");
+    } catch (err) {
+      console.error("Erro ao enviar comprovante:", err);
+      toast.error("Erro ao enviar comprovante. Tente novamente.");
+    } finally {
       setUploadingComprovante(false);
     }
   }
@@ -387,6 +395,56 @@ export default function PainelConsultor() {
     try {
       const coletado = parseFloat(venda.valorColetado) || 0;
       const faturado = parseFloat(venda.valorFaturado) || 0;
+      // Verificar se já existe venda vinculada a este agendamento (evitar duplicação)
+      const jaTemVenda = !!agSelecionado.vendaId;
+      let vendaIdFinal = agSelecionado.vendaId ?? null;
+
+      if (venda.resultouVenda && coletado > 0 && consultor) {
+        if (!jaTemVenda) {
+          // Criar nova venda apenas se ainda não existe
+          const vendaResult = await createVenda.mutateAsync({
+            clienteNome: agSelecionado.clienteNome,
+            clienteCpfCnpj: venda.clienteCpfCnpj || agSelecionado.clienteCpfCnpj || undefined,
+            clienteTelefone: venda.clienteTelefone || agSelecionado.clienteTelefone || undefined,
+            tipo: "PF",
+            consultorId: consultor.id,
+            dataVenda: new Date().toISOString(),
+            valorFaturado: faturado,
+            valorColetado: coletado,
+            parcelasRestantes: venda.parcelasQtd,
+            servicos: venda.servicos,
+            observacoes: venda.observacoes,
+            comissaoPercent: 10,
+            custoServico: custoModalServicos,
+          });
+          vendaIdFinal = vendaResult?.vendaId ?? null;
+          // Criar parcelas se houver parcelamento
+          if (vendaIdFinal && venda.parcelasQtd > 0 && venda.datesVencimento.length > 0) {
+            // Valor de cada parcela = (faturado - coletado) / parcelasQtd
+            // Representa o valor restante a receber dividido pelo número de parcelas
+            const restante = faturado - coletado;
+            const valorParcela = restante > 0 ? restante / venda.parcelasQtd : faturado / venda.parcelasQtd;
+            if (valorParcela > 0) {
+              await createParcelas.mutateAsync({
+                vendaId: vendaIdFinal,
+                parcelas: venda.datesVencimento.map(d => ({ valor: valorParcela, vencimento: d })),
+              });
+            }
+          }
+        } else {
+          // Atualizar venda existente com novos valores
+          await updateVendaMutation.mutateAsync({
+            id: vendaIdFinal!,
+            valorFaturado: faturado,
+            valorColetado: coletado,
+            servicos: venda.servicos,
+            observacoes: venda.observacoes,
+            custoServico: custoModalServicos,
+          });
+        }
+      }
+
+      // Salvar agendamento com vendaId para evitar duplicação futura
       await updateAgendamento.mutateAsync({
         id: agSelecionado.id,
         status: venda.status as "confirmado" | "realizado" | "noshow" | "cancelado" | "remarcado",
@@ -400,35 +458,10 @@ export default function PainelConsultor() {
         comprovanteUrl: venda.comprovanteUrl || undefined,
         clienteTelefone: venda.clienteTelefone || undefined,
         clienteCpfCnpj: venda.clienteCpfCnpj || undefined,
+        vendaId: vendaIdFinal ?? undefined,
       });
-      if (venda.resultouVenda && coletado > 0 && consultor) {
-        const vendaResult = await createVenda.mutateAsync({
-          clienteNome: agSelecionado.clienteNome,
-          clienteCpfCnpj: venda.clienteCpfCnpj || agSelecionado.clienteCpfCnpj || undefined,
-          clienteTelefone: venda.clienteTelefone || agSelecionado.clienteTelefone || undefined,
-          tipo: "PF",
-          consultorId: consultor.id,
-          dataVenda: new Date().toISOString(),
-          valorFaturado: faturado,
-          valorColetado: coletado,
-          parcelasRestantes: venda.parcelasQtd,
-          servicos: venda.servicos,
-          observacoes: venda.observacoes,
-          comissaoPercent: 10,
-          custoServico: custoModalServicos,
-        });
-        // Usar o vendaId retornado diretamente — sem precisar buscar a última venda
-        const novaVendaId = vendaResult?.vendaId;
-        if (novaVendaId && venda.parcelasQtd > 0 && venda.datesVencimento.length > 0) {
-          const valorParcela = (faturado - coletado) / venda.parcelasQtd;
-          if (valorParcela > 0) {
-            await createParcelas.mutateAsync({
-              vendaId: novaVendaId,
-              parcelas: venda.datesVencimento.map(d => ({ valor: valorParcela, vencimento: d })),
-            });
-          }
-        }
-      }
+      // Atualizar o agendamento selecionado localmente para refletir o vendaId
+      setAgSelecionado(prev => prev ? { ...prev, vendaId: vendaIdFinal } : prev);
     } finally {
       setSalvando(false);
     }

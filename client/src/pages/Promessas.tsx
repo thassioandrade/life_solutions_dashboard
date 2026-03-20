@@ -153,8 +153,7 @@ export default function Promessas() {
     onError: (e) => toast.error("Erro: " + e.message),
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const uploadComprovanteMut = (trpc.agendamentos as any).uploadComprovante?.useMutation?.({
+  const uploadComprovanteMut = trpc.upload.comprovante.useMutation({
     onSuccess: (data: { url: string }) => {
       setPagForm(f => ({ ...f, comprovanteUrl: data.url }));
       setUploadingComprovante(false);
@@ -295,7 +294,7 @@ export default function Promessas() {
       reader.onload = async () => {
         const base64 = (reader.result as string).split(",")[1];
         if (uploadComprovanteMut) {
-          uploadComprovanteMut.mutate({ base64, mimeType: file.type, filename: file.name });
+          uploadComprovanteMut.mutate({ fileBase64: base64, mimeType: file.type, tipo: "comprovante" });
         } else {
           // Fallback: usar URL de objeto local temporário
           const url = URL.createObjectURL(file);

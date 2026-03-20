@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import LifeDashboardLayout from "@/components/LifeDashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   DollarSign, TrendingUp, Users, CalendarDays,
   ChevronLeft, ChevronRight, ArrowUpCircle, ArrowDownCircle,
-  Wallet, CreditCard, AlertCircle, CheckCircle2, Bell, Phone, Download
+  Wallet, CreditCard, AlertCircle, CheckCircle2, Bell, Phone, Download, AlertTriangle
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
@@ -68,6 +68,40 @@ export default function Dashboard() {
   const { data: consultores } = trpc.consultores.list.useQuery();
   const { data: promessasHoje } = trpc.promessas.hoje.useQuery();
   const { data: servicosVendidos } = trpc.servicosVendidos.byPeriodo.useQuery({ mes, ano });
+  const [filtroConsultorParcelas, setFiltroConsultorParcelas] = useState<number | null>(null);
+  const { data: todasParcelas } = trpc.parcelas.listAll.useQuery();
+
+  function diasAtrasoAdmin(vencimento: Date | string) {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const venc = new Date(vencimento);
+    venc.setHours(0, 0, 0, 0);
+    return Math.floor((hoje.getTime() - venc.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  const parcelasFiltradas = useMemo(() => {
+    if (!todasParcelas) return [];
+    return todasParcelas.filter((p: any) => {
+      if (filtroConsultorParcelas && p.consultorId !== filtroConsultorParcelas) return false;
+      return true;
+    });
+  }, [todasParcelas, filtroConsultorParcelas]);
+
+  const devedoresAdmin = useMemo(() => {
+    const atrasadas = parcelasFiltradas.filter((p: any) => p.status === 'pendente' && diasAtrasoAdmin(p.vencimento) > 0);
+    const map = new Map<string, { nome: string; cpf?: string; telefone?: string; consultorNome?: string; totalDevido: number; maxAtraso: number; parcelas: any[] }>();
+    for (const p of atrasadas) {
+      const key = p.clienteNome || 'Desconhecido';
+      if (!map.has(key)) map.set(key, { nome: key, cpf: p.clienteCpfCnpj || undefined, telefone: p.clienteTelefone || undefined, consultorNome: p.consultorNome || undefined, totalDevido: 0, maxAtraso: 0, parcelas: [] });
+      const entry = map.get(key)!;
+      entry.totalDevido += parseFloat(String(p.valor || 0));
+      entry.maxAtraso = Math.max(entry.maxAtraso, diasAtrasoAdmin(p.vencimento));
+      entry.parcelas.push(p);
+    }
+    return Array.from(map.values()).sort((a, b) => b.maxAtraso - a.maxAtraso);
+  }, [parcelasFiltradas]);
+
+  const parcelasPendentes = useMemo(() => parcelasFiltradas.filter((p: any) => p.status === 'pendente'), [parcelasFiltradas]);
 
   const qtdLimpaAdmin = (servicosVendidos || []).filter(v => (v.servicos as string[] | null)?.some(s => s.toLowerCase().includes("limpa"))).length;
   const qtdRatingAdmin = (servicosVendidos || []).filter(v => (v.servicos as string[] | null)?.some(s => s.toLowerCase().includes("rating"))).length;
@@ -333,6 +367,156 @@ export default function Dashboard() {
                 <p>Nenhuma venda registrada neste período</p>
               </div>
             )}
+
+            {/* Seção de Parcelas e Devedores */}
+            <div className="space-y-4">
+              {/* Filtro por vendedora */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <h3 className="text-base font-bold text-gray-800">Controle de Parcelas e Devedores</h3>
+                <Select
+                  value={filtroConsultorParcelas ? String(filtroConsultorParcelas) : "todos"}
+                  onValueChange={v => setFiltroConsultorParcelas(v === "todos" ? null : Number(v))}
+                >
+                  <SelectTrigger className="w-48 h-8 text-sm">
+                    <SelectValue placeholder="Todas as vendedoras" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todas as vendedoras</SelectItem>
+                    {(consultores || []).map(c => (
+                      <SelectItem key={c.id} value={String(c.id)}>{c.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Cards de resumo de parcelas */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="rounded-xl border p-3 bg-amber-50 border-amber-200">
+                  <p className="text-xs font-medium text-amber-700 uppercase tracking-wide">A Receber</p>
+                  <p className="text-xl font-bold text-amber-800 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parcelasPendentes.reduce((s: number, p: any) => s + parseFloat(String(p.valor || 0)), 0))}</p>
+                  <p className="text-xs text-amber-600 mt-0.5">{parcelasPendentes.length} parcela{parcelasPendentes.length !== 1 ? 's' : ''} pendente{parcelasPendentes.length !== 1 ? 's' : ''}</p>
+                </div>
+                <div className="rounded-xl border p-3 bg-red-50 border-red-200">
+                  <p className="text-xs font-medium text-red-700 uppercase tracking-wide">Em Atraso</p>
+                  <p className="text-xl font-bold text-red-800 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parcelasFiltradas.filter((p: any) => p.status === 'pendente' && diasAtrasoAdmin(p.vencimento) > 0).reduce((s: number, p: any) => s + parseFloat(String(p.valor || 0)), 0))}</p>
+                  <p className="text-xs text-red-600 mt-0.5">{devedoresAdmin.length} devedor{devedoresAdmin.length !== 1 ? 'es' : ''}</p>
+                </div>
+                <div className="rounded-xl border p-3 bg-green-50 border-green-200">
+                  <p className="text-xs font-medium text-green-700 uppercase tracking-wide">Recebido</p>
+                  <p className="text-xl font-bold text-green-800 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parcelasFiltradas.filter((p: any) => p.status === 'pago').reduce((s: number, p: any) => s + parseFloat(String(p.valor || 0)), 0))}</p>
+                  <p className="text-xs text-green-600 mt-0.5">{parcelasFiltradas.filter((p: any) => p.status === 'pago').length} paga{parcelasFiltradas.filter((p: any) => p.status === 'pago').length !== 1 ? 's' : ''}</p>
+                </div>
+                <div className="rounded-xl border p-3 bg-purple-50 border-purple-200">
+                  <p className="text-xs font-medium text-purple-700 uppercase tracking-wide">Comissões Futuras</p>
+                  <p className="text-xl font-bold text-purple-800 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parcelasPendentes.reduce((s: number, p: any) => s + (parseFloat(String(p.valor || 0)) - parseFloat(String(p.custoServico || 0))) * parseFloat(String(p.comissaoPercent || 10)) / 100, 0))}</p>
+                  <p className="text-xs text-purple-600 mt-0.5">A pagar consultoras</p>
+                </div>
+              </div>
+
+              {/* Lista de Devedores */}
+              {devedoresAdmin.length > 0 && (
+                <Card className="border-red-200">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-red-700 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4" />
+                      Devedores ({devedoresAdmin.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {devedoresAdmin.map((d, i) => (
+                        <div key={i} className="p-3 rounded-lg border border-red-200 bg-red-50">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="text-sm font-bold text-red-800">{d.nome}</p>
+                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                {d.cpf && <span className="text-xs text-red-600">CPF: {d.cpf}</span>}
+                                {d.telefone && <span className="text-xs text-red-600">{d.telefone}</span>}
+                                {d.consultorNome && <span className="text-xs text-gray-500">Vendedora: {d.consultorNome}</span>}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-red-700">{formatCurrency(d.totalDevido)}</p>
+                              <p className="text-xs font-bold text-red-500">{d.maxAtraso}d de atraso</p>
+                            </div>
+                          </div>
+                          <div className="mt-2 space-y-1">
+                            {d.parcelas.map((p: any) => (
+                              <div key={p.id} className="flex items-center justify-between text-xs text-red-700 bg-red-100 rounded px-2 py-1">
+                                <span>Venc: {new Date(p.vencimento).toLocaleDateString('pt-BR')}</span>
+                                <span className="font-bold text-red-600">{diasAtrasoAdmin(p.vencimento)}d atraso</span>
+                                <span className="font-semibold">{formatCurrency(parseFloat(String(p.valor || 0)))}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Tabela de Parcelas Pendentes */}
+              {parcelasPendentes.length > 0 && (
+                <Card className="border-amber-200">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-amber-700 flex items-center gap-2">
+                      <CreditCard className="w-4 h-4" />
+                      Parcelas Pendentes ({parcelasPendentes.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-100">
+                            <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 uppercase">Cliente</th>
+                            <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 uppercase">Vendedora</th>
+                            <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 uppercase">Vencimento</th>
+                            <th className="text-right py-2 px-3 text-xs font-medium text-gray-500 uppercase">Valor</th>
+                            <th className="text-right py-2 px-3 text-xs font-medium text-gray-500 uppercase">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {parcelasPendentes.map((p: any) => {
+                            const atraso = diasAtrasoAdmin(p.vencimento);
+                            const isAtrasada = atraso > 0;
+                            return (
+                              <tr key={p.id} className={`border-b border-gray-50 hover:bg-gray-50 ${isAtrasada ? 'bg-red-50' : ''}`}>
+                                <td className="py-2 px-3">
+                                  <p className="font-medium text-gray-800">{p.clienteNome}</p>
+                                  {p.clienteTelefone && <p className="text-xs text-gray-400">{p.clienteTelefone}</p>}
+                                </td>
+                                <td className="py-2 px-3 text-xs text-gray-600">{p.consultorNome || '-'}</td>
+                                <td className="py-2 px-3">
+                                  <p className={`text-sm ${isAtrasada ? 'text-red-600 font-bold' : 'text-gray-700'}`}>
+                                    {new Date(p.vencimento).toLocaleDateString('pt-BR')}
+                                  </p>
+                                  {isAtrasada && <p className="text-xs text-red-500 font-medium">{atraso}d atrasado</p>}
+                                </td>
+                                <td className="py-2 px-3 text-right font-medium text-amber-700">{formatCurrency(parseFloat(String(p.valor || 0)))}</td>
+                                <td className="py-2 px-3 text-right">
+                                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isAtrasada ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                                    {isAtrasada ? 'Atrasado' : 'Pendente'}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {parcelasPendentes.length === 0 && todasParcelas && todasParcelas.length === 0 && (
+                <div className="text-center py-8 text-gray-400 text-sm">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                  Nenhuma parcela cadastrada
+                </div>
+              )}
+            </div>
           </>
         ) : null}
       </div>

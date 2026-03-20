@@ -23,7 +23,7 @@ import {
   getConfiguracao, setConfiguracao,
   getRankingsByPeriod, getAllRankings, upsertRanking,
   getDb,
-  getParcelasVencidas, getParcelasVencendoHoje, getParcelasByPeriodo, getParcelasFuturasConsultor,
+  getParcelasVencidas, getParcelasVencendoHoje, getParcelasByPeriodo, getParcelasFuturasConsultor, getAllParcelas,
   getServicosVendidosByPeriod, getServicosVendidosByConsultor,
   getCustosServicos, setCustoServico, getDashboardFinanceiro, getParcelasCompletasByConsultor,
   getPromessas, getPromessasByConsultor, getPromessasHoje, getPromessasHojeByConsultor,
@@ -111,10 +111,21 @@ export const appRouter = router({
         return { success: true };
       }),
     update: adminProcedure
-      .input(z.object({ id: z.number(), nome: z.string().optional(), email: z.string().optional(), fotoUrl: z.string().optional(), linkAgenda: z.string().optional(), ativo: z.boolean().optional() }))
+      .input(z.object({
+        id: z.number(),
+        nome: z.string().optional(),
+        email: z.string().optional(),
+        fotoUrl: z.string().optional(),
+        linkAgenda: z.string().optional(),
+        ativo: z.boolean().optional(),
+        salario: z.number().optional(),
+        receberSalario: z.boolean().optional(),
+      }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
-        await updateConsultor(id, data);
+        const updateData: Record<string, unknown> = { ...data };
+        if (data.salario !== undefined) updateData.salario = String(data.salario);
+        await updateConsultor(id, updateData as Parameters<typeof updateConsultor>[1]);
         return { success: true };
       }),
     delete: adminProcedure
@@ -475,6 +486,7 @@ export const appRouter = router({
         });
         return { success: true };
       }),
+    listAll: protectedProcedure.query(async () => getAllParcelas()),
     devedores: protectedProcedure.query(async () => getParcelasVencidas()),
     vencendoHoje: protectedProcedure.query(async () => getParcelasVencendoHoje()),
     byPeriodo: protectedProcedure
@@ -604,6 +616,7 @@ export const appRouter = router({
         observacoes: z.string().optional(),
         clienteTelefone: z.string().optional(),
         clienteCpfCnpj: z.string().optional(),
+        vendaId: z.number().optional(), // salvar vendaId para evitar duplicação
       }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
@@ -611,6 +624,8 @@ export const appRouter = router({
         if (data.valorColetado !== undefined) updateData.valorColetado = String(data.valorColetado);
         if (data.valorFaturado !== undefined) updateData.valorFaturado = String(data.valorFaturado);
         await updateAgendamento(id, updateData as Parameters<typeof updateAgendamento>[1]);
+        // Retornar vendaId atual do agendamento para o frontend
+        const agAtualizado = await getAgendamentoById(id);
 
         // Mover lead no pipeline automaticamente quando vaiFechar ou resultouVenda muda
         if (data.vaiFechar === true || data.resultouVenda === true) {
@@ -656,8 +671,7 @@ export const appRouter = router({
             console.warn("[agendamentos.update] Falha ao mover lead no pipeline:", e);
           }
         }
-
-        return { success: true };
+        return { success: true, vendaId: agAtualizado?.vendaId ?? null };
       }),
     delete: adminProcedure
       .input(z.object({ id: z.number() }))
@@ -955,13 +969,14 @@ export const appRouter = router({
     stats: adminProcedure
       .input(z.object({ mes: z.number(), ano: z.number() }))
       .query(async ({ input }) => {
-        const [vendasMes, agendsMes, metricasMes, despesasMes, colaboradoresList, parcelasPendentes] = await Promise.all([
+        const [vendasMes, agendsMes, metricasMes, despesasMes, colaboradoresList, parcelasPendentes, consultoresList] = await Promise.all([
           getVendasByPeriod(input.mes, input.ano),
           getAgendamentosByPeriod(input.mes, input.ano),
           getMetricasByPeriod(input.mes, input.ano),
           getDespesasByPeriod(input.mes, input.ano),
           getAllColaboradores(),
           getParcelasPendentes(),
+          getAllConsultores(),
         ]);
 
         const totalFaturado = vendasMes.reduce((s, v) => s + parseFloat(String(v.valorFaturado || 0)), 0);
@@ -976,7 +991,12 @@ export const appRouter = router({
         }, 0);
         const totalCustos = vendasMes.reduce((s, v) => s + parseFloat(String(v.custoServico || 0)), 0);
         const totalDespesas = despesasMes.reduce((s, d) => s + parseFloat(String(d.valor || 0)), 0);
-        const totalSalarios = colaboradoresList.reduce((s, c) => s + parseFloat(String(c.salario || 0)), 0);
+        // Salários: colaboradores fixos + consultoras com receberSalario=true
+        const salarioColaboradores = colaboradoresList.reduce((s, c) => s + parseFloat(String(c.salario || 0)), 0);
+        const salarioConsultoras = consultoresList
+          .filter(c => c.receberSalario && c.ativo)
+          .reduce((s, c) => s + parseFloat(String(c.salario || 0)), 0);
+        const totalSalarios = salarioColaboradores + salarioConsultoras;
         const metrica = metricasMes[0];
         const investimento = metrica ? parseFloat(String(metrica.investimento || 0)) : 0;
         const totalParcelasPendentes = parcelasPendentes.reduce((s, p) => s + parseFloat(String(p.valor || 0)), 0);

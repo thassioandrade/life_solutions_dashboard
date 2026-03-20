@@ -37,6 +37,8 @@ export const consultores = mysqlTable("consultores", {
   linkAgenda: text("linkAgenda"),
   ativo: boolean("ativo").default(true).notNull(),
   userId: int("userId"),
+  salario: decimal("salario", { precision: 10, scale: 2 }).default("0"),
+  receberSalario: boolean("receberSalario").default(false),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -115,6 +117,7 @@ export const agendamentos = mysqlTable("agendamentos", {
   comprovanteUrl: text("comprovanteUrl"),
   observacoes: text("observacoes"),
   origem: mysqlEnum("origem", ["admin", "publico"]).default("admin").notNull(),
+  vendaId: int("vendaId"), // FK para venda criada ao concluir (evita duplicação)
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
