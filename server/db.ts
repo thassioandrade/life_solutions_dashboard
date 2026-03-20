@@ -832,6 +832,120 @@ export async function getAllParcelas() {
     .orderBy(parcelas.vencimento);
 }
 
+// ─── Coletado Parcelas (separado do coletado normal) ──────────────────────────────
+
+/**
+ * Retorna as parcelas pagas por uma consultora em um determinado mês/ano.
+ * Inclui valor, comissão e dados do cliente para exibição no painel.
+ * Não entra no coletado normal nem no ranking.
+ */
+export async function getColetadoParcelasByConsultor(consultorId: number, mes: number, ano: number) {
+  const db = await getDb();
+  if (!db) return { parcelas: [], totalColetado: 0, totalComissao: 0 };
+
+  // Buscar vendas do consultor (não canceladas)
+  const vendasDoConsultor = await db.select({ id: vendas.id, comissaoPercent: vendas.comissaoPercent, custoServico: vendas.custoServico, numeroParcela: sql<number>`1` })
+    .from(vendas)
+    .where(and(eq(vendas.consultorId, consultorId), eq(vendas.cancelada, false)));
+
+  if (vendasDoConsultor.length === 0) return { parcelas: [], totalColetado: 0, totalComissao: 0 };
+  const ids = vendasDoConsultor.map(v => v.id);
+
+  // Buscar parcelas pagas no mês/ano especificado
+  const parcelasPagas = await db.select({
+    id: parcelas.id,
+    vendaId: parcelas.vendaId,
+    valor: parcelas.valor,
+    vencimento: parcelas.vencimento,
+    dataPagamento: parcelas.dataPagamento,
+    dataOkConsultor: parcelas.dataOkConsultor,
+    numeroParcela: parcelas.numeroParcela,
+    clienteNome: vendas.clienteNome,
+    clienteTelefone: vendas.clienteTelefone,
+    comissaoPercent: vendas.comissaoPercent,
+    custoServico: vendas.custoServico,
+  })
+    .from(parcelas)
+    .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
+    .where(and(
+      sql`${parcelas.vendaId} IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})`,
+      eq(parcelas.status, "pago"),
+      sql`MONTH(${parcelas.dataPagamento}) = ${mes}`,
+      sql`YEAR(${parcelas.dataPagamento}) = ${ano}`
+    ))
+    .orderBy(parcelas.dataPagamento);
+
+  let totalColetado = 0;
+  let totalComissao = 0;
+  for (const p of parcelasPagas) {
+    const valor = parseFloat(String(p.valor || 0));
+    const comissaoPercent = parseFloat(String(p.comissaoPercent || 10));
+    // Comissão das parcelas é direta (sem desconto de custo, pois o custo já foi descontado na 1ª parcela)
+    const comissao = valor * comissaoPercent / 100;
+    totalColetado += valor;
+    totalComissao += comissao;
+  }
+
+  return { parcelas: parcelasPagas, totalColetado, totalComissao };
+}
+
+/**
+ * Retorna o total de coletado de parcelas de todos os consultores em um mês/ano.
+ * Usado pelo Dashboard Admin para mostrar coletado parcelas e comissões a pagar.
+ */
+export async function getColetadoParcelasAdmin(mes: number, ano: number) {
+  const db = await getDb();
+  if (!db) return { totalColetado: 0, totalComissao: 0, porConsultor: [] as { consultorId: number; consultorNome: string; totalColetado: number; totalComissao: number }[] };
+
+  const parcelasPagas = await db.select({
+    id: parcelas.id,
+    valor: parcelas.valor,
+    dataPagamento: parcelas.dataPagamento,
+    comissaoPercent: vendas.comissaoPercent,
+    custoServico: vendas.custoServico,
+    consultorId: vendas.consultorId,
+    consultorNome: consultores.nome,
+  })
+    .from(parcelas)
+    .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
+    .leftJoin(consultores, eq(vendas.consultorId, consultores.id))
+    .where(and(
+      eq(parcelas.status, "pago"),
+      eq(vendas.cancelada, false),
+      sql`MONTH(${parcelas.dataPagamento}) = ${mes}`,
+      sql`YEAR(${parcelas.dataPagamento}) = ${ano}`
+    ));
+
+  let totalColetado = 0;
+  let totalComissao = 0;
+  const porConsultorMap = new Map<number, { consultorId: number; consultorNome: string; totalColetado: number; totalComissao: number }>();
+
+  for (const p of parcelasPagas) {
+    const valor = parseFloat(String(p.valor || 0));
+    const comissaoPercent = parseFloat(String(p.comissaoPercent || 10));
+    const comissao = valor * comissaoPercent / 100;
+    totalColetado += valor;
+    totalComissao += comissao;
+
+    if (p.consultorId) {
+      const existing = porConsultorMap.get(p.consultorId);
+      if (existing) {
+        existing.totalColetado += valor;
+        existing.totalComissao += comissao;
+      } else {
+        porConsultorMap.set(p.consultorId, {
+          consultorId: p.consultorId,
+          consultorNome: p.consultorNome || 'Desconhecido',
+          totalColetado: valor,
+          totalComissao: comissao,
+        });
+      }
+    }
+  }
+
+  return { totalColetado, totalComissao, porConsultor: Array.from(porConsultorMap.values()) };
+}
+
 // ─── Promessas de Pagamento ───────────────────────────────────────────────────
 export async function getPromessas() {
   const db = await getDb();

@@ -172,6 +172,10 @@ export default function PainelConsultor() {
     { consultorId: consultor?.id || 0 },
     { enabled: !!consultor?.id }
   );
+  const { data: coletadoParcelas } = trpc.parcelas.coletadoByConsultor.useQuery(
+    { consultorId: consultor?.id || 0, mes, ano },
+    { enabled: !!consultor?.id }
+  );
 
   const updateAgendamento = trpc.agendamentos.update.useMutation({
     onSuccess: () => {
@@ -596,6 +600,41 @@ export default function PainelConsultor() {
                 <p className="text-xs text-gray-400 mt-0.5">{realizadas} reuniões realizadas</p>
               </div>
             </div>
+
+            {/* Cards de Coletado Parcelas (separado do coletado normal) */}
+            {coletadoParcelas && (coletadoParcelas.totalColetado > 0 || coletadoParcelas.parcelas.length > 0) && (
+              <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
+                <div className="flex items-start justify-between flex-wrap gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-7 h-7 rounded-full bg-teal-100 flex items-center justify-center">
+                        <CreditCard className="w-3.5 h-3.5 text-teal-700" />
+                      </div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-teal-700">Coletado Parcelas — {MESES[mes-1]}</p>
+                    </div>
+                    <p className="text-2xl font-bold text-teal-800">{formatCurrency(coletadoParcelas.totalColetado)}</p>
+                    <p className="text-xs text-teal-600 mt-0.5">{coletadoParcelas.parcelas.length} parcela{coletadoParcelas.parcelas.length !== 1 ? 's' : ''} recebida{coletadoParcelas.parcelas.length !== 1 ? 's' : ''} no mês</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 mb-1">Sua Comissão</p>
+                    <p className="text-xl font-bold text-amber-700">{formatCurrency(coletadoParcelas.totalComissao)}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">10% sobre parcelas recebidas</p>
+                  </div>
+                </div>
+                {coletadoParcelas.parcelas.length > 0 && (
+                  <div className="mt-3 space-y-1.5">
+                    {coletadoParcelas.parcelas.map((p: any) => (
+                      <div key={p.id} className="flex items-center justify-between text-xs bg-white rounded-lg px-3 py-1.5 border border-teal-100">
+                        <span className="font-medium text-gray-700">{p.clienteNome}</span>
+                        <span className="text-gray-400">{p.dataPagamento ? new Date(p.dataPagamento).toLocaleDateString('pt-BR') : '—'}</span>
+                        <span className="font-bold text-teal-700">{formatCurrency(parseFloat(String(p.valor || 0)))}</span>
+                        <span className="text-amber-600 font-semibold">Com: {formatCurrency(parseFloat(String(p.valor || 0)) * parseFloat(String(p.comissaoPercent || 10)) / 100)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Serviços vendidos */}
             {(qtdLimpaName > 0 || qtdRating > 0) && (

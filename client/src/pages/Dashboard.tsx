@@ -70,6 +70,7 @@ export default function Dashboard() {
   const { data: servicosVendidos } = trpc.servicosVendidos.byPeriodo.useQuery({ mes, ano });
   const [filtroConsultorParcelas, setFiltroConsultorParcelas] = useState<number | null>(null);
   const { data: todasParcelas } = trpc.parcelas.listAll.useQuery();
+  const { data: coletadoParcelasAdmin } = trpc.parcelas.coletadoAdmin.useQuery({ mes, ano });
 
   function diasAtrasoAdmin(vencimento: Date | string) {
     const hoje = new Date();
@@ -204,6 +205,56 @@ export default function Dashboard() {
               <MetricCard title="A Receber" value={formatCurrency(stats.totalParcelasPendentes)} subtitle="Parcelas pendentes" icon={CreditCard} color="amber" />
               <MetricCard title="Comissões" value={formatCurrency(stats.totalComissoes)} subtitle="A pagar consultores" icon={Users} color="purple" />
             </div>
+            {/* Cards de Coletado Parcelas (separado do coletado normal) */}
+            {coletadoParcelasAdmin && coletadoParcelasAdmin.totalColetado > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center">
+                      <CreditCard className="w-4 h-4 text-teal-700" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-teal-700">Coletado Parcelas</p>
+                      <p className="text-xs text-teal-500">{MESES[mes-1]} {ano} — não entra no coletado normal</p>
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-teal-800">{formatCurrency(coletadoParcelasAdmin.totalColetado)}</p>
+                  {coletadoParcelasAdmin.porConsultor.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {coletadoParcelasAdmin.porConsultor.map((c: any) => (
+                        <div key={c.consultorId} className="flex justify-between text-xs bg-white rounded px-2 py-1 border border-teal-100">
+                          <span className="font-medium text-gray-700">{c.consultorNome}</span>
+                          <span className="font-bold text-teal-700">{formatCurrency(c.totalColetado)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                      <Users className="w-4 h-4 text-amber-700" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Comissão a Pagar (Parcelas)</p>
+                      <p className="text-xs text-amber-500">Sobre parcelas recebidas no mês</p>
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-amber-800">{formatCurrency(coletadoParcelasAdmin.totalComissao)}</p>
+                  {coletadoParcelasAdmin.porConsultor.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {coletadoParcelasAdmin.porConsultor.map((c: any) => (
+                        <div key={c.consultorId} className="flex justify-between text-xs bg-white rounded px-2 py-1 border border-amber-100">
+                          <span className="font-medium text-gray-700">{c.consultorNome}</span>
+                          <span className="font-bold text-amber-700">{formatCurrency(c.totalComissao)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Serviços vendidos com exportação Excel */}
             {(qtdLimpaAdmin > 0 || qtdRatingAdmin > 0) && (
               <div className="grid grid-cols-2 gap-3">
@@ -248,11 +299,13 @@ export default function Dashboard() {
                   <div className="space-y-2">
                     {[
                       { label: "Coletado Bruto", value: stats.totalColetado, positive: true },
+                      ...(coletadoParcelasAdmin && coletadoParcelasAdmin.totalColetado > 0 ? [{ label: "(+) Coletado Parcelas", value: coletadoParcelasAdmin.totalColetado, positive: true }] : []),
                       { label: "(-) Investimento Tráfego", value: stats.investimento, positive: false },
                       { label: "(-) Custo Serviços", value: stats.totalCustos, positive: false },
                       { label: "(-) Despesas", value: stats.totalDespesas, positive: false },
                       { label: "(-) Salários", value: stats.totalSalarios, positive: false },
                       { label: "(-) Comissões", value: stats.totalComissoes, positive: false },
+                      ...(coletadoParcelasAdmin && coletadoParcelasAdmin.totalComissao > 0 ? [{ label: "(-) Comissão Parcelas", value: coletadoParcelasAdmin.totalComissao, positive: false }] : []),
                     ].map((item, i) => (
                       <div key={i} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                         <span className="text-sm text-gray-600">{item.label}</span>

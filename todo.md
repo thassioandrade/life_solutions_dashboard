@@ -366,3 +366,12 @@
 - [x] Dashboard Admin: seção Controle de Parcelas e Devedores com filtro por vendedora, cards de resumo, lista de devedores em vermelho, tabela de parcelas pendentes
 - [x] Configurações: salário individual por consultora — campos salario e receberSalario na tabela consultores + UI no Configuracoes.tsx
 - [x] Dashboard Admin: totalSalarios inclui salários das consultoras com receberSalario=true
+
+## Sistema Coletado Parcelas Separado (Mar 2026)
+- [x] Backend: procedure parcelas.coletadoByConsultor — soma valor das parcelas pagas no mês por consultora com comissão
+- [x] Backend: procedure parcelas.coletadoAdmin — soma total de parcelas pagas no mês (todos consultores) com comissão por consultora
+- [x] Painel Consultor: card "Coletado Parcelas" separado (não soma ao coletado normal, não entra no ranking)
+- [x] Painel Consultor: card "Sua Comissão" sobre parcelas recebidas com lista detalhada por cliente
+- [x] Dashboard Admin: cards "Coletado Parcelas" e "Comissão a Pagar (Parcelas)" com breakdown por consultora
+- [x] Dashboard Admin: Resumo Financeiro inclui linhas "(+) Coletado Parcelas" e "(-) Comissão Parcelas"
+- [x] Garantir que parcelas pagas NÃO entram no coletado normal nem no ranking (são campos separados)

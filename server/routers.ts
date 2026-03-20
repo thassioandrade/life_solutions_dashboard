@@ -24,6 +24,7 @@ import {
   getRankingsByPeriod, getAllRankings, upsertRanking,
   getDb,
   getParcelasVencidas, getParcelasVencendoHoje, getParcelasByPeriodo, getParcelasFuturasConsultor, getAllParcelas,
+  getColetadoParcelasByConsultor, getColetadoParcelasAdmin,
   getServicosVendidosByPeriod, getServicosVendidosByConsultor,
   getCustosServicos, setCustoServico, getDashboardFinanceiro, getParcelasCompletasByConsultor,
   getPromessas, getPromessasByConsultor, getPromessasHoje, getPromessasHojeByConsultor,
@@ -487,6 +488,12 @@ export const appRouter = router({
         return { success: true };
       }),
     listAll: protectedProcedure.query(async () => getAllParcelas()),
+    coletadoByConsultor: protectedProcedure
+      .input(z.object({ consultorId: z.number(), mes: z.number(), ano: z.number() }))
+      .query(async ({ input }) => getColetadoParcelasByConsultor(input.consultorId, input.mes, input.ano)),
+    coletadoAdmin: protectedProcedure
+      .input(z.object({ mes: z.number(), ano: z.number() }))
+      .query(async ({ input }) => getColetadoParcelasAdmin(input.mes, input.ano)),
     devedores: protectedProcedure.query(async () => getParcelasVencidas()),
     vencendoHoje: protectedProcedure.query(async () => getParcelasVencendoHoje()),
     byPeriodo: protectedProcedure
