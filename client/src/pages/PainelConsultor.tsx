@@ -111,6 +111,9 @@ export default function PainelConsultor() {
   const [openEditVenda, setOpenEditVenda] = useState<any | null>(null);
   const [editVendaForm, setEditVendaForm] = useState<any>({});
   const [filtroParcelas, setFiltroParcelas] = useState<"todas" | "pendentes" | "pagas" | "atrasadas">("todas");
+  const [modalPagamentoParcela, setModalPagamentoParcela] = useState<{ id: number; valor: number; clienteNome: string } | null>(null);
+  const [pagParcelaForm, setPagParcelaForm] = useState({ formaPagamento: "", comprovanteUrl: "", comprovanteFile: null as File | null });
+  const [uploadingParcela, setUploadingParcela] = useState(false);
   const [modalPromessaAberto, setModalPromessaAberto] = useState(false);
   const [promessaData, setPromessaData] = useState({ dataPromessa: "", horarioPromessa: "", valor: "", observacoes: "" });
   const [salvandoPromessa, setSalvandoPromessa] = useState(false);
@@ -215,9 +218,50 @@ export default function PainelConsultor() {
     onError: (e) => toast.error(e.message),
   });
   const okConsultorMutation = trpc.parcelas.okConsultor.useMutation({
-    onSuccess: () => utils.parcelasCompletas.byConsultor.invalidate(),
+    onSuccess: () => {
+      utils.parcelasCompletas.byConsultor.invalidate();
+      utils.parcelas.coletadoByConsultor.invalidate();
+      setModalPagamentoParcela(null);
+      setPagParcelaForm({ formaPagamento: "", comprovanteUrl: "", comprovanteFile: null });
+      toast.success("Parcela marcada como recebida!");
+    },
     onError: (e) => toast.error("Erro: " + e.message),
   });
+
+  async function handleUploadComprovanteParcela(file: File) {
+    setUploadingParcela(true);
+    try {
+      const result = await new Promise<{ url: string }>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+          try {
+            const base64 = (ev.target?.result as string).split(",")[1];
+            const res = await uploadComprovante.mutateAsync({ fileBase64: base64, mimeType: file.type, tipo: "comprovante_parcela" });
+            resolve(res);
+          } catch (err) { reject(err); }
+        };
+        reader.onerror = () => reject(new Error("Erro ao ler arquivo"));
+        reader.readAsDataURL(file);
+      });
+      setPagParcelaForm(f => ({ ...f, comprovanteUrl: result.url, comprovanteFile: file }));
+      toast.success("Comprovante carregado!");
+    } catch (e: any) {
+      toast.error("Erro no upload: " + (e.message || "Tente novamente"));
+    } finally {
+      setUploadingParcela(false);
+    }
+  }
+
+  async function handleConfirmarPagamentoParcela() {
+    if (!modalPagamentoParcela) return;
+    if (!pagParcelaForm.formaPagamento) { toast.error("Selecione a forma de pagamento"); return; }
+    await okConsultorMutation.mutateAsync({
+      id: modalPagamentoParcela.id,
+      ok: true,
+      formaPagamento: pagParcelaForm.formaPagamento,
+      comprovanteUrl: pagParcelaForm.comprovanteUrl || undefined,
+    });
+  }
   const createPromessaMutation = trpc.promessas.create.useMutation({
     onSuccess: () => {
       utils.promessas.hojeByConsultor.invalidate();
@@ -1008,10 +1052,12 @@ export default function PainelConsultor() {
                                 {formatCurrency(parseFloat(String(p.valor || 0)))}
                               </p>
                               {p.status === "pendente" && (
-                                <div className="flex items-center gap-1.5">
-                                  <Checkbox id={`ok-${p.id}`} checked={!!p.okConsultor} onCheckedChange={(checked) => okConsultorMutation.mutate({ id: p.id, ok: !!checked })} />
-                                  <Label htmlFor={`ok-${p.id}`} className="text-xs text-gray-500 cursor-pointer">Recebi</Label>
-                                </div>
+                                <button
+                                  onClick={() => setModalPagamentoParcela({ id: p.id, valor: parseFloat(String(p.valor || 0)), clienteNome: p.clienteNome || "Cliente" })}
+                                  className="text-xs px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-colors font-medium"
+                                >
+                                  Recebi
+                                </button>
                               )}
                               {p.status === "pago" && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
                             </div>
@@ -1496,6 +1542,66 @@ export default function PainelConsultor() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Pagamento de Parcela */}
+      <Dialog open={!!modalPagamentoParcela} onOpenChange={(o) => { if (!o) { setModalPagamentoParcela(null); setPagParcelaForm({ formaPagamento: "", comprovanteUrl: "", comprovanteFile: null }); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-700">
+              <CheckCircle2 className="w-5 h-5" />
+              Confirmar Recebimento de Parcela
+            </DialogTitle>
+          </DialogHeader>
+          {modalPagamentoParcela && (
+            <div className="space-y-4 pt-2">
+              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200">
+                <p className="text-sm font-semibold text-emerald-800">{modalPagamentoParcela.clienteNome}</p>
+                <p className="text-lg font-bold text-emerald-700 mt-0.5">{formatCurrency(modalPagamentoParcela.valor)}</p>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-gray-600 mb-2 block">Forma de Pagamento *</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {FORMAS_PAGAMENTO.map(fp => (
+                    <button key={fp.value} onClick={() => setPagParcelaForm(f => ({ ...f, formaPagamento: fp.value }))}
+                      className={`text-xs px-2 py-2 rounded-lg border transition-all ${
+                        pagParcelaForm.formaPagamento === fp.value
+                          ? "bg-emerald-600 text-white border-transparent"
+                          : "border-gray-200 text-gray-600 hover:border-emerald-300"
+                      }`}>
+                      {fp.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-gray-600 mb-2 block">Comprovante (opcional)</Label>
+                {pagParcelaForm.comprovanteUrl ? (
+                  <div className="flex items-center gap-2 p-2 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <span className="text-xs text-emerald-700 flex-1 truncate">{pagParcelaForm.comprovanteFile?.name || "Comprovante carregado"}</span>
+                    <button onClick={() => setPagParcelaForm(f => ({ ...f, comprovanteUrl: "", comprovanteFile: null }))} className="text-gray-400 hover:text-red-500">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex items-center gap-2 p-3 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 hover:bg-emerald-50 transition-colors">
+                    <Upload className="w-4 h-4 text-gray-400" />
+                    <span className="text-xs text-gray-500">{uploadingParcela ? "Enviando..." : "Clique para anexar comprovante"}</span>
+                    <input type="file" className="hidden" accept="image/*,application/pdf" disabled={uploadingParcela}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUploadComprovanteParcela(f); }} />
+                  </label>
+                )}
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => { setModalPagamentoParcela(null); setPagParcelaForm({ formaPagamento: "", comprovanteUrl: "", comprovanteFile: null }); }}>Cancelar</Button>
+                <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleConfirmarPagamentoParcela} disabled={okConsultorMutation.isPending || !pagParcelaForm.formaPagamento}>
+                  {okConsultorMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirmar Recebimento"}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </LifeDashboardLayout>

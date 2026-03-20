@@ -258,7 +258,7 @@ export const appRouter = router({
         // Cancelar a venda e parcelas pendentes
         await cancelarVenda(input.id, input.motivo);
 
-        // Criar lead na coluna "Estorno" do pipeline
+        // Criar lead na coluna "Estorno" e remover da coluna "Venda Realizada"
         try {
           const venda = await getVendaById(input.id);
           if (venda) {
@@ -286,6 +286,27 @@ export const appRouter = router({
                 ano: dataVenda.getFullYear(),
                 ordem: 0,
               });
+            }
+            // Remover lead da coluna "Venda Realizada" (e outras colunas ativas) pelo nome do cliente
+            try {
+              const db = await getDb();
+              if (db) {
+                const { leads: leadsTable } = await import("../drizzle/schema");
+                const { eq: eqFn, and: andFn, ne: neFn } = await import("drizzle-orm");
+                // Buscar coluna Estorno para não remover o lead que acabamos de criar
+                const colunaEstornoAtual = colunas.find(c => c.nome.toLowerCase().includes("estorno")) || colunaEstorno;
+                // Remover todos os leads com o mesmo nome que não estejam na coluna Estorno
+                const leadsDoCliente = await db.select({ id: leadsTable.id, colunaId: leadsTable.colunaId })
+                  .from(leadsTable)
+                  .where(eqFn(leadsTable.nome, venda.clienteNome));
+                for (const lead of leadsDoCliente) {
+                  if (colunaEstornoAtual && lead.colunaId !== colunaEstornoAtual.id) {
+                    await db.delete(leadsTable).where(eqFn(leadsTable.id, lead.id));
+                  }
+                }
+              }
+            } catch (e2) {
+              console.warn("[vendas.cancelar] Falha ao remover lead da Venda Realizada:", e2);
             }
           }
         } catch (e) {
@@ -476,7 +497,12 @@ export const appRouter = router({
         return { success: true };
       }),
     okConsultor: protectedProcedure
-      .input(z.object({ id: z.number(), ok: z.boolean() }))
+      .input(z.object({
+        id: z.number(),
+        ok: z.boolean(),
+        formaPagamento: z.string().optional(),
+        comprovanteUrl: z.string().optional(),
+      }))
       .mutation(async ({ input }) => {
         // Ao marcar como recebido, muda status para pago (visível no Admin também)
         await updateParcela(input.id, {
@@ -484,6 +510,8 @@ export const appRouter = router({
           dataOkConsultor: input.ok ? new Date() : undefined,
           status: input.ok ? "pago" : "pendente",
           dataPagamento: input.ok ? new Date() : undefined,
+          formaPagamento: input.formaPagamento || undefined,
+          comprovanteUrl: input.comprovanteUrl || undefined,
         });
         return { success: true };
       }),

@@ -1,0 +1,55 @@
+{
+  "query": "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'parcelas' ORDER BY ORDINAL_POSITION;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'parcelas' ORDER BY ORDINAL_POSITION;",
+  "rows": [
+    {
+      "COLUMN_NAME": "id"
+    },
+    {
+      "COLUMN_NAME": "vendaId"
+    },
+    {
+      "COLUMN_NAME": "valor"
+    },
+    {
+      "COLUMN_NAME": "vencimento"
+    },
+    {
+      "COLUMN_NAME": "status"
+    },
+    {
+      "COLUMN_NAME": "dataPagamento"
+    },
+    {
+      "COLUMN_NAME": "comprovanteUrl"
+    },
+    {
+      "COLUMN_NAME": "createdAt"
+    },
+    {
+      "COLUMN_NAME": "updatedAt"
+    },
+    {
+      "COLUMN_NAME": "okConsultor"
+    },
+    {
+      "COLUMN_NAME": "dataOkConsultor"
+    },
+    {
+      "COLUMN_NAME": "notificacaoEnviada"
+    },
+    {
+      "COLUMN_NAME": "numeroParcela"
+    },
+    {
+      "COLUMN_NAME": "formaPagamento"
+    },
+    {
+      "COLUMN_NAME": "clienteNome"
+    }
+  ],
+  "messages": [],
+  "stdout": "COLUMN_NAME\nid\nvendaId\nvalor\nvencimento\nstatus\ndataPagamento\ncomprovanteUrl\ncreatedAt\nupdatedAt\nokConsultor\ndataOkConsultor\nnotificacaoEnviada\nnumeroParcela\nformaPagamento\nclienteNome\n",
+  "stderr": "",
+  "execution_time_ms": 381
+}

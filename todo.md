@@ -375,3 +375,13 @@
 - [x] Dashboard Admin: cards "Coletado Parcelas" e "Comissão a Pagar (Parcelas)" com breakdown por consultora
 - [x] Dashboard Admin: Resumo Financeiro inclui linhas "(+) Coletado Parcelas" e "(-) Comissão Parcelas"
 - [x] Garantir que parcelas pagas NÃO entram no coletado normal nem no ranking (são campos separados)
+
+## Correções de Bugs v4 (Mar 2026)
+- [x] Modal agendamento (Agendamentos.tsx admin): botão "Vai Fechar" adicionado — cria promessa e move lead para coluna "Vai Fechar" no pipeline
+- [x] Modal agendamento: upload de comprovante corrigido (usa trpc.upload.comprovante via FileReader Promise)
+- [x] Aba Anotações: convertida para useState controlado — carrega e salva corretamente
+- [x] Estorno: procedure vendas.cancelar agora remove lead da coluna "Venda Realizada" ao estornar (além de criar na coluna Estorno)
+- [x] Parcelas: campo formaPagamento adicionado na tabela parcelas (migração aplicada)
+- [x] Parcelas: botão "Recebi" abre modal com seleção de forma de pagamento (obrigatório) + upload de comprovante (opcional)
+- [x] Parcelas: ao confirmar recebimento, salva formaPagamento e comprovanteUrl na parcela
+- [x] Backend: procedure parcelas.okConsultor atualizada para aceitar formaPagamento e comprovanteUrl

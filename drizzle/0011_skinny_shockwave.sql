@@ -1,0 +1,1 @@
+ALTER TABLE `parcelas` ADD `formaPagamento` varchar(50);

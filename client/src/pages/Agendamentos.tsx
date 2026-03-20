@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import LifeDashboardLayout from "@/components/LifeDashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ChevronLeft, ChevronRight, CalendarDays, Clock, User, Phone, CheckCircle, XCircle, AlertCircle, Edit2, Trash2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, ChevronLeft, ChevronRight, CalendarDays, Clock, User, Phone, CheckCircle, Edit2, Trash2, Upload, X, Loader2, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 
@@ -45,6 +46,12 @@ export default function Agendamentos() {
   const [formData, setFormData] = useState("");
   const [formHora, setFormHora] = useState("");
   const [editForm, setEditForm] = useState<any>({});
+  const [uploadingComprovante, setUploadingComprovante] = useState(false);
+
+  // Modal Vai Fechar (Promessa)
+  const [modalPromessaAberto, setModalPromessaAberto] = useState(false);
+  const [agParaPromessa, setAgParaPromessa] = useState<any | null>(null);
+  const [promessaData, setPromessaData] = useState({ dataPromessa: "", horarioPromessa: "", valor: "", observacoes: "" });
 
   const { data: agendamentos, refetch } = trpc.agendamentos.listByPeriod.useQuery({ mes, ano });
   const { data: consultores } = trpc.consultores.list.useQuery();
@@ -61,6 +68,24 @@ export default function Agendamentos() {
     onSuccess: () => { toast.success("Removido!"); refetch(); },
     onError: (e) => toast.error(e.message),
   });
+  const uploadComprovanteMut = trpc.upload.comprovante.useMutation({
+    onError: (e) => toast.error("Erro ao enviar comprovante: " + e.message),
+  });
+  const createPromessaMut = trpc.promessas.create.useMutation({
+    onSuccess: () => {
+      toast.success("Promessa registrada! Lead movido para 'Vai Fechar'.");
+      setModalPromessaAberto(false);
+      setAgParaPromessa(null);
+      setPromessaData({ dataPromessa: "", horarioPromessa: "", valor: "", observacoes: "" });
+      // Marcar agendamento como vaiFechar
+      if (agParaPromessa) {
+        updateMutation.mutate({ id: agParaPromessa.id, vaiFechar: true });
+      }
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,6 +106,48 @@ export default function Agendamentos() {
       valorFaturado: editForm.valorFaturado ? parseFloat(editForm.valorFaturado) : undefined,
     });
   };
+
+  async function handleUploadComprovante(file: File) {
+    setUploadingComprovante(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const result = await uploadComprovanteMut.mutateAsync({ fileBase64: base64, mimeType: file.type, tipo: "comprovante" });
+      setEditForm((f: any) => ({ ...f, comprovanteUrl: result.url }));
+      toast.success("Comprovante enviado!");
+    } catch (err) {
+      console.error("Erro ao enviar comprovante:", err);
+      toast.error("Erro ao enviar comprovante. Tente novamente.");
+    } finally {
+      setUploadingComprovante(false);
+    }
+  }
+
+  function handleVaiFechar(ag: any) {
+    setAgParaPromessa(ag);
+    setPromessaData({ dataPromessa: "", horarioPromessa: "", valor: "", observacoes: "" });
+    setOpenEdit(null); // fechar modal de edição
+    setModalPromessaAberto(true);
+  }
+
+  function handleSalvarPromessa() {
+    if (!promessaData.dataPromessa) { toast.error("Preencha a data do retorno"); return; }
+    if (!agParaPromessa) return;
+    createPromessaMut.mutate({
+      clienteNome: agParaPromessa.clienteNome,
+      clienteTelefone: agParaPromessa.clienteTelefone || undefined,
+      dataPromessa: promessaData.dataPromessa,
+      horarioPromessa: promessaData.horarioPromessa || undefined,
+      valor: promessaData.valor ? parseFloat(promessaData.valor) : undefined,
+      observacoes: promessaData.observacoes || undefined,
+      consultorId: agParaPromessa.consultorId || undefined,
+      agendamentoId: agParaPromessa.id,
+    });
+  }
 
   return (
     <LifeDashboardLayout title="Agendamentos">
@@ -209,15 +276,45 @@ export default function Agendamentos() {
                             Resultou em venda — {ag.valorColetado ? formatCurrency(parseFloat(String(ag.valorColetado))) : ""}
                           </div>
                         )}
+                        {ag.comprovanteUrl && (
+                          <div className="mt-1.5">
+                            <a href={ag.comprovanteUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                              <Paperclip className="w-3 h-3" /> Ver comprovante
+                            </a>
+                          </div>
+                        )}
                       </div>
                       <div className="flex gap-1.5">
-                        <Dialog open={openEdit?.id === ag.id} onOpenChange={(o) => { setOpenEdit(o ? ag : null); setEditForm({ status: ag.status, observacoes: ag.observacoes || "", valorColetado: ag.valorColetado || "", valorFaturado: ag.valorFaturado || "", resultouVenda: ag.resultouVenda || false, vaiFechar: (ag as any).vaiFechar || false }); }}>
+                        {/* Botão Vai Fechar */}
+                        {!ag.resultouVenda && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-2 text-xs text-violet-700 border-violet-300 hover:bg-violet-50"
+                            onClick={() => handleVaiFechar(ag)}
+                            title="Vai Fechar"
+                          >
+                            🤝
+                          </Button>
+                        )}
+                        <Dialog open={openEdit?.id === ag.id} onOpenChange={(o) => {
+                          setOpenEdit(o ? ag : null);
+                          setEditForm({
+                            status: ag.status,
+                            observacoes: ag.observacoes || "",
+                            valorColetado: ag.valorColetado || "",
+                            valorFaturado: ag.valorFaturado || "",
+                            resultouVenda: ag.resultouVenda || false,
+                            vaiFechar: (ag as any).vaiFechar || false,
+                            comprovanteUrl: ag.comprovanteUrl || "",
+                          });
+                        }}>
                           <DialogTrigger asChild>
                             <Button variant="outline" size="sm" className="h-8 w-8 p-0">
                               <Edit2 className="w-3.5 h-3.5" />
                             </Button>
                           </DialogTrigger>
-                          <DialogContent>
+                          <DialogContent className="max-w-md">
                             <DialogHeader><DialogTitle>Atualizar Agendamento</DialogTitle></DialogHeader>
                             <div className="space-y-3">
                               <div>
@@ -241,17 +338,49 @@ export default function Agendamentos() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <input type="checkbox" id="vaiFechar" checked={editForm.vaiFechar || false} onChange={e => setEditForm({ ...editForm, vaiFechar: e.target.checked, resultouVenda: e.target.checked ? false : editForm.resultouVenda })} />
-                                <Label htmlFor="vaiFechar" className="text-violet-700 font-medium">🤝 Vai Fechar</Label>
+                                <Label htmlFor="vaiFechar" className="text-violet-700 font-medium cursor-pointer">🤝 Vai Fechar</Label>
                               </div>
                               <div className="flex items-center gap-2">
                                 <input type="checkbox" id="resultouVenda" checked={editForm.resultouVenda} onChange={e => setEditForm({ ...editForm, resultouVenda: e.target.checked, vaiFechar: e.target.checked ? false : editForm.vaiFechar })} />
-                                <Label htmlFor="resultouVenda">Resultou em venda</Label>
+                                <Label htmlFor="resultouVenda" className="cursor-pointer">Resultou em venda</Label>
                               </div>
                               <div>
                                 <Label>Observações</Label>
-                                <Input value={editForm.observacoes} onChange={e => setEditForm({ ...editForm, observacoes: e.target.value })} />
+                                <Textarea value={editForm.observacoes} onChange={e => setEditForm({ ...editForm, observacoes: e.target.value })} rows={2} className="resize-none" />
                               </div>
-                              <div className="flex gap-2">
+                              {/* Comprovante */}
+                              <div>
+                                <Label>Comprovante de Pagamento</Label>
+                                {editForm.comprovanteUrl ? (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <a href={editForm.comprovanteUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                      <Paperclip className="w-3 h-3" /> Ver comprovante
+                                    </a>
+                                    <button onClick={() => setEditForm((f: any) => ({ ...f, comprovanteUrl: "" }))} className="text-gray-400 hover:text-red-500">
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleUploadComprovante(f); }} />
+                                    <Button type="button" variant="outline" size="sm" className="mt-1 w-full text-xs" onClick={() => fileInputRef.current?.click()} disabled={uploadingComprovante}>
+                                      {uploadingComprovante ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Enviando...</> : <><Upload className="w-3.5 h-3.5 mr-1.5" /> Anexar comprovante</>}
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                              <div className="flex gap-2 pt-1">
+                                {/* Botão Vai Fechar no modal */}
+                                {!editForm.resultouVenda && (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="flex-1 text-violet-700 border-violet-300 hover:bg-violet-50 text-sm"
+                                    onClick={() => handleVaiFechar(ag)}
+                                  >
+                                    📌 Vai Fechar
+                                  </Button>
+                                )}
                                 <Button variant="outline" onClick={() => setOpenEdit(null)} className="flex-1">Cancelar</Button>
                                 <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={handleUpdate} disabled={updateMutation.isPending}>Salvar</Button>
                               </div>
@@ -273,6 +402,91 @@ export default function Agendamentos() {
           </div>
         )}
       </div>
+
+      {/* Modal Vai Fechar - Promessa de Pagamento */}
+      <Dialog open={modalPromessaAberto} onOpenChange={setModalPromessaAberto}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-violet-800">
+              📌 Registrar Promessa de Fechamento
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            {agParaPromessa && (
+              <div className="bg-violet-50 border border-violet-200 rounded-lg p-3">
+                <p className="text-sm font-semibold text-violet-800">{agParaPromessa.clienteNome}</p>
+                {agParaPromessa.clienteTelefone && (
+                  <p className="text-xs text-violet-600 mt-0.5">📞 {agParaPromessa.clienteTelefone}</p>
+                )}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs font-semibold text-gray-600 mb-1 block">Data do retorno *</Label>
+                <Input
+                  type="date"
+                  value={promessaData.dataPromessa}
+                  onChange={e => setPromessaData(p => ({ ...p, dataPromessa: e.target.value }))}
+                  className="text-sm"
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-gray-600 mb-1 block">Horário do alarme</Label>
+                <Input
+                  type="time"
+                  value={promessaData.horarioPromessa}
+                  onChange={e => setPromessaData(p => ({ ...p, horarioPromessa: e.target.value }))}
+                  className="text-sm"
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs font-semibold text-gray-600 mb-1 block">Valor estimado (R$)</Label>
+              <Input
+                type="number"
+                placeholder="0,00"
+                value={promessaData.valor}
+                onChange={e => setPromessaData(p => ({ ...p, valor: e.target.value }))}
+                className="text-sm"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold text-gray-600 mb-1 block">Observações</Label>
+              <Textarea
+                placeholder="O que o cliente disse? Qual o motivo do retorno?"
+                value={promessaData.observacoes}
+                onChange={e => setPromessaData(p => ({ ...p, observacoes: e.target.value }))}
+                className="text-sm resize-none"
+                rows={2}
+              />
+            </div>
+            {promessaData.horarioPromessa && promessaData.dataPromessa && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-xs text-amber-800">
+                ⏰ Um alarme tocará em <strong>{promessaData.dataPromessa} às {promessaData.horarioPromessa}</strong> para lembrar de ligar e fechar a venda!
+              </div>
+            )}
+            {!promessaData.dataPromessa && (
+              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                ⚠️ Preencha a <strong>data do retorno</strong> para liberar o botão
+              </p>
+            )}
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => { setModalPromessaAberto(false); setAgParaPromessa(null); }}>
+                Cancelar
+              </Button>
+              <Button
+                className="flex-1 text-white"
+                style={{ background: "#7c3aed" }}
+                onClick={handleSalvarPromessa}
+                disabled={!promessaData.dataPromessa || createPromessaMut.isPending}
+              >
+                {createPromessaMut.isPending ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Salvando...</> : "Registrar Promessa"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </LifeDashboardLayout>
   );
 }

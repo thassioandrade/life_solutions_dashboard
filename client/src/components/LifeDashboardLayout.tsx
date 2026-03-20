@@ -89,25 +89,26 @@ export default function LifeDashboardLayout({ children, title }: LifeDashboardLa
 
   const notifyMutation = trpc.system.notifyOwner.useMutation();
 
-  // ─── Bloco de Anotações ───────────────────────────────────────────────────
+  // Bloco de Anotacoes (estado controlado)
   const NOTA_KEY = `life_notas_${user?.id || "guest"}`;
   const [notasAberto, setNotasAberto] = useState(false);
+  const [notasTexto, setNotasTexto] = useState("");
   const [notasSalvo, setNotasSalvo] = useState(true);
   const notasTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const notasRef = useRef<HTMLTextAreaElement>(null);
 
   // Carregar texto salvo quando o bloco abre
   useEffect(() => {
-    if (notasAberto && notasRef.current) {
+    if (notasAberto) {
       try {
         const saved = localStorage.getItem(NOTA_KEY) || "";
-        notasRef.current.value = saved;
+        setNotasTexto(saved);
       } catch {}
     }
   }, [notasAberto, NOTA_KEY]);
 
-  const handleNotasChange = () => {
-    const v = notasRef.current?.value ?? "";
+  const handleNotasChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const v = e.target.value;
+    setNotasTexto(v);
     setNotasSalvo(false);
     if (notasTimer.current) clearTimeout(notasTimer.current);
     notasTimer.current = setTimeout(() => {
@@ -117,21 +118,20 @@ export default function LifeDashboardLayout({ children, title }: LifeDashboardLa
   };
 
   function salvarNotasManual() {
-    const v = notasRef.current?.value ?? "";
-    try { localStorage.setItem(NOTA_KEY, v); } catch {}
+    try { localStorage.setItem(NOTA_KEY, notasTexto); } catch {}
     setNotasSalvo(true);
     toast.success("Anotações salvas!");
   }
 
   function limparNotas() {
     if (!confirm("Apagar todas as anotações?")) return;
-    if (notasRef.current) notasRef.current.value = "";
+    setNotasTexto("");
     try { localStorage.removeItem(NOTA_KEY); } catch {}
     setNotasSalvo(true);
     toast.success("Anotações apagadas");
   }
 
-  // ─── Calendário Pessoal ───────────────────────────────────────────────────
+  // Calendario Pessoal
   const EVENTOS_KEY = `life_eventos_${user?.id || "guest"}`;
   const [calAberto, setCalAberto] = useState(false);
   const [calMes, setCalMes] = useState(new Date().getMonth());
@@ -342,8 +342,8 @@ export default function LifeDashboardLayout({ children, title }: LifeDashboardLa
           {notasAberto && (
             <div className="mx-2 mb-2 rounded-lg overflow-hidden border border-[var(--sidebar-border)]" style={{ background: "oklch(18% 0.02 250)" }}>
               <textarea
-                ref={notasRef}
-                onInput={handleNotasChange}
+                value={notasTexto}
+                onChange={handleNotasChange}
                 placeholder="Escreva suas ideias aqui..."
                 className="min-h-[120px] w-full text-xs text-white border-0 rounded-none resize-none bg-transparent placeholder:text-gray-500 p-3 focus:outline-none"
               />
