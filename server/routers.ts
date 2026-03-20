@@ -300,10 +300,9 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) return [];
         const { vendas: vendasTable, consultores } = await import("../drizzle/schema");
-        const { eq: eqFn, and: andFn, isNull } = await import("drizzle-orm");
+        const { eq: eqFn, and: andFn } = await import("drizzle-orm");
         const hoje = new Date();
         const PRAZO_DIAS = 25;
-        // Admin vê todas, consultor vê só as suas
         const isAdmin = ctx.user?.role === "admin";
         const rows = await db
           .select({
@@ -315,6 +314,10 @@ export const appRouter = router({
             consultorId: vendasTable.consultorId,
             consultorNome: consultores.nome,
             cancelada: vendasTable.cancelada,
+            entregue: vendasTable.entregue,
+            dataEntrega: vendasTable.dataEntrega,
+            entregueConsultorId: vendasTable.entregueConsultorId,
+            movidoParaEntrega: vendasTable.movidoParaEntrega,
           })
           .from(vendasTable)
           .leftJoin(consultores, eqFn(vendasTable.consultorId, consultores.id))
@@ -331,7 +334,7 @@ export const appRouter = router({
             const dataInicio = new Date(r.dataVenda!);
             const diasDecorridos = Math.floor((now - dataInicio.getTime()) / (1000 * 60 * 60 * 24));
             const diasRestantes = PRAZO_DIAS - diasDecorridos;
-            const status = diasDecorridos > PRAZO_DIAS ? "atrasado" : diasDecorridos >= PRAZO_DIAS - 5 ? "alerta" : "ok";
+            const status = r.entregue ? "entregue" : diasDecorridos > PRAZO_DIAS ? "atrasado" : diasDecorridos >= PRAZO_DIAS - 5 ? "alerta" : "ok";
             return {
               ...r,
               diasDecorridos,
@@ -340,7 +343,94 @@ export const appRouter = router({
               prazo: PRAZO_DIAS,
             };
           })
-          .sort((a, b) => b.diasDecorridos - a.diasDecorridos);
+          .sort((a, b) => {
+            // Entregues vão para o final
+            if (a.entregue && !b.entregue) return 1;
+            if (!a.entregue && b.entregue) return -1;
+            return b.diasDecorridos - a.diasDecorridos;
+          });
+      }),
+    marcarEntregue: protectedProcedure
+      .input(z.object({ vendaId: z.number(), consultorId: z.number().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("DB not available");
+        const { vendas: vendasTable } = await import("../drizzle/schema");
+        const { eq: eqFn } = await import("drizzle-orm");
+        await db.update(vendasTable).set({
+          entregue: true,
+          dataEntrega: new Date(),
+          entregueConsultorId: input.consultorId || null,
+        }).where(eqFn(vendasTable.id, input.vendaId));
+        return { success: true };
+      }),
+    marcarEntregueViaLead: protectedProcedure
+      .input(z.object({ leadId: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("DB not available");
+        const { vendas: vendasTable } = await import("../drizzle/schema");
+        const { leads: leadsTable } = await import("../drizzle/schema");
+        const { eq: eqFn } = await import("drizzle-orm");
+        // Buscar o lead para obter o nome do cliente
+        const [lead] = await db.select({ nome: leadsTable.nome, consultorId: leadsTable.consultorId })
+          .from(leadsTable).where(eqFn(leadsTable.id, input.leadId));
+        if (!lead) throw new Error("Lead n\u00e3o encontrado");
+        // Buscar venda pelo nome do cliente (movidoParaEntrega=true)
+        const [venda] = await db.select({ id: vendasTable.id })
+          .from(vendasTable)
+          .where(eqFn(vendasTable.clienteNome, lead.nome))
+          .limit(1);
+        if (venda) {
+          await db.update(vendasTable).set({
+            entregue: true,
+            dataEntrega: new Date(),
+            entregueConsultorId: lead.consultorId || null,
+          }).where(eqFn(vendasTable.id, venda.id));
+        }
+        // Remover o lead do pipeline
+        await db.delete(leadsTable).where(eqFn(leadsTable.id, input.leadId));
+        return { success: true };
+      }),
+    moverParaEntregaSeNecessario: protectedProcedure
+      .input(z.object({ vendaId: z.number(), clienteNome: z.string(), consultorId: z.number().optional() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return { success: false };
+        const { vendas: vendasTable } = await import("../drizzle/schema");
+        const { eq: eqFn } = await import("drizzle-orm");
+        // Verificar se já foi movido
+        const [venda] = await db.select({ movidoParaEntrega: vendasTable.movidoParaEntrega })
+          .from(vendasTable).where(eqFn(vendasTable.id, input.vendaId));
+        if (venda?.movidoParaEntrega) return { success: true, jaMovido: true };
+        // Criar/buscar coluna "Entregar Serviço Feito"
+        try {
+          let colunas = await getColunasPipeline();
+          let colunaEntrega = colunas.find(c => c.nome.toLowerCase().includes("entregar servi"));
+          if (!colunaEntrega) {
+            await createColuna({ nome: "Entregar Serviço Feito", cor: "#f59e0b", ordem: 998 });
+            colunas = await getColunasPipeline();
+            colunaEntrega = colunas.find(c => c.nome.toLowerCase().includes("entregar servi"));
+          }
+          if (colunaEntrega) {
+            await createLead({
+              colunaId: colunaEntrega.id,
+              nome: input.clienteNome,
+              valor: "0",
+              consultorId: input.consultorId,
+              observacoes: `⏰ Prazo de 25 dias atingido — entregar serviço ao cliente`,
+              mes: new Date().getMonth() + 1,
+              ano: new Date().getFullYear(),
+              ordem: 0,
+            });
+          }
+          // Marcar como movido para não duplicar
+          await db.update(vendasTable).set({ movidoParaEntrega: true })
+            .where(eqFn(vendasTable.id, input.vendaId));
+        } catch (e) {
+          console.warn("[moverParaEntrega] Erro:", e);
+        }
+        return { success: true };
       }),
   }),
 

@@ -64,6 +64,11 @@ export const vendas = mysqlTable("vendas", {
   cancelada: boolean("cancelada").default(false).notNull(),
   motivoCancelamento: text("motivoCancelamento"),
   canceladaEm: timestamp("canceladaEm"),
+  // Controle de entrega do serviço (prazo 25 dias)
+  entregue: boolean("entregue").default(false).notNull(),
+  dataEntrega: timestamp("dataEntrega"),
+  entregueConsultorId: int("entregueConsultorId"),
+  movidoParaEntrega: boolean("movidoParaEntrega").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

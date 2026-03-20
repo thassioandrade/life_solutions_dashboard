@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ChevronLeft, ChevronRight, Trash2, Edit2, User, Phone, DollarSign, Check, X, Settings2, GripVertical, Kanban, CalendarClock, ExternalLink } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Trash2, Edit2, User, Phone, DollarSign, Check, X, Settings2, GripVertical, Kanban, CalendarClock, ExternalLink, CheckCircle2, PackageCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import {
@@ -73,6 +73,38 @@ function PromessaCard({ promessa, onVerDetalhes }: { promessa: any; onVerDetalhe
       {promessa.observacoes && (
         <p className="text-xs text-gray-400 mt-1 line-clamp-2">{promessa.observacoes}</p>
       )}
+    </div>
+  );
+}
+
+// ─── Card de Entrega (coluna Entregar Serviço Feito) ─────────────────────────
+function EntregaCard({ lead, onMarcarEntregue }: { lead: any; onMarcarEntregue: (leadId: number) => void }) {
+  return (
+    <div className="rounded-lg p-3 shadow-sm border bg-amber-50 border-amber-200 hover:shadow-md transition-shadow group">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-800 truncate">{lead.nome}</p>
+          {lead.telefone && (
+            <div className="flex items-center gap-1 mt-1">
+              <Phone className="w-3 h-3 text-gray-400" />
+              <p className="text-xs text-gray-500">{lead.telefone}</p>
+            </div>
+          )}
+          {lead.observacoes && (
+            <p className="text-xs text-amber-700 mt-1 line-clamp-2">{lead.observacoes}</p>
+          )}
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-green-400 text-green-700 hover:bg-green-50 flex flex-col h-auto py-1.5 px-2 gap-0.5 flex-shrink-0"
+          onClick={() => onMarcarEntregue(lead.id)}
+          title="Marcar serviço como entregue"
+        >
+          <CheckCircle2 className="w-4 h-4" />
+          <span className="text-[10px] leading-tight">Entregue</span>
+        </Button>
+      </div>
     </div>
   );
 }
@@ -166,7 +198,7 @@ function LeadCard({ lead, consultores, colunas, onDelete, onMove }: {
 }
 
 // ─── Coluna Kanban ────────────────────────────────────────────────────────────
-function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDeleteLead, onMoveLead, onRenameColuna, onDeleteColuna, isVendaRealizada, isVaiFechar, promessas, onVerPromessas, isOver }: {
+function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDeleteLead, onMoveLead, onRenameColuna, onDeleteColuna, isVendaRealizada, isVaiFechar, isEntrega, promessas, onVerPromessas, onMarcarEntregue, isOver }: {
   coluna: any;
   leads: any[];
   consultores: any[];
@@ -178,8 +210,10 @@ function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDelete
   onDeleteColuna: (id: number, nome: string) => void;
   isVendaRealizada: boolean;
   isVaiFechar?: boolean;
+  isEntrega?: boolean;
   promessas?: any[];
   onVerPromessas?: () => void;
+  onMarcarEntregue?: (leadId: number) => void;
   isOver?: boolean;
 }) {
   const [editando, setEditando] = useState(false);
@@ -196,11 +230,11 @@ function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDelete
   };
 
   const { setNodeRef: setDropRef } = useDroppable({ id: `coluna-${coluna.id}` });
-  const isFixed = isVendaRealizada || isVaiFechar;
+  const isFixed = isVendaRealizada || isVaiFechar || isEntrega;
 
   return (
     <div className="flex-shrink-0 w-72">
-      <div ref={setDropRef} className={`rounded-xl bg-gray-50 border overflow-hidden transition-all ${isOver ? "border-blue-400 ring-2 ring-blue-300 ring-offset-1 bg-blue-50" : isVaiFechar ? "border-violet-300" : "border-gray-200"}`}>
+      <div ref={setDropRef} className={`rounded-xl bg-gray-50 border overflow-hidden transition-all ${isOver ? "border-blue-400 ring-2 ring-blue-300 ring-offset-1 bg-blue-50" : isVaiFechar ? "border-violet-300" : isEntrega ? "border-amber-300" : "border-gray-200"}`}>
         {/* Header */}
         <div className="px-3 py-2.5" style={{ borderTop: `3px solid ${coluna.cor || "#0055FF"}` }}>
           {editando ? (
@@ -234,10 +268,13 @@ function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDelete
                   <p className="text-sm font-semibold text-gray-700">{coluna.nome}</p>
                   {isVendaRealizada && <Badge className="text-[10px] px-1 py-0 bg-green-100 text-green-700 border-green-200">Fixa</Badge>}
                   {isVaiFechar && <Badge className="text-[10px] px-1 py-0 bg-violet-100 text-violet-700 border-violet-200">Fixa</Badge>}
+                  {isEntrega && <Badge className="text-[10px] px-1 py-0 bg-amber-100 text-amber-700 border-amber-200">Fixa</Badge>}
                 </div>
                 <p className="text-xs text-gray-500">
                   {isVaiFechar
                     ? `${(promessas || []).length} promessa(s) · ${formatCurrency(totalPromessas)}`
+                    : isEntrega
+                    ? `${leads.length} pendente(s) de entrega`
                     : `${leads.length} lead(s) · ${formatCurrency(totalValor)}`
                   }
                 </p>
@@ -289,6 +326,24 @@ function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDelete
                 </button>
               )}
             </>
+          ) : isEntrega ? (
+            // Coluna especial: exibe leads pendentes de entrega com botão de check
+            <>
+              {leads.length === 0 ? (
+                <div className="text-center py-6 text-xs border-2 border-dashed border-amber-200 rounded-lg text-amber-400">
+                  <PackageCheck className="w-6 h-6 mx-auto mb-1 opacity-50" />
+                  Nenhum serviço pendente de entrega
+                </div>
+              ) : (
+                leads.map((lead: any) => (
+                  <EntregaCard
+                    key={lead.id}
+                    lead={lead}
+                    onMarcarEntregue={onMarcarEntregue || (() => {})}
+                  />
+                ))
+              )}
+            </>
           ) : (
             // Coluna normal: exibe leads arrastáveis
             <SortableContext items={leads.map(l => `lead-${l.id}`)} strategy={verticalListSortingStrategy}>
@@ -312,7 +367,7 @@ function KanbanColuna({ coluna, leads, consultores, colunas, onAddLead, onDelete
         </div>
 
         {/* Botão add lead — apenas em colunas normais */}
-        {!isVaiFechar && (
+        {!isVaiFechar && !isEntrega && (
           <div className="px-2 pb-2">
             <Button variant="ghost" size="sm" className="w-full h-7 text-xs text-gray-500 hover:text-blue-600 hover:bg-blue-50"
               onClick={() => onAddLead(coluna.id)}>
@@ -354,6 +409,15 @@ export default function Pipeline() {
 
   // Promessas pendentes para a coluna Vai Fechar
   const promessasPendentes = (promessasPipeline || []).filter((p: any) => p.status === "pendente");
+
+  // Mutation para marcar serviço como entregue (coluna Entregar Serviço Feito)
+  const marcarEntregueNoPipelineMutation = trpc.vendas.marcarEntregueViaLead.useMutation({
+    onSuccess: () => {
+      toast.success("✅ Serviço marcado como entregue!");
+      refetchLeads();
+    },
+    onError: () => toast.error("Erro ao marcar como entregue"),
+  });
 
   const createLeadMutation = trpc.pipeline.createLead.useMutation({
     onSuccess: () => {
@@ -462,6 +526,7 @@ export default function Pipeline() {
   const leadsByColuna = (colunaId: number) => leadsVisiveis.filter(l => l.colunaId === colunaId);
   const isVendaRealizada = (coluna: any) => coluna.nome.toLowerCase().includes("venda realizada");
   const isVaiFechar = (coluna: any) => coluna.nome.toLowerCase().includes("vai fechar");
+  const isEntregaColuna = (coluna: any) => coluna.nome.toLowerCase().includes("entregar servi");
 
   return (
     <LifeDashboardLayout title="Pipeline">
@@ -538,8 +603,10 @@ export default function Pipeline() {
                   onDeleteColuna={(id, nome) => { if (confirm(`Remover a coluna "${nome}"? Todos os leads serão excluídos.`)) deleteColunaMutation.mutate({ id }); }}
                   isVendaRealizada={isVendaRealizada(coluna)}
                   isVaiFechar={isVaiFechar(coluna)}
+                  isEntrega={isEntregaColuna(coluna)}
                   promessas={isVaiFechar(coluna) ? promessasPendentes : []}
                   onVerPromessas={() => navigate("/promessas")}
+                  onMarcarEntregue={(leadId) => marcarEntregueNoPipelineMutation.mutate({ leadId })}
                   isOver={overColunaId === coluna.id}
                 />
               ))}

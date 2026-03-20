@@ -337,3 +337,21 @@
 - [x] Frontend: updateAgendamento.onSuccess invalida agendamentos.listByPeriod, vendas.listByPeriod, rankings, servicosVendidos
 - [x] Modal de promessa: aviso visual quando data não está preenchida (⊠ Preencha a data do retorno)
 - [x] Botão "Registrar Promessa" com tooltip explicando que data é obrigatória
+
+## Aba Prazo das Vendas com Entrega (Mar 2026)
+- [x] Schema: adicionar campos entregue (boolean), dataEntrega (datetime), entregueConsultorId, movidoParaEntrega na tabela vendas
+- [x] Backend: procedure vendas.marcarEntregue — marca venda como entregue com data e consultora
+- [x] Backend: procedure vendas.marcarEntregueViaLead — marca entrega via leadId do Pipeline (remove lead após marcar)
+- [x] Backend: procedure vendas.listPrazos retorna campos entregue, dataEntrega, movidoParaEntrega
+- [x] Backend: procedure vendas.moverParaEntregaSeNecessario — cria lead na coluna "Entregar Serviço Feito" quando >= 25 dias
+- [x] Frontend PrazoServicos: check de entrega em cada card de cliente (botão verde "Marcar Entregue")
+- [x] Frontend PrazoServicos: alarme visual/sonoro ao atingir 25 dias (toast de alerta)
+- [x] Frontend PrazoServicos: filtro por vendedora (Admin) com Select
+- [x] Frontend PrazoServicos: filtro por status (todos / ativos / atrasado / alerta / ok / entregue)
+- [x] Frontend PrazoServicos: badge de status (entregue / atrasado / atenção / no prazo)
+- [x] Frontend PrazoServicos: cards de resumo clicáveis (fora do prazo, em alerta, no prazo, entregues)
+- [x] Pipeline: coluna fixa "Entregar Serviço Feito" criada automaticamente ao atingir 25 dias
+- [x] Pipeline: ao atingir 25 dias, cliente vai automaticamente para coluna "Entregar Serviço Feito"
+- [x] Pipeline: card especial na coluna de entrega com botão "Entregue" verde
+- [x] Pipeline: ao clicar em "Entregue" no Pipeline, marca venda no banco e remove o lead
+- [x] Admin: painel PrazoServicos com filtro por vendedora mostrando entregas feitas/atrasadas
