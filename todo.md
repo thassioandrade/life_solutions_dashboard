@@ -329,3 +329,11 @@
 - [x] Frontend: busca por cliente ou consultora
 - [x] Frontend: atualiza automaticamente a cada 1 minuto
 - [x] Menu lateral: aba "Prazo de Serviços" (Timer) para Admin e Consultoras
+
+## Correção Fluxos Portal Vendedor (Mar 2026)
+- [x] Backend: vendas.create agora retorna vendaId para criar parcelas sem busca extra
+- [x] Frontend: handleSalvar usa vendaId retornado diretamente para criar parcelas (robusto)
+- [x] Frontend: createVenda.onSuccess invalida vendas.listByPeriod, rankings, servicosVendidos
+- [x] Frontend: updateAgendamento.onSuccess invalida agendamentos.listByPeriod, vendas.listByPeriod, rankings, servicosVendidos
+- [x] Modal de promessa: aviso visual quando data não está preenchida (⊠ Preencha a data do retorno)
+- [x] Botão "Registrar Promessa" com tooltip explicando que data é obrigatória

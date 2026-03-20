@@ -175,15 +175,24 @@ export default function PainelConsultor() {
   const updateAgendamento = trpc.agendamentos.update.useMutation({
     onSuccess: () => {
       utils.agendamentos.listByConsultor.invalidate();
+      utils.agendamentos.listByPeriod.invalidate();
       utils.vendas.listByConsultor.invalidate();
+      utils.vendas.listByPeriod.invalidate();
       utils.parcelasCompletas.byConsultor.invalidate();
+      utils.rankings.listByPeriod.invalidate();
+      utils.servicosVendidos.byPeriodo.invalidate();
       toast.success("Agendamento atualizado!");
       setModalAberto(false);
     },
     onError: (e) => toast.error("Erro ao salvar: " + e.message),
   });
   const createVenda = trpc.vendas.create.useMutation({
-    onSuccess: () => utils.vendas.listByConsultor.invalidate(),
+    onSuccess: () => {
+      utils.vendas.listByConsultor.invalidate();
+      utils.vendas.listByPeriod.invalidate();
+      utils.rankings.listByPeriod.invalidate();
+      utils.servicosVendidos.byPeriodo.invalidate();
+    },
     onError: (e) => toast.error("Erro ao registrar venda: " + e.message),
   });
   const createParcelas = trpc.parcelas.create.useMutation({
@@ -393,7 +402,7 @@ export default function PainelConsultor() {
         clienteCpfCnpj: venda.clienteCpfCnpj || undefined,
       });
       if (venda.resultouVenda && coletado > 0 && consultor) {
-        await createVenda.mutateAsync({
+        const vendaResult = await createVenda.mutateAsync({
           clienteNome: agSelecionado.clienteNome,
           clienteCpfCnpj: venda.clienteCpfCnpj || agSelecionado.clienteCpfCnpj || undefined,
           clienteTelefone: venda.clienteTelefone || agSelecionado.clienteTelefone || undefined,
@@ -408,17 +417,13 @@ export default function PainelConsultor() {
           comissaoPercent: 10,
           custoServico: custoModalServicos,
         });
-        if (venda.parcelasQtd > 0 && venda.datesVencimento.length > 0) {
+        // Usar o vendaId retornado diretamente — sem precisar buscar a última venda
+        const novaVendaId = vendaResult?.vendaId;
+        if (novaVendaId && venda.parcelasQtd > 0 && venda.datesVencimento.length > 0) {
           const valorParcela = (faturado - coletado) / venda.parcelasQtd;
-          const vendasAtuais = await utils.vendas.listByConsultor.fetch({
-            consultorId: consultor.id,
-            mes: new Date().getMonth() + 1,
-            ano: new Date().getFullYear(),
-          });
-          const ultimaVenda = vendasAtuais?.[0];
-          if (ultimaVenda && valorParcela > 0) {
+          if (valorParcela > 0) {
             await createParcelas.mutateAsync({
-              vendaId: ultimaVenda.id,
+              vendaId: novaVendaId,
               parcelas: venda.datesVencimento.map(d => ({ valor: valorParcela, vencimento: d })),
             });
           }
@@ -1230,13 +1235,14 @@ export default function PainelConsultor() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs font-semibold text-gray-600 mb-1 block">Data do fechamento *</Label>
+                <Label className="text-xs font-semibold text-gray-600 mb-1 block">Data do retorno *</Label>
                 <Input
                   type="date"
                   value={promessaData.dataPromessa}
                   onChange={e => setPromessaData(p => ({ ...p, dataPromessa: e.target.value }))}
                   className="text-sm"
                   min={new Date().toISOString().split('T')[0]}
+                  placeholder="Selecione a data"
                 />
               </div>
               <div>
@@ -1274,12 +1280,18 @@ export default function PainelConsultor() {
                 ⏰ Um alarme tocará em <strong>{promessaData.dataPromessa} às {promessaData.horarioPromessa}</strong> para lembrar de ligar e fechar a venda!
               </div>
             )}
+            {!promessaData.dataPromessa && (
+              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                ⚠️ Preencha a <strong>data do retorno</strong> para liberar o botão
+              </p>
+            )}
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => setModalPromessaAberto(false)}>Cancelar</Button>
               <Button
-                className="flex-1 text-white bg-violet-600 hover:bg-violet-700"
+                className="flex-1 text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50"
                 onClick={handleSalvarPromessa}
                 disabled={salvandoPromessa || !promessaData.dataPromessa}
+                title={!promessaData.dataPromessa ? "Preencha a data do retorno para liberar" : ""}
               >
                 {salvandoPromessa ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Salvando...</> : "📌 Registrar Promessa"}
               </Button>

@@ -166,7 +166,7 @@ export const appRouter = router({
         custoServico: z.number().default(0),
       }))
       .mutation(async ({ input }) => {
-        await createVenda({
+        const vendaResult = await createVenda({
           ...input,
           dataVenda: new Date(input.dataVenda),
           valorFaturado: String(input.valorFaturado),
@@ -174,6 +174,7 @@ export const appRouter = router({
           comissaoPercent: String(input.comissaoPercent),
           custoServico: String(input.custoServico),
         });
+        const vendaId = (vendaResult as { insertId?: number }).insertId || 0;
         // Auto-criar lead na coluna "Venda Realizada" (fixa)
         try {
           let colunas = await getColunasPipeline();
@@ -200,7 +201,7 @@ export const appRouter = router({
         } catch (e) {
           console.warn("[vendas.create] Falha ao criar lead no pipeline:", e);
         }
-        return { success: true };
+        return { success: true, vendaId };
       }),
     update: protectedProcedure
       .input(z.object({
