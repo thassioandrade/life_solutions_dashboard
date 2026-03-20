@@ -1,0 +1,50 @@
+{
+  "query": "SELECT id, clienteNome, parcelasRestantes, valorColetado, valorFaturado, createdAt FROM vendas ORDER BY id DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute SELECT id, clienteNome, parcelasRestantes, valorColetado, valorFaturado, createdAt FROM vendas ORDER BY id DESC LIMIT 5;",
+  "rows": [
+    {
+      "id": "120002",
+      "clienteNome": "jxjnslkslkcnlkjc",
+      "parcelasRestantes": "1",
+      "valorColetado": "8000.00",
+      "valorFaturado": "10000.00",
+      "createdAt": "2026-03-20 04:38:09"
+    },
+    {
+      "id": "120001",
+      "clienteNome": "jxjnslkslkcnlkjc",
+      "parcelasRestantes": "0",
+      "valorColetado": "10000.00",
+      "valorFaturado": "10000.00",
+      "createdAt": "2026-03-20 04:30:59"
+    },
+    {
+      "id": "90002",
+      "clienteNome": "Lenaldo Gama Santos Junior ",
+      "parcelasRestantes": "1",
+      "valorColetado": "400.00",
+      "valorFaturado": "400.00",
+      "createdAt": "2026-03-19 07:54:36"
+    },
+    {
+      "id": "90001",
+      "clienteNome": "Luiz Pereira Barbosa Junior",
+      "parcelasRestantes": "1",
+      "valorColetado": "1500.00",
+      "valorFaturado": "1500.00",
+      "createdAt": "2026-03-19 07:46:19"
+    },
+    {
+      "id": "60011",
+      "clienteNome": "Anderson Barreto Santos ",
+      "parcelasRestantes": "1",
+      "valorColetado": "600.00",
+      "valorFaturado": "1500.00",
+      "createdAt": "2026-03-19 07:35:01"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclienteNome\tparcelasRestantes\tvalorColetado\tvalorFaturado\tcreatedAt\n120002\tjxjnslkslkcnlkjc\t1\t8000.00\t10000.00\t2026-03-20 04:38:09\n120001\tjxjnslkslkcnlkjc\t0\t10000.00\t10000.00\t2026-03-20 04:30:59\n90002\tLenaldo Gama Santos Junior \t1\t400.00\t400.00\t2026-03-19 07:54:36\n90001\tLuiz Pereira Barbosa Junior\t1\t1500.00\t1500.00\t2026-03-19 07:46:19\n60011\tAnderson Barreto Santos \t1\t600.00\t1500.00\t2026-03-19 07:35:01\n",
+  "stderr": "",
+  "execution_time_ms": 380
+}

@@ -1,0 +1,19 @@
+{
+  "query": "SELECT id, clienteNome, vendaId, status, resultouVenda, valorColetado, valorFaturado FROM agendamentos WHERE clienteNome LIKE '%Teste%' OR clienteNome LIKE '%Parcelado%' ORDER BY id DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute SELECT id, clienteNome, vendaId, status, resultouVenda, valorColetado, valorFaturado FROM agendamentos WHERE clienteNome LIKE '%Teste%' OR clienteNome LIKE '%Parcelado%' ORDER BY id DESC LIMIT 5;",
+  "rows": [
+    {
+      "id": "120001",
+      "clienteNome": "Cliente Teste Parcelado",
+      "vendaId": "NULL",
+      "status": "realizado",
+      "resultouVenda": "1",
+      "valorColetado": "0.00",
+      "valorFaturado": "0.00"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclienteNome\tvendaId\tstatus\tresultouVenda\tvalorColetado\tvalorFaturado\n120001\tCliente Teste Parcelado\tNULL\trealizado\t1\t0.00\t0.00\n",
+  "stderr": "",
+  "execution_time_ms": 397
+}

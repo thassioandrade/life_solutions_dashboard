@@ -467,7 +467,17 @@ export default function PainelConsultor() {
           });
           vendaIdFinal = vendaResult?.vendaId ?? null;
           // Criar parcelas se houver parcelamento
-          if (vendaIdFinal && venda.parcelasQtd > 0 && venda.datesVencimento.length > 0) {
+          if (vendaIdFinal && venda.parcelasQtd > 0) {
+            // Gerar datas automaticamente se datesVencimento estiver vazio
+            let datesParaCriar = venda.datesVencimento;
+            if (datesParaCriar.length === 0) {
+              const hoje = new Date();
+              datesParaCriar = Array.from({ length: venda.parcelasQtd }, (_, i) => {
+                const d = new Date(hoje);
+                d.setMonth(d.getMonth() + i + 1);
+                return d.toISOString().split("T")[0];
+              });
+            }
             // Valor de cada parcela = (faturado - coletado) / parcelasQtd
             // Representa o valor restante a receber dividido pelo número de parcelas
             const restante = faturado - coletado;
@@ -475,7 +485,7 @@ export default function PainelConsultor() {
             if (valorParcela > 0) {
               await createParcelas.mutateAsync({
                 vendaId: vendaIdFinal,
-                parcelas: venda.datesVencimento.map(d => ({ valor: valorParcela, vencimento: d })),
+                parcelas: datesParaCriar.map(d => ({ valor: valorParcela, vencimento: d })),
               });
             }
           }
@@ -1146,7 +1156,7 @@ export default function PainelConsultor() {
                   { value: "cancelado", label: "Cancelado" },
                   { value: "remarcado", label: "Remarcado" },
                 ].map(s => (
-                  <button key={s.value}
+                  <button type="button" key={s.value}
                     onClick={() => setVenda(v => ({ ...v, status: s.value, resultouVenda: s.value === "realizado" ? v.resultouVenda : false }))}
                     className={`text-left text-xs px-3 py-2 rounded-lg border transition-all ${venda.status === s.value ? "border-transparent text-white font-medium" : "border-gray-200 text-gray-600"}`}
                     style={venda.status === s.value ? { background: "#0055FF" } : {}}>
@@ -1258,7 +1268,7 @@ export default function PainelConsultor() {
                       <Label className="text-xs font-semibold text-gray-600 mb-2 block">Serviços Contratados</Label>
                       <div className="flex flex-wrap gap-2">
                         {SERVICOS_OPCOES.map(s => (
-                          <button key={s}
+                          <button type="button" key={s}
                             onClick={() => setVenda(v => ({ ...v, servicos: v.servicos.includes(s) ? v.servicos.filter(x => x !== s) : [...v.servicos, s] }))}
                             className={`text-xs px-3 py-1.5 rounded-full border transition-all ${venda.servicos.includes(s) ? "text-white border-transparent" : "border-gray-200 text-gray-600"}`}
                             style={venda.servicos.includes(s) ? { background: "#0055FF" } : {}}>
@@ -1274,7 +1284,7 @@ export default function PainelConsultor() {
                       <Label className="text-xs font-semibold text-gray-600 mb-2 block">Forma de Pagamento</Label>
                       <div className="grid grid-cols-3 gap-2">
                         {FORMAS_PAGAMENTO.map(fp => (
-                          <button key={fp.value} onClick={() => setVenda(v => ({ ...v, formaPagamento: fp.value }))}
+                          <button type="button" key={fp.value} onClick={() => setVenda(v => ({ ...v, formaPagamento: fp.value }))}
                             className={`text-xs px-2 py-2 rounded-lg border transition-all ${venda.formaPagamento === fp.value ? "text-white border-transparent" : "border-gray-200 text-gray-600"}`}
                             style={venda.formaPagamento === fp.value ? { background: "#0055FF" } : {}}>
                             {fp.label}
@@ -1290,7 +1300,7 @@ export default function PainelConsultor() {
                         <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200">
                           <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                           <span className="text-xs text-emerald-700 flex-1 truncate">Comprovante enviado</span>
-                          <button onClick={() => setVenda(v => ({ ...v, comprovanteUrl: "", comprovanteFile: null }))} className="text-gray-400 hover:text-red-500">
+                          <button type="button" onClick={() => setVenda(v => ({ ...v, comprovanteUrl: "", comprovanteFile: null }))} className="text-gray-400 hover:text-red-500">
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </div>

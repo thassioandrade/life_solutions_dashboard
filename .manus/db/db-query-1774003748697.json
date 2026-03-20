@@ -1,0 +1,9 @@
+{
+  "query": "DELETE FROM vendas WHERE clienteNome = 'Cliente Teste Parcelado'; UPDATE agendamentos SET vendaId = NULL, resultouVenda = 0, valorColetado = NULL, valorFaturado = NULL WHERE clienteNome = 'Cliente Teste Parcelado';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute DELETE FROM vendas WHERE clienteNome = 'Cliente Teste Parcelado'; UPDATE agendamentos SET vendaId = NULL, resultouVenda = 0, valorColetado = NULL, valorFaturado = NULL WHERE clienteNome = 'Cliente Teste Parcelado';",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1145
+}

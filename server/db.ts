@@ -156,7 +156,7 @@ export async function getVendasByConsultor(consultorId: number, mes: number, ano
 export async function createVenda(data: typeof vendas.$inferInsert) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.insert(vendas).values(data);
+  const result = await db.insert(vendas).values(data).$returningId();
   return result;
 }
 

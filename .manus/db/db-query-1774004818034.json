@@ -1,0 +1,55 @@
+{
+  "query": "\n-- Parcelas existentes\nSELECT p.id, p.numeroParcela, p.valor as valorParcela, p.vencimento, p.okConsultor, p.formaPagamento, v.clienteNome\nFROM parcelas p\nJOIN vendas v ON p.vendaId = v.id\nWHERE v.cancelada = 0\nORDER BY p.vencimento;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute \n-- Parcelas existentes\nSELECT p.id, p.numeroParcela, p.valor as valorParcela, p.vencimento, p.okConsultor, p.formaPagamento, v.clienteNome\nFROM parcelas p\nJOIN vendas v ON p.vendaId = v.id\nWHERE v.cancelada = 0\nORDER BY p.vencimento;\n",
+  "rows": [
+    {
+      "id": "60001",
+      "numeroParcela": "1",
+      "valorParcela": "500.00",
+      "vencimento": "2026-04-19 00:00:00",
+      "okConsultor": "1",
+      "formaPagamento": "NULL",
+      "clienteNome": "Dardane Soares Gomes"
+    },
+    {
+      "id": "90001",
+      "numeroParcela": "1",
+      "valorParcela": "333.33",
+      "vencimento": "2026-04-20 00:00:00",
+      "okConsultor": "1",
+      "formaPagamento": "pix",
+      "clienteNome": "Cliente Teste Parcelado"
+    },
+    {
+      "id": "60002",
+      "numeroParcela": "2",
+      "valorParcela": "500.00",
+      "vencimento": "2026-05-19 00:00:00",
+      "okConsultor": "0",
+      "formaPagamento": "NULL",
+      "clienteNome": "Dardane Soares Gomes"
+    },
+    {
+      "id": "90002",
+      "numeroParcela": "2",
+      "valorParcela": "333.33",
+      "vencimento": "2026-05-20 00:00:00",
+      "okConsultor": "0",
+      "formaPagamento": "NULL",
+      "clienteNome": "Cliente Teste Parcelado"
+    },
+    {
+      "id": "90003",
+      "numeroParcela": "3",
+      "valorParcela": "333.33",
+      "vencimento": "2026-06-20 00:00:00",
+      "okConsultor": "0",
+      "formaPagamento": "NULL",
+      "clienteNome": "Cliente Teste Parcelado"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tnumeroParcela\tvalorParcela\tvencimento\tokConsultor\tformaPagamento\tclienteNome\n60001\t1\t500.00\t2026-04-19 00:00:00\t1\tNULL\tDardane Soares Gomes\n90001\t1\t333.33\t2026-04-20 00:00:00\t1\tpix\tCliente Teste Parcelado\n60002\t2\t500.00\t2026-05-19 00:00:00\t0\tNULL\tDardane Soares Gomes\n90002\t2\t333.33\t2026-05-20 00:00:00\t0\tNULL\tCliente Teste Parcelado\n90003\t3\t333.33\t2026-06-20 00:00:00\t0\tNULL\tCliente Teste Parcelado\n",
+  "stderr": "",
+  "execution_time_ms": 382
+}

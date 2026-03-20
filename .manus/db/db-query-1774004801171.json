@@ -1,0 +1,15 @@
+{
+  "query": "\nSELECT \n  COUNT(*) as total_vendas,\n  SUM(valorColetado) as total_coletado,\n  SUM(valorFaturado) as total_faturado\nFROM vendas \nWHERE cancelada = 0 AND MONTH(createdAt) = 3 AND YEAR(createdAt) = 2026;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute \nSELECT \n  COUNT(*) as total_vendas,\n  SUM(valorColetado) as total_coletado,\n  SUM(valorFaturado) as total_faturado\nFROM vendas \nWHERE cancelada = 0 AND MONTH(createdAt) = 3 AND YEAR(createdAt) = 2026;\n",
+  "rows": [
+    {
+      "total_vendas": "13",
+      "total_coletado": "8900.00",
+      "total_faturado": "17450.00"
+    }
+  ],
+  "messages": [],
+  "stdout": "total_vendas\ttotal_coletado\ttotal_faturado\n13\t8900.00\t17450.00\n",
+  "stderr": "",
+  "execution_time_ms": 363
+}

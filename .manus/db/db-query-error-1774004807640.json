@@ -1,0 +1,8 @@
+{
+  "query": "\n-- Parcelas existentes\nSELECT p.id, p.numeroParcela, p.valorParcela, p.dataVencimento, p.okConsultor, p.formaPagamento, v.clienteNome\nFROM parcelas p\nJOIN vendas v ON p.vendaId = v.id\nWHERE v.cancelada = 0\nORDER BY p.dataVencimento;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute \n-- Parcelas existentes\nSELECT p.id, p.numeroParcela, p.valorParcela, p.dataVencimento, p.okConsultor, p.formaPagamento, v.clienteNome\nFROM parcelas p\nJOIN vendas v ON p.vendaId = v.id\nWHERE v.cancelada = 0\nORDER BY p.dataVencimento;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 3: Unknown column 'p.dataVencimento' in 'order clause'"
+  ]
+}

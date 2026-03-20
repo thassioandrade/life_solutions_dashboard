@@ -1,0 +1,26 @@
+{
+  "query": "SELECT p.id, p.vendaId, p.numeroParcela, p.valor, p.okConsultor, v.clienteNome FROM parcelas p JOIN vendas v ON p.vendaId = v.id ORDER BY p.id DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute SELECT p.id, p.vendaId, p.numeroParcela, p.valor, p.okConsultor, v.clienteNome FROM parcelas p JOIN vendas v ON p.vendaId = v.id ORDER BY p.id DESC LIMIT 10;",
+  "rows": [
+    {
+      "id": "60002",
+      "vendaId": "60006",
+      "numeroParcela": "2",
+      "valor": "500.00",
+      "okConsultor": "0",
+      "clienteNome": "Dardane Soares Gomes"
+    },
+    {
+      "id": "60001",
+      "vendaId": "60006",
+      "numeroParcela": "1",
+      "valor": "500.00",
+      "okConsultor": "1",
+      "clienteNome": "Dardane Soares Gomes"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tvendaId\tnumeroParcela\tvalor\tokConsultor\tclienteNome\n60002\t60006\t2\t500.00\t0\tDardane Soares Gomes\n60001\t60006\t1\t500.00\t1\tDardane Soares Gomes\n",
+  "stderr": "",
+  "execution_time_ms": 388
+}

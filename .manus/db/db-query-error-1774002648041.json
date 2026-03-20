@@ -1,0 +1,8 @@
+{
+  "query": "INSERT INTO agendamentos (consultorId, clienteNome, clienteEmail, clienteTelefone, dataHora, status, observacoes, createdAt, updatedAt)\nVALUES (1, 'Cliente Teste Parcelado', 'teste@teste.com', '(11) 99999-9999', 1742479200000, 'confirmado', 'Teste de venda parcelada', UNIX_TIMESTAMP()*1000, UNIX_TIMESTAMP()*1000);\nSELECT LAST_INSERT_ID() as id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute INSERT INTO agendamentos (consultorId, clienteNome, clienteEmail, clienteTelefone, dataHora, status, observacoes, createdAt, updatedAt)\nVALUES (1, 'Cliente Teste Parcelado', 'teste@teste.com', '(11) 99999-9999', 1742479200000, 'confirmado', 'Teste de venda parcelada', UNIX_TIMESTAMP()*1000, UNIX_TIMESTAMP()*1000);\nSELECT LAST_INSERT_ID() as id;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1292 (22007) at line 1: Incorrect timestamp value: '1742479200000' for column 'dataHora' at row 1"
+  ]
+}

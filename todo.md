@@ -385,3 +385,9 @@
 - [x] Parcelas: botão "Recebi" abre modal com seleção de forma de pagamento (obrigatório) + upload de comprovante (opcional)
 - [x] Parcelas: ao confirmar recebimento, salva formaPagamento e comprovanteUrl na parcela
 - [x] Backend: procedure parcelas.okConsultor atualizada para aceitar formaPagamento e comprovanteUrl
+
+## Correções de Bugs v5 (Mar 2026) - Fluxo de Parcelas
+- [x] Bug crítico: vendas.create retornava vendaId=0 (corrigido com $returningId)
+- [x] Bug crítico: handleSalvar não criava parcelas quando datesVencimento estava vazio (corrigido com geração automática de datas)
+- [x] Bug: botões sem type="button" no modal do PainelConsultor causavam submit acidental
+- [x] Teste completo do fluxo parcelado: venda 3x criada → parcelas na grade → botão Recebi → modal com forma/comprovante → painel consultor atualizado → painel admin atualizado

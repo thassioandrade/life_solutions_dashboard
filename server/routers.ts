@@ -186,7 +186,8 @@ export const appRouter = router({
           comissaoPercent: String(input.comissaoPercent),
           custoServico: String(input.custoServico),
         });
-        const vendaId = (vendaResult as { insertId?: number }).insertId || 0;
+        // Drizzle MySQL $returningId() retorna [{ id: number }]
+        const vendaId = Array.isArray(vendaResult) && vendaResult.length > 0 ? (vendaResult[0] as { id?: number }).id ?? 0 : 0;
         // Auto-criar lead na coluna "Venda Realizada" (fixa)
         try {
           let colunas = await getColunasPipeline();
@@ -1154,7 +1155,7 @@ export const appRouter = router({
             const db = await getDb();
             if (!db) throw new Error("DB not available");
 
-            await createVenda({
+             const novaVendaResult = await createVenda({
               clienteNome: promessa.clienteNome,
               clienteCpfCnpj: promessa.clienteCpfCnpj || undefined,
               clienteTelefone: promessa.clienteTelefone || undefined,
@@ -1170,17 +1171,9 @@ export const appRouter = router({
               comissaoPercent: "10",
               custoServico: String(custoServico),
             });
-
-            // Buscar a venda recém-criada para obter o ID
-            const { vendas: vendasTable, eq: eqFn, desc } = await import("./db").then(async () => {
-              const { vendas: v } = await import("../drizzle/schema");
-              const { eq: e, desc: d } = await import("drizzle-orm");
-              return { vendas: v, eq: e, desc: d };
-            });
-            const vendasRows = consultorId
-              ? await db.select().from(vendasTable).where(eqFn(vendasTable.consultorId, consultorId)).orderBy(desc(vendasTable.id)).limit(1)
-              : await db.select().from(vendasTable).orderBy(desc(vendasTable.id)).limit(1);
-            const novaVenda = vendasRows[0] ?? null;
+            // $returningId() retorna [{ id: number }]
+            const novaVendaId = Array.isArray(novaVendaResult) && novaVendaResult.length > 0 ? (novaVendaResult[0] as { id?: number }).id ?? null : null;
+            const novaVenda = novaVendaId ? { id: novaVendaId } : null;
 
             // Criar parcelas se houver
             if (parcelasQtd > 0 && datesVencimento && datesVencimento.length > 0 && novaVenda) {
