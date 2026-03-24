@@ -153,7 +153,7 @@ export default function Agendar() {
           <div className="inline-block bg-gray-900 rounded-2xl px-6 py-3 shadow-2xl mb-4" style={{ border: "1px solid rgba(0,85,255,0.3)", boxShadow: "0 0 30px rgba(0,85,255,0.2)" }}>
             <img src={LOGO_URL} alt="Life Solutions" className="h-10 object-contain" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Diagnóstico Gratuito</h1>
+          <h1 className="text-2xl font-bold text-white">Agende sua reunião com a gerente de crédito</h1>
           {consultorFixo && consultorNome ? (
             <p className="text-blue-400 text-sm mt-1 font-medium">
               com <span className="text-white font-semibold">{consultorNome}</span>
