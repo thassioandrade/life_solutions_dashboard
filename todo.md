@@ -391,3 +391,6 @@
 - [x] Bug crítico: handleSalvar não criava parcelas quando datesVencimento estava vazio (corrigido com geração automática de datas)
 - [x] Bug: botões sem type="button" no modal do PainelConsultor causavam submit acidental
 - [x] Teste completo do fluxo parcelado: venda 3x criada → parcelas na grade → botão Recebi → modal com forma/comprovante → painel consultor atualizado → painel admin atualizado
+
+## Correções de Bugs v6 (Mar 2026)
+- [x] Promessas de Pagamento: botão de exclusão corrigido — agora aparece em todos os status (pendente, concluído, cancelado) com confirmação antes de excluir

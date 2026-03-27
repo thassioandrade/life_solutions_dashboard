@@ -534,12 +534,10 @@ export default function Promessas() {
                             </Button>
                           </>
                         )}
-                        {p.status !== "pendente" && (
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-red-500 hover:text-red-700 gap-1"
-                            onClick={() => deleteMut.mutate({ id: p.id })} disabled={deleteMut.isPending} title="Excluir">
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        )}
+                        <Button size="sm" variant="outline" className="h-7 text-xs text-red-500 hover:text-red-700 gap-1"
+                          onClick={() => { if (window.confirm(`Excluir a promessa de ${p.clienteNome}?`)) deleteMut.mutate({ id: p.id }); }} disabled={deleteMut.isPending} title="Excluir">
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
                       </div>
                     </div>
                   );
