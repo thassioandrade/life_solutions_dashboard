@@ -32,7 +32,7 @@ export default function Agendar() {
   // Se veio parâmetro de consultora na URL, oculta o seletor
   const [consultorFixo, setConsultorFixo] = useState<string | null>(null);
 
-  const { data: consultores } = trpc.consultores.list.useQuery();
+  const { data: consultores } = trpc.consultores.listPublico.useQuery();
 
   // Ao carregar, verifica se há parâmetro ?consultora=ID ou ?consultora=NOME na URL
   useEffect(() => {
