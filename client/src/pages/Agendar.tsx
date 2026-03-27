@@ -231,7 +231,7 @@ export default function Agendar() {
                       <SelectValue placeholder="Selecione seu consultor..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {consultores?.filter((c: any) => c.ativo).map((c: any) => (
+                      {consultores?.map((c: any) => (
                         <SelectItem key={c.id} value={String(c.id)}>{c.nome}</SelectItem>
                       ))}
                     </SelectContent>

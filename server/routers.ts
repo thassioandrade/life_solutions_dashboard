@@ -107,7 +107,8 @@ export const appRouter = router({
     // Procedure pública para a página de agendamento de clientes (sem dados sensíveis)
     listPublico: publicProcedure.query(async () => {
       const todos = await getAllConsultores();
-      return (todos || []).filter(c => c.ativo).map(c => ({ id: c.id, nome: c.nome, fotoUrl: c.fotoUrl }));
+      // Filtra consultores ativos (ativo pode ser boolean true, número 1 ou string "1")
+      return (todos || []).filter(c => Boolean(c.ativo)).map(c => ({ id: c.id, nome: c.nome, fotoUrl: c.fotoUrl }));
     }),
     getById: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => getConsultorById(input.id)),
     create: adminProcedure
