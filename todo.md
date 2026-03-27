@@ -395,3 +395,4 @@
 ## Correções de Bugs v6 (Mar 2026)
 - [x] Promessas de Pagamento: botão de exclusão corrigido — agora aparece em todos os status (pendente, concluído, cancelado) com confirmação antes de excluir
 - [x] Bug crítico: página /agendar redireciona clientes para login — corrigido criando consultores.listPublico (publicProcedure) que retorna apenas id/nome/fotoUrl dos consultores ativos, sem expor senhaHash
+- [x] Configurações: botão Excluir adicionado para usuários (vermelho, com confirmação) — admin não pode excluir a si mesmo

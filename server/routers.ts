@@ -8,8 +8,7 @@ import { z } from "zod/v4";
 import { notifyOwner } from "./_core/notification";
 import { sdk } from "./_core/sdk";
 import { upsertUser } from "./db";
-import {
-  getAllUsers, updateUserRole, updateUserAvatar,
+import { getAllUsers, updateUserRole, updateUserAvatar, deleteUser,
   getAllConsultores, getConsultorById, getConsultorByEmail, createConsultor, updateConsultor, deleteConsultor,
   getVendasByPeriod, getVendasByConsultor, createVenda, updateVenda, deleteVenda, cancelarVenda, getVendaById,
   getParcelasByVenda, getParcelasPendentes, getParcelasByConsultor, createParcelas, updateParcela,
@@ -88,6 +87,13 @@ export const appRouter = router({
       .input(z.object({ userId: z.number(), role: z.enum(["user", "admin"]) }))
       .mutation(async ({ input }) => {
         await updateUserRole(input.userId, input.role);
+        return { success: true };
+      }),
+    delete: adminProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (input.userId === ctx.user.id) throw new TRPCError({ code: "BAD_REQUEST", message: "Você não pode excluir sua própria conta." });
+        await deleteUser(input.userId);
         return { success: true };
       }),
     updateAvatar: protectedProcedure

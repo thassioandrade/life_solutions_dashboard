@@ -90,6 +90,12 @@ export async function updateUserAvatar(userId: number, avatarUrl: string) {
   await db.update(users).set({ avatarUrl }).where(eq(users.id, userId));
 }
 
+export async function deleteUser(userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(users).where(eq(users.id, userId));
+}
+
 // ─── Consultores ─────────────────────────────────────────────────────────────
 
 export async function getAllConsultores() {

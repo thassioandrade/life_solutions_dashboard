@@ -90,6 +90,10 @@ export default function Configuracoes() {
     onSuccess: () => { toast.success("Permissão atualizada!"); refetchUsers(); },
     onError: (e) => toast.error(e.message),
   });
+  const deleteUserMut = trpc.usuarios.delete.useMutation({
+    onSuccess: () => { toast.success("Usuário excluído!"); refetchUsers(); },
+    onError: (e) => toast.error(e.message),
+  });
 
   // ── Perfil do usuário logado ──
   const fileRef = useRef<HTMLInputElement>(null);
@@ -459,15 +463,30 @@ export default function Configuracoes() {
                           {u.lastSignedIn ? new Date(u.lastSignedIn).toLocaleDateString("pt-BR") : "—"}
                         </span>
                         {u.id !== user.id && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs"
-                            disabled={updateRoleMut.isPending}
-                            onClick={() => updateRoleMut.mutate({ userId: u.id, role: u.role === "admin" ? "user" : "admin" })}
-                          >
-                            {u.role === "admin" ? "Remover Admin" : "Tornar Admin"}
-                          </Button>
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs"
+                              disabled={updateRoleMut.isPending}
+                              onClick={() => updateRoleMut.mutate({ userId: u.id, role: u.role === "admin" ? "user" : "admin" })}
+                            >
+                              {u.role === "admin" ? "Remover Admin" : "Tornar Admin"}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                              disabled={deleteUserMut.isPending}
+                              onClick={() => {
+                                if (window.confirm(`Excluir o usuário "${u.name || u.email}"? Esta ação não pode ser desfeita.`)) {
+                                  deleteUserMut.mutate({ userId: u.id });
+                                }
+                              }}
+                            >
+                              Excluir
+                            </Button>
+                          </>
                         )}
                       </div>
                     </div>
