@@ -1,0 +1,26 @@
+{
+  "query": "\nSELECT id, clienteNome, status, resultouVenda, vendaId, createdAt\nFROM agendamentos\nWHERE vendaId IS NOT NULL\nORDER BY createdAt DESC\nLIMIT 10;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute \nSELECT id, clienteNome, status, resultouVenda, vendaId, createdAt\nFROM agendamentos\nWHERE vendaId IS NOT NULL\nORDER BY createdAt DESC\nLIMIT 10;\n",
+  "rows": [
+    {
+      "id": "120001",
+      "clienteNome": "Cliente Teste Parcelado",
+      "status": "realizado",
+      "resultouVenda": "1",
+      "vendaId": "150002",
+      "createdAt": "2026-03-20 10:31:28"
+    },
+    {
+      "id": "90001",
+      "clienteNome": "jxjnslkslkcnlkjc",
+      "status": "realizado",
+      "resultouVenda": "1",
+      "vendaId": "120001",
+      "createdAt": "2026-03-19 21:57:49"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclienteNome\tstatus\tresultouVenda\tvendaId\tcreatedAt\n120001\tCliente Teste Parcelado\trealizado\t1\t150002\t2026-03-20 10:31:28\n90001\tjxjnslkslkcnlkjc\trealizado\t1\t120001\t2026-03-19 21:57:49\n",
+  "stderr": "",
+  "execution_time_ms": 359
+}

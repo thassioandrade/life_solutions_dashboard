@@ -1,0 +1,9 @@
+{
+  "query": "\n-- Cancelar a venda duplicada (só Rating, custo R$110)\nUPDATE vendas \nSET cancelada = 1, \n    motivoCancelamento = 'Duplicata removida automaticamente — venda correta é ID 510001 (Limpa Nome + Rating)',\n    canceladaEm = NOW()\nWHERE id = 540001;\n\n-- Cancelar parcelas pendentes desta venda (se houver)\nUPDATE parcelas \nSET status = 'cancelado' \nWHERE vendaId = 540001 AND status = 'pendente';\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute \n-- Cancelar a venda duplicada (só Rating, custo R$110)\nUPDATE vendas \nSET cancelada = 1, \n    motivoCancelamento = 'Duplicata removida automaticamente — venda correta é ID 510001 (Limpa Nome + Rating)',\n    canceladaEm = NOW()\nWHERE id = 540001;\n\n-- Cancelar parcelas pendentes desta venda (se houver)\nUPDATE parcelas \nSET status = 'cancelado' \nWHERE vendaId = 540001 AND status = 'pendente';\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 416
+}

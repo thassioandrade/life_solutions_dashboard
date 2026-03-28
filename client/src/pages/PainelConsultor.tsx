@@ -466,9 +466,11 @@ export default function PainelConsultor() {
             custoServico: custoModalServicos,
           });
           vendaIdFinal = vendaResult?.vendaId ?? null;
-          // Criar parcelas se houver parcelamento
-          if (vendaIdFinal && venda.parcelasQtd > 0) {
-            // Gerar datas automaticamente se datesVencimento estiver vazio
+          // Se backend detectou duplicata, avisar e não criar parcelas novamente
+          if ((vendaResult as any)?.duplicata) {
+            toast.warning("Venda já registrada para este cliente. Vinculando ao registro existente.");
+          } else if (vendaIdFinal && venda.parcelasQtd > 0) {
+            // Criar parcelas se houver parcelamento (somente em venda nova)
             let datesParaCriar = venda.datesVencimento;
             if (datesParaCriar.length === 0) {
               const hoje = new Date();
@@ -478,8 +480,6 @@ export default function PainelConsultor() {
                 return d.toISOString().split("T")[0];
               });
             }
-            // Valor de cada parcela = (faturado - coletado) / parcelasQtd
-            // Representa o valor restante a receber dividido pelo número de parcelas
             const restante = faturado - coletado;
             const valorParcela = restante > 0 ? restante / venda.parcelasQtd : faturado / venda.parcelasQtd;
             if (valorParcela > 0) {

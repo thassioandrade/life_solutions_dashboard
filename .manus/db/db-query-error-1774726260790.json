@@ -1,0 +1,8 @@
+{
+  "query": "\nSELECT l.id, l.nome, l.colunaId, c.nome as colunaNome, l.createdAt\nFROM leads l\nLEFT JOIN colunasPipeline c ON l.colunaId = c.id\nWHERE l.nome LIKE '%Iago%'\nORDER BY l.createdAt;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute \nSELECT l.id, l.nome, l.colunaId, c.nome as colunaNome, l.createdAt\nFROM leads l\nLEFT JOIN colunasPipeline c ON l.colunaId = c.id\nWHERE l.nome LIKE '%Iago%'\nORDER BY l.createdAt;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1146 (42S02) at line 2: Table '5gsibdpzjxu4dwbugmnc4c.colunasPipeline' doesn't exist"
+  ]
+}

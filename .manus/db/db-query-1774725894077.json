@@ -1,0 +1,43 @@
+{
+  "query": "\nSELECT id, clienteNome, consultorId, valorColetado, valorFaturado, comissaoPercent, custoServico, cancelada, createdAt\nFROM vendas \nWHERE clienteNome LIKE '%Iago%'\nORDER BY createdAt DESC;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute \nSELECT id, clienteNome, consultorId, valorColetado, valorFaturado, comissaoPercent, custoServico, cancelada, createdAt\nFROM vendas \nWHERE clienteNome LIKE '%Iago%'\nORDER BY createdAt DESC;\n",
+  "rows": [
+    {
+      "id": "540001",
+      "clienteNome": "Iago Soares da Anunciação ",
+      "consultorId": "1",
+      "valorColetado": "750.00",
+      "valorFaturado": "1500.00",
+      "comissaoPercent": "10.00",
+      "custoServico": "110.00",
+      "cancelada": "0",
+      "createdAt": "2026-03-27 22:21:52"
+    },
+    {
+      "id": "510001",
+      "clienteNome": "Iago Soares da Anunciação",
+      "consultorId": "1",
+      "valorColetado": "750.00",
+      "valorFaturado": "1500.00",
+      "comissaoPercent": "10.00",
+      "custoServico": "180.00",
+      "cancelada": "0",
+      "createdAt": "2026-03-27 20:17:53"
+    },
+    {
+      "id": "390001",
+      "clienteNome": "Tiago Aragão ",
+      "consultorId": "1",
+      "valorColetado": "750.00",
+      "valorFaturado": "1500.00",
+      "comissaoPercent": "10.00",
+      "custoServico": "110.00",
+      "cancelada": "0",
+      "createdAt": "2026-03-25 21:17:12"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclienteNome\tconsultorId\tvalorColetado\tvalorFaturado\tcomissaoPercent\tcustoServico\tcancelada\tcreatedAt\n540001\tIago Soares da Anunciação \t1\t750.00\t1500.00\t10.00\t110.00\t0\t2026-03-27 22:21:52\n510001\tIago Soares da Anunciação\t1\t750.00\t1500.00\t10.00\t180.00\t0\t2026-03-27 20:17:53\n390001\tTiago Aragão \t1\t750.00\t1500.00\t10.00\t110.00\t0\t2026-03-25 21:17:12\n",
+  "stderr": "",
+  "execution_time_ms": 392
+}

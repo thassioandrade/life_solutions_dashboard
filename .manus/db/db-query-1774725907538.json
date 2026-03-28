@@ -1,0 +1,9 @@
+{
+  "query": "\nSELECT id, vendaId, numeroParcela, valor, vencimento, dataPagamento, okConsultor\nFROM parcelas\nWHERE vendaId IN (540001, 510001)\nORDER BY vendaId, numeroParcela;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute \nSELECT id, vendaId, numeroParcela, valor, vencimento, dataPagamento, okConsultor\nFROM parcelas\nWHERE vendaId IN (540001, 510001)\nORDER BY vendaId, numeroParcela;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 356
+}

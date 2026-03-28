@@ -1,0 +1,34 @@
+{
+  "query": "\nSELECT v.id, v.clienteNome, v.valorColetado, v.valorFaturado, v.comissaoPercent, v.custoServico, v.servicos, v.createdAt,\n  (SELECT COUNT(*) FROM parcelas p WHERE p.vendaId = v.id) as qtdParcelas,\n  (SELECT COUNT(*) FROM parcelas p WHERE p.vendaId = v.id AND p.okConsultor = 1) as parcelasPagas\nFROM vendas v\nWHERE v.id IN (510001, 540001);\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute \nSELECT v.id, v.clienteNome, v.valorColetado, v.valorFaturado, v.comissaoPercent, v.custoServico, v.servicos, v.createdAt,\n  (SELECT COUNT(*) FROM parcelas p WHERE p.vendaId = v.id) as qtdParcelas,\n  (SELECT COUNT(*) FROM parcelas p WHERE p.vendaId = v.id AND p.okConsultor = 1) as parcelasPagas\nFROM vendas v\nWHERE v.id IN (510001, 540001);\n",
+  "rows": [
+    {
+      "id": "510001",
+      "clienteNome": "Iago Soares da Anunciação",
+      "valorColetado": "750.00",
+      "valorFaturado": "1500.00",
+      "comissaoPercent": "10.00",
+      "custoServico": "180.00",
+      "servicos": "[\"limpa_nome\", \"rating\"]",
+      "createdAt": "2026-03-27 20:17:53",
+      "qtdParcelas": "0",
+      "parcelasPagas": "0"
+    },
+    {
+      "id": "540001",
+      "clienteNome": "Iago Soares da Anunciação ",
+      "valorColetado": "750.00",
+      "valorFaturado": "1500.00",
+      "comissaoPercent": "10.00",
+      "custoServico": "110.00",
+      "servicos": "[\"rating\"]",
+      "createdAt": "2026-03-27 22:21:52",
+      "qtdParcelas": "0",
+      "parcelasPagas": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclienteNome\tvalorColetado\tvalorFaturado\tcomissaoPercent\tcustoServico\tservicos\tcreatedAt\tqtdParcelas\tparcelasPagas\n510001\tIago Soares da Anunciação\t750.00\t1500.00\t10.00\t180.00\t[\"limpa_nome\", \"rating\"]\t2026-03-27 20:17:53\t0\t0\n540001\tIago Soares da Anunciação \t750.00\t1500.00\t10.00\t110.00\t[\"rating\"]\t2026-03-27 22:21:52\t0\t0\n",
+  "stderr": "",
+  "execution_time_ms": 361
+}

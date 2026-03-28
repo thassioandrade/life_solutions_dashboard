@@ -1,0 +1,40 @@
+{
+  "query": "\n-- Verificar vendas ativas do Iago\nSELECT id, clienteNome, valorColetado, valorFaturado, custoServico, servicos, cancelada\nFROM vendas WHERE clienteNome LIKE '%Iago%';\n\n-- Verificar leads do Iago no pipeline\nSELECT l.id, l.nome, c.nome as coluna FROM leads l\nLEFT JOIN colunas_pipeline c ON l.colunaId = c.id\nWHERE l.nome LIKE '%Iago Soares%';\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute \n-- Verificar vendas ativas do Iago\nSELECT id, clienteNome, valorColetado, valorFaturado, custoServico, servicos, cancelada\nFROM vendas WHERE clienteNome LIKE '%Iago%';\n\n-- Verificar leads do Iago no pipeline\nSELECT l.id, l.nome, c.nome as coluna FROM leads l\nLEFT JOIN colunas_pipeline c ON l.colunaId = c.id\nWHERE l.nome LIKE '%Iago Soares%';\n",
+  "rows": [
+    {
+      "id": "390001",
+      "clienteNome": "Tiago Aragão ",
+      "valorColetado": "750.00",
+      "valorFaturado": "1500.00",
+      "custoServico": "110.00",
+      "servicos": "[\"rating\"]",
+      "cancelada": "0"
+    },
+    {
+      "id": "510001",
+      "clienteNome": "Iago Soares da Anunciação",
+      "valorColetado": "750.00",
+      "valorFaturado": "1500.00",
+      "custoServico": "180.00",
+      "servicos": "[\"limpa_nome\", \"rating\"]",
+      "cancelada": "0"
+    },
+    {
+      "id": "540001",
+      "clienteNome": "Iago Soares da Anunciação ",
+      "valorColetado": "750.00",
+      "valorFaturado": "1500.00",
+      "custoServico": "110.00",
+      "servicos": "[\"rating\"]",
+      "cancelada": "1"
+    }
+  ],
+  "messages": [
+    "id\tnome\tcoluna",
+    "750001\tIago Soares da Anunciação\tVenda Realizada"
+  ],
+  "stdout": "id\tclienteNome\tvalorColetado\tvalorFaturado\tcustoServico\tservicos\tcancelada\n390001\tTiago Aragão \t750.00\t1500.00\t110.00\t[\"rating\"]\t0\n510001\tIago Soares da Anunciação\t750.00\t1500.00\t180.00\t[\"limpa_nome\", \"rating\"]\t0\n540001\tIago Soares da Anunciação \t750.00\t1500.00\t110.00\t[\"rating\"]\t1\nid\tnome\tcoluna\n750001\tIago Soares da Anunciação\tVenda Realizada\n",
+  "stderr": "",
+  "execution_time_ms": 411
+}

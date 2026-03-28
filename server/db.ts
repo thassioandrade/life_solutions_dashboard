@@ -159,6 +159,21 @@ export async function getVendasByConsultor(consultorId: number, mes: number, ano
     .orderBy(desc(vendas.dataVenda));
 }
 
+export async function getVendasAtivasByClienteNome(clienteNome: string, consultorId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const nome = clienteNome.trim().toLowerCase();
+  const rows = await db.select().from(vendas)
+    .where(and(eq(vendas.cancelada, false)))
+    .orderBy(desc(vendas.dataVenda));
+  // Filtrar por nome similar (case-insensitive, ignorando espaços extras)
+  return rows.filter(v => {
+    const nomeVenda = (v.clienteNome || "").trim().toLowerCase();
+    const mesmoConsultor = consultorId ? v.consultorId === consultorId : true;
+    return nomeVenda === nome && mesmoConsultor;
+  });
+}
+
 export async function createVenda(data: typeof vendas.$inferInsert) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");

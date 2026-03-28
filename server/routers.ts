@@ -10,7 +10,7 @@ import { sdk } from "./_core/sdk";
 import { upsertUser } from "./db";
 import { getAllUsers, updateUserRole, updateUserAvatar, deleteUser,
   getAllConsultores, getConsultorById, getConsultorByEmail, createConsultor, updateConsultor, deleteConsultor,
-  getVendasByPeriod, getVendasByConsultor, createVenda, updateVenda, deleteVenda, cancelarVenda, getVendaById,
+  getVendasByPeriod, getVendasByConsultor, getVendasAtivasByClienteNome, createVenda, updateVenda, deleteVenda, cancelarVenda, getVendaById,
   getParcelasByVenda, getParcelasPendentes, getParcelasByConsultor, createParcelas, updateParcela,
   getAgendamentosByPeriod, getAgendamentosByConsultor, createAgendamento, updateAgendamento, deleteAgendamento, getAgendamentoById,
   getMetricasByPeriod, getAllMetricas, createMetrica, updateMetrica, deleteMetrica,
@@ -190,6 +190,19 @@ export const appRouter = router({
         custoServico: z.number().default(0),
       }))
       .mutation(async ({ input }) => {
+        // ─── PROTEÇÃO ANTI-DUPLICATA ───────────────────────────────────────────
+        // Verificar se já existe venda ativa para o mesmo cliente (mesmo consultor)
+        const vendasExistentes = await getVendasAtivasByClienteNome(
+          input.clienteNome,
+          input.consultorId
+        );
+        if (vendasExistentes.length > 0) {
+          // Já existe venda ativa para este cliente — retornar o ID existente em vez de criar nova
+          const vendaExistente = vendasExistentes[0];
+          console.warn(`[vendas.create] Bloqueado: venda duplicada para "${input.clienteNome}" (ID existente: ${vendaExistente.id})`);
+          return { success: true, vendaId: vendaExistente.id, duplicata: true };
+        }
+        // ──────────────────────────────────────────────────────────────────────
         const vendaResult = await createVenda({
           ...input,
           dataVenda: new Date(input.dataVenda),

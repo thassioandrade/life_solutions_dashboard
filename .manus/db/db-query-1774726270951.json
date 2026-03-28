@@ -1,0 +1,31 @@
+{
+  "query": "\nSELECT l.id, l.nome, l.colunaId, c.nome as colunaNome, l.createdAt\nFROM leads l\nLEFT JOIN colunas_pipeline c ON l.colunaId = c.id\nWHERE l.nome LIKE '%Iago%'\nORDER BY l.createdAt;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute \nSELECT l.id, l.nome, l.colunaId, c.nome as colunaNome, l.createdAt\nFROM leads l\nLEFT JOIN colunas_pipeline c ON l.colunaId = c.id\nWHERE l.nome LIKE '%Iago%'\nORDER BY l.createdAt;\n",
+  "rows": [
+    {
+      "id": "510001",
+      "nome": "Tiago Aragão ",
+      "colunaId": "30005",
+      "colunaNome": "Venda Realizada",
+      "createdAt": "2026-03-25 21:17:12"
+    },
+    {
+      "id": "750001",
+      "nome": "Iago Soares da Anunciação",
+      "colunaId": "30005",
+      "colunaNome": "Venda Realizada",
+      "createdAt": "2026-03-27 20:17:53"
+    },
+    {
+      "id": "780001",
+      "nome": "Iago Soares da Anunciação ",
+      "colunaId": "30005",
+      "colunaNome": "Venda Realizada",
+      "createdAt": "2026-03-27 22:21:52"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tnome\tcolunaId\tcolunaNome\tcreatedAt\n510001\tTiago Aragão \t30005\tVenda Realizada\t2026-03-25 21:17:12\n750001\tIago Soares da Anunciação\t30005\tVenda Realizada\t2026-03-27 20:17:53\n780001\tIago Soares da Anunciação \t30005\tVenda Realizada\t2026-03-27 22:21:52\n",
+  "stderr": "",
+  "execution_time_ms": 359
+}

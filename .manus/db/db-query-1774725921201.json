@@ -1,0 +1,16 @@
+{
+  "query": "\nSELECT clienteNome, COUNT(*) as total, GROUP_CONCAT(id ORDER BY createdAt) as ids, GROUP_CONCAT(createdAt ORDER BY createdAt) as datas\nFROM vendas\nWHERE cancelada = 0\nGROUP BY clienteNome\nHAVING COUNT(*) > 1\nORDER BY total DESC;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6P3udVzhF7o8dsx.af4f4c559d88 --database 5GsibdpZJXu4DWbuGMNC4c --execute \nSELECT clienteNome, COUNT(*) as total, GROUP_CONCAT(id ORDER BY createdAt) as ids, GROUP_CONCAT(createdAt ORDER BY createdAt) as datas\nFROM vendas\nWHERE cancelada = 0\nGROUP BY clienteNome\nHAVING COUNT(*) > 1\nORDER BY total DESC;\n",
+  "rows": [
+    {
+      "clienteNome": "Iago Soares da Anunciação",
+      "total": "2",
+      "ids": "510001,540001",
+      "datas": "2026-03-27 20:17:53,2026-03-27 22:21:52"
+    }
+  ],
+  "messages": [],
+  "stdout": "clienteNome\ttotal\tids\tdatas\nIago Soares da Anunciação\t2\t510001,540001\t2026-03-27 20:17:53,2026-03-27 22:21:52\n",
+  "stderr": "",
+  "execution_time_ms": 361
+}
