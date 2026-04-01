@@ -396,3 +396,8 @@
 - [x] Promessas de Pagamento: botão de exclusão corrigido — agora aparece em todos os status (pendente, concluído, cancelado) com confirmação antes de excluir
 - [x] Bug crítico: página /agendar redireciona clientes para login — corrigido criando consultores.listPublico (publicProcedure) que retorna apenas id/nome/fotoUrl dos consultores ativos, sem expor senhaHash
 - [x] Configurações: botão Excluir adicionado para usuários (vermelho, com confirmação) — admin não pode excluir a si mesmo
+
+## Gestão de Parcelas nas Abas Vendas e Serviços Vendidos
+- [x] Modal de gestão de parcelas na aba Vendas (Admin) — visualizar, adicionar, editar, excluir parcelas com datas de vencimento
+- [x] Modal de gestão de parcelas na aba Serviços Vendidos — mesma funcionalidade
+- [x] Parcelas refletindo em todo o dashboard (coletado parcelas, a receber, comissão parcelas)

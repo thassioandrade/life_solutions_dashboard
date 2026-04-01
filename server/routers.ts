@@ -562,6 +562,30 @@ export const appRouter = router({
         await updateParcela(input.id, { status: input.status });
         return { success: true };
       }),
+    updateVencimento: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        vencimento: z.string(),
+        valor: z.number().optional(),
+        observacoes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        await updateParcela(input.id, {
+          vencimento: new Date(input.vencimento),
+          ...(input.valor !== undefined ? { valor: String(input.valor) } : {}),
+          ...(input.observacoes !== undefined ? { observacoes: input.observacoes } : {}),
+        });
+        return { success: true };
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const { parcelas: parcelasTable } = await import("../drizzle/schema");
+        await db.delete(parcelasTable).where((await import("drizzle-orm")).eq(parcelasTable.id, input.id));
+        return { success: true };
+      }),
   }),
   servicosVendidos: router({
     byPeriodo: protectedProcedure

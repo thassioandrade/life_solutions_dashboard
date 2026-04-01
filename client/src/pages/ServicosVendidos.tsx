@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import ModalGerenciarParcelas from "@/components/ModalGerenciarParcelas";
 import LifeDashboardLayout from "@/components/LifeDashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +29,7 @@ export default function ServicosVendidos() {
   const [ano, setAno] = useState(now.getFullYear());
   const [filtroConsultor, setFiltroConsultor] = useState<string>("todos");
   const [abaAtiva, setAbaAtiva] = useState<"servicos" | "devedores">("servicos");
+  const [openGerenciarParcelas, setOpenGerenciarParcelas] = useState<any | null>(null);
 
   const { data: servicosVendidos, isLoading } = trpc.servicosVendidos.byPeriodo.useQuery({ mes, ano });
   const { data: consultores } = trpc.consultores.list.useQuery();
@@ -295,6 +297,7 @@ export default function ServicosVendidos() {
                         <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500 uppercase">Coletado</th>
                         <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase">Data</th>
                         <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase">Consultora</th>
+                        <th className="text-center py-2 px-3 text-xs font-semibold text-gray-500 uppercase">Parcelas</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -322,6 +325,14 @@ export default function ServicosVendidos() {
                             </td>
                             <td className="py-2.5 px-3 text-gray-500 text-xs">{new Date(v.dataVenda).toLocaleDateString("pt-BR")}</td>
                             <td className="py-2.5 px-3 text-gray-500 text-xs">{consultor?.nome || "—"}</td>
+                            <td className="py-2.5 px-3 text-center">
+                              <button
+                                onClick={() => setOpenGerenciarParcelas(v)}
+                                className="text-xs text-blue-600 hover:underline flex items-center gap-1 mx-auto"
+                              >
+                                <span>Parcelas</span>
+                              </button>
+                            </td>
                           </tr>
                         );
                       })}
@@ -395,6 +406,18 @@ export default function ServicosVendidos() {
           </Card>
         )}
       </div>
+
+      {/* Modal de Gerenciar Parcelas */}
+      {openGerenciarParcelas && (
+        <ModalGerenciarParcelas
+          vendaId={openGerenciarParcelas.id}
+          clienteNome={openGerenciarParcelas.clienteNome}
+          valorFaturado={parseFloat(String(openGerenciarParcelas.valorFaturado || 0))}
+          valorColetado={parseFloat(String(openGerenciarParcelas.valorColetado || 0))}
+          open={!!openGerenciarParcelas}
+          onClose={() => setOpenGerenciarParcelas(null)}
+        />
+      )}
     </LifeDashboardLayout>
   );
 }
