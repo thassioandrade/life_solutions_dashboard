@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
 import { usePromessaAlarm } from "@/hooks/usePromessaAlarm";
+import ModalEditarVenda, { type VendaEditData } from "@/components/ModalEditarVenda";
 import * as XLSX from "xlsx";
 import LifeDashboardLayout from "@/components/LifeDashboardLayout";
 import { trpc } from "@/lib/trpc";
@@ -109,7 +110,7 @@ export default function PainelConsultor() {
   const [openEstornoConsultor, setOpenEstornoConsultor] = useState<any | null>(null);
   const [motivoEstornoConsultor, setMotivoEstornoConsultor] = useState("");
   const [openEditVenda, setOpenEditVenda] = useState<any | null>(null);
-  const [editVendaForm, setEditVendaForm] = useState<any>({});
+  const [editVendaForm, setEditVendaForm] = useState<VendaEditData | null>(null);
   const [filtroParcelas, setFiltroParcelas] = useState<"todas" | "pendentes" | "pagas" | "atrasadas">("todas");
   const [modalPagamentoParcela, setModalPagamentoParcela] = useState<{ id: number; valor: number; clienteNome: string } | null>(null);
   const [pagParcelaForm, setPagParcelaForm] = useState({ formaPagamento: "", comprovanteUrl: "", comprovanteFile: null as File | null });
@@ -1000,6 +1001,7 @@ export default function PainelConsultor() {
                                       id: v.id,
                                       clienteNome: v.clienteNome || "",
                                       clienteCpfCnpj: v.clienteCpfCnpj || "",
+                                      clienteTelefone: (v as any).clienteTelefone || "",
                                       tipo: v.tipo || "PF",
                                       valorFaturado: String(v.valorFaturado || ""),
                                       valorColetado: String(v.valorColetado || ""),
@@ -1008,6 +1010,9 @@ export default function PainelConsultor() {
                                       servicos: servs,
                                       custoServico: String(v.custoServico || ""),
                                       observacoes: v.observacoes || "",
+                                      formaPagamento: (v as any).formaPagamento || "",
+                                      parcelasQtd: 0,
+                                      datesVencimento: [],
                                     });
                                     setOpenEditVenda(v);
                                   }}>
@@ -1437,85 +1442,32 @@ export default function PainelConsultor() {
       </Dialog>
 
       {/* Modal de Edição de Venda */}
-      <Dialog open={!!openEditVenda} onOpenChange={(o) => { if (!o) setOpenEditVenda(null); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Editar Venda</DialogTitle></DialogHeader>
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            if (!editVendaForm.clienteNome || !editVendaForm.valorFaturado) { toast.error("Preencha os campos obrigatórios"); return; }
-            const custoAuto = (editVendaForm.servicos || []).includes("limpa_nome") && (editVendaForm.servicos || []).includes("rating") ? 180
-              : (editVendaForm.servicos || []).includes("limpa_nome") ? 70
-              : (editVendaForm.servicos || []).includes("rating") ? 110 : 0;
-            updateVendaMutation.mutate({
-              id: editVendaForm.id,
-              clienteNome: editVendaForm.clienteNome,
-              clienteCpfCnpj: editVendaForm.clienteCpfCnpj || undefined,
-              tipo: editVendaForm.tipo as "PF" | "PJ",
-              valorFaturado: parseFloat(editVendaForm.valorFaturado),
-              valorColetado: parseFloat(editVendaForm.valorColetado || editVendaForm.valorFaturado),
-              comissaoPercent: parseFloat(editVendaForm.comissaoPercent) || 10,
-              dataVenda: editVendaForm.dataVenda,
-              servicos: editVendaForm.servicos || [],
-              custoServico: editVendaForm.custoServico ? parseFloat(editVendaForm.custoServico) : custoAuto,
-              observacoes: editVendaForm.observacoes || undefined,
-            });
-          }} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <Label>Nome do Cliente *</Label>
-                <Input value={editVendaForm.clienteNome || ""} onChange={e => setEditVendaForm({ ...editVendaForm, clienteNome: e.target.value })} />
-              </div>
-              <div>
-                <Label>CPF/CNPJ</Label>
-                <Input value={editVendaForm.clienteCpfCnpj || ""} onChange={e => setEditVendaForm({ ...editVendaForm, clienteCpfCnpj: e.target.value })} />
-              </div>
-              <div>
-                <Label>Tipo</Label>
-                <Select value={editVendaForm.tipo || "PF"} onValueChange={v => setEditVendaForm({ ...editVendaForm, tipo: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PF">PF</SelectItem>
-                    <SelectItem value="PJ">PJ</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Data da Venda</Label>
-                <Input type="date" value={editVendaForm.dataVenda || ""} onChange={e => setEditVendaForm({ ...editVendaForm, dataVenda: e.target.value })} />
-              </div>
-              <div>
-                <Label>Valor Faturado (R$) *</Label>
-                <Input type="number" step="0.01" value={editVendaForm.valorFaturado || ""} onChange={e => setEditVendaForm({ ...editVendaForm, valorFaturado: e.target.value })} />
-              </div>
-              <div>
-                <Label>Valor Coletado (R$)</Label>
-                <Input type="number" step="0.01" value={editVendaForm.valorColetado || ""} onChange={e => setEditVendaForm({ ...editVendaForm, valorColetado: e.target.value })} />
-              </div>
-              <div className="col-span-2">
-                <Label>Serviços Contratados</Label>
-                <div className="flex gap-4 mt-1">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={(editVendaForm.servicos || []).includes("limpa_nome")} onChange={e => setEditVendaForm({ ...editVendaForm, servicos: e.target.checked ? [...(editVendaForm.servicos || []), "limpa_nome"] : (editVendaForm.servicos || []).filter((s: string) => s !== "limpa_nome") })} className="w-4 h-4 rounded" />
-                    <span className="text-sm">🧹 Limpa Nome</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={(editVendaForm.servicos || []).includes("rating")} onChange={e => setEditVendaForm({ ...editVendaForm, servicos: e.target.checked ? [...(editVendaForm.servicos || []), "rating"] : (editVendaForm.servicos || []).filter((s: string) => s !== "rating") })} className="w-4 h-4 rounded" />
-                    <span className="text-sm">⭐ Rating Bancário</span>
-                  </label>
-                </div>
-              </div>
-              <div className="col-span-2">
-                <Label>Observações</Label>
-                <Input value={editVendaForm.observacoes || ""} onChange={e => setEditVendaForm({ ...editVendaForm, observacoes: e.target.value })} />
-              </div>
-            </div>
-            <div className="flex gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setOpenEditVenda(null)} className="flex-1">Cancelar</Button>
-              <Button type="submit" className="flex-1 text-white" style={{ background: "#0055FF" }} disabled={updateVendaMutation.isPending}>Salvar Alterações</Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <ModalEditarVenda
+        open={!!openEditVenda}
+        onClose={() => setOpenEditVenda(null)}
+        venda={editVendaForm}
+        showConsultor={false}
+        isSaving={updateVendaMutation.isPending}
+        onSave={(data) => {
+          const custoAuto = data.servicos.includes("Limpa Nome") && data.servicos.includes("Rating Bancário") ? 180
+            : data.servicos.includes("Limpa Nome") ? 70
+            : data.servicos.includes("Rating Bancário") ? 110 : 0;
+          updateVendaMutation.mutate({
+            id: data.id,
+            clienteNome: data.clienteNome,
+            clienteCpfCnpj: data.clienteCpfCnpj || undefined,
+            clienteTelefone: data.clienteTelefone || undefined,
+            tipo: data.tipo as "PF" | "PJ",
+            valorFaturado: parseFloat(data.valorFaturado),
+            valorColetado: parseFloat(data.valorColetado || data.valorFaturado),
+            comissaoPercent: parseFloat(data.comissaoPercent || "10") || 10,
+            dataVenda: data.dataVenda,
+            servicos: data.servicos,
+            custoServico: data.custoServico ? parseFloat(data.custoServico) : custoAuto,
+            observacoes: data.observacoes || undefined,
+          });
+        }}
+      />
 
       {/* Modal de Estorno de Venda */}
       <Dialog open={!!openEstornoConsultor} onOpenChange={(o) => { if (!o) { setOpenEstornoConsultor(null); setMotivoEstornoConsultor(""); } }}>

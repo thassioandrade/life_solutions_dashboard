@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Plus, ChevronLeft, ChevronRight, DollarSign, Trash2, Edit2, CreditCard, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import ModalGerenciarParcelas from "@/components/ModalGerenciarParcelas";
+import ModalEditarVenda, { type VendaEditData } from "@/components/ModalEditarVenda";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 
@@ -37,7 +38,7 @@ export default function Vendas() {
     servicos: [] as string[], custoServico: "",
   });
   const [openEdit, setOpenEdit] = useState<any | null>(null);
-  const [editForm, setEditForm] = useState<any>({});
+  const [editForm, setEditForm] = useState<VendaEditData | null>(null);
   const [openGerenciarParcelas, setOpenGerenciarParcelas] = useState<any | null>(null);
 
   const { data: vendas, refetch } = trpc.vendas.listByPeriod.useQuery({ mes, ano });
@@ -288,6 +289,7 @@ export default function Vendas() {
                               id: venda.id,
                               clienteNome: venda.clienteNome || "",
                               clienteCpfCnpj: venda.clienteCpfCnpj || "",
+                              clienteTelefone: (venda as any).clienteTelefone || "",
                               tipo: venda.tipo || "PF",
                               valorFaturado: String(venda.valorFaturado || ""),
                               valorColetado: String(venda.valorColetado || ""),
@@ -297,6 +299,9 @@ export default function Vendas() {
                               servicos: servs,
                               custoServico: String(venda.custoServico || ""),
                               observacoes: venda.observacoes || "",
+                              formaPagamento: (venda as any).formaPagamento || "",
+                              parcelasQtd: 0,
+                              datesVencimento: [],
                             });
                             setOpenEdit(venda);
                           }}>
@@ -323,96 +328,34 @@ export default function Vendas() {
       </div>
 
       {/* Modal de Edição */}
-      <Dialog open={!!openEdit} onOpenChange={(o) => { if (!o) setOpenEdit(null); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Editar Venda</DialogTitle></DialogHeader>
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            if (!editForm.clienteNome || !editForm.valorFaturado) { toast.error("Preencha os campos obrigatórios"); return; }
-            const custoAuto = editForm.servicos.includes("limpa_nome") && editForm.servicos.includes("rating") ? 180
-              : editForm.servicos.includes("limpa_nome") ? 70
-              : editForm.servicos.includes("rating") ? 110 : 0;
-            updateMutation.mutate({
-              id: editForm.id,
-              clienteNome: editForm.clienteNome,
-              clienteCpfCnpj: editForm.clienteCpfCnpj || undefined,
-              tipo: editForm.tipo as "PF" | "PJ",
-              valorFaturado: parseFloat(editForm.valorFaturado),
-              valorColetado: parseFloat(editForm.valorColetado || editForm.valorFaturado),
-              consultorId: editForm.consultorId ? parseInt(editForm.consultorId) : undefined,
-              comissaoPercent: parseFloat(editForm.comissaoPercent) || 10,
-              dataVenda: editForm.dataVenda,
-              servicos: editForm.servicos,
-              custoServico: editForm.custoServico ? parseFloat(editForm.custoServico) : custoAuto,
-              observacoes: editForm.observacoes || undefined,
-            });
-          }} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <Label>Nome do Cliente *</Label>
-                <Input value={editForm.clienteNome || ""} onChange={e => setEditForm({ ...editForm, clienteNome: e.target.value })} />
-              </div>
-              <div>
-                <Label>CPF/CNPJ</Label>
-                <Input value={editForm.clienteCpfCnpj || ""} onChange={e => setEditForm({ ...editForm, clienteCpfCnpj: e.target.value })} />
-              </div>
-              <div>
-                <Label>Tipo</Label>
-                <Select value={editForm.tipo || "PF"} onValueChange={v => setEditForm({ ...editForm, tipo: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{TIPOS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Data da Venda</Label>
-                <Input type="date" value={editForm.dataVenda || ""} onChange={e => setEditForm({ ...editForm, dataVenda: e.target.value })} />
-              </div>
-              <div>
-                <Label>Valor Faturado (R$) *</Label>
-                <Input type="number" step="0.01" value={editForm.valorFaturado || ""} onChange={e => setEditForm({ ...editForm, valorFaturado: e.target.value })} />
-              </div>
-              <div>
-                <Label>Valor Coletado (R$)</Label>
-                <Input type="number" step="0.01" value={editForm.valorColetado || ""} onChange={e => setEditForm({ ...editForm, valorColetado: e.target.value })} />
-              </div>
-              <div>
-                <Label>Consultor</Label>
-                <Select value={editForm.consultorId || ""} onValueChange={v => setEditForm({ ...editForm, consultorId: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                  <SelectContent>
-                    {consultores?.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.nome}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Comissão (%)</Label>
-                <Input type="number" step="0.1" value={editForm.comissaoPercent || "10"} onChange={e => setEditForm({ ...editForm, comissaoPercent: e.target.value })} />
-              </div>
-              <div className="col-span-2">
-                <Label>Serviços Contratados</Label>
-                <div className="flex gap-4 mt-1">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={(editForm.servicos || []).includes("limpa_nome")} onChange={e => setEditForm({ ...editForm, servicos: e.target.checked ? [...(editForm.servicos || []), "limpa_nome"] : (editForm.servicos || []).filter((s: string) => s !== "limpa_nome") })} className="w-4 h-4 rounded" />
-                    <span className="text-sm">🧹 Limpa Nome</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={(editForm.servicos || []).includes("rating")} onChange={e => setEditForm({ ...editForm, servicos: e.target.checked ? [...(editForm.servicos || []), "rating"] : (editForm.servicos || []).filter((s: string) => s !== "rating") })} className="w-4 h-4 rounded" />
-                    <span className="text-sm">⭐ Rating Bancário</span>
-                  </label>
-                </div>
-              </div>
-              <div className="col-span-2">
-                <Label>Observações</Label>
-                <Input value={editForm.observacoes || ""} onChange={e => setEditForm({ ...editForm, observacoes: e.target.value })} />
-              </div>
-            </div>
-            <div className="flex gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setOpenEdit(null)} className="flex-1">Cancelar</Button>
-              <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white" disabled={updateMutation.isPending}>Salvar Alterações</Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <ModalEditarVenda
+        open={!!openEdit}
+        onClose={() => setOpenEdit(null)}
+        venda={editForm}
+        consultores={consultores}
+        showConsultor={true}
+        isSaving={updateMutation.isPending}
+        onSave={(data) => {
+          const custoAuto = data.servicos.includes("Limpa Nome") && data.servicos.includes("Rating Bancário") ? 180
+            : data.servicos.includes("Limpa Nome") ? 70
+            : data.servicos.includes("Rating Bancário") ? 110 : 0;
+          updateMutation.mutate({
+            id: data.id,
+            clienteNome: data.clienteNome,
+            clienteCpfCnpj: data.clienteCpfCnpj || undefined,
+            clienteTelefone: data.clienteTelefone || undefined,
+            tipo: data.tipo as "PF" | "PJ",
+            valorFaturado: parseFloat(data.valorFaturado),
+            valorColetado: parseFloat(data.valorColetado || data.valorFaturado),
+            consultorId: data.consultorId ? parseInt(data.consultorId) : undefined,
+            comissaoPercent: parseFloat(data.comissaoPercent || "10") || 10,
+            dataVenda: data.dataVenda,
+            servicos: data.servicos,
+            custoServico: data.custoServico ? parseFloat(data.custoServico) : custoAuto,
+            observacoes: data.observacoes || undefined,
+          });
+        }}
+      />
 
       {/* Modal de Estorno */}
       <Dialog open={!!openEstorno} onOpenChange={(o) => { if (!o) { setOpenEstorno(null); setMotivoEstorno(""); } }}>

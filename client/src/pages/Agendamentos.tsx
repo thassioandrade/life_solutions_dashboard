@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import LifeDashboardLayout from "@/components/LifeDashboardLayout";
+import ModalEditarVenda, { type VendaEditData } from "@/components/ModalEditarVenda";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,7 +46,7 @@ export default function Agendamentos() {
   const [form, setForm] = useState({ clienteNome: "", clienteEmail: "", clienteTelefone: "", consultorId: "", dataHora: "", observacoes: "" });
   const [formData, setFormData] = useState("");
   const [formHora, setFormHora] = useState("");
-  const [editForm, setEditForm] = useState<any>({});
+  const [editForm, setEditForm] = useState<VendaEditData | null>(null);
   const [uploadingComprovante, setUploadingComprovante] = useState(false);
 
   // Modal Vai Fechar (Promessa)
@@ -97,13 +98,24 @@ export default function Agendamentos() {
     });
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = (data: VendaEditData) => {
     if (!openEdit) return;
+    const custoAuto = data.servicos.includes("Limpa Nome") && data.servicos.includes("Rating Bancário") ? 180
+      : data.servicos.includes("Limpa Nome") ? 70
+      : data.servicos.includes("Rating Bancário") ? 110 : 0;
     updateMutation.mutate({
       id: openEdit.id,
-      ...editForm,
-      valorColetado: editForm.valorColetado ? parseFloat(editForm.valorColetado) : undefined,
-      valorFaturado: editForm.valorFaturado ? parseFloat(editForm.valorFaturado) : undefined,
+      status: (editForm as any)?._status || openEdit.status,
+      resultouVenda: (editForm as any)?._resultouVenda,
+      vaiFechar: (editForm as any)?._vaiFechar,
+      comprovanteUrl: (editForm as any)?._comprovanteUrl,
+      clienteTelefone: data.clienteTelefone || undefined,
+      valorColetado: data.valorColetado ? parseFloat(data.valorColetado) : undefined,
+      valorFaturado: data.valorFaturado ? parseFloat(data.valorFaturado) : undefined,
+      servicos: data.servicos,
+      formaPagamento: data.formaPagamento || undefined,
+      parcelasQtd: data.parcelasQtd || 0,
+      observacoes: data.observacoes || undefined,
     });
   };
 
@@ -297,96 +309,39 @@ export default function Agendamentos() {
                             🤝
                           </Button>
                         )}
-                        <Dialog open={openEdit?.id === ag.id} onOpenChange={(o) => {
-                          setOpenEdit(o ? ag : null);
-                          setEditForm({
-                            status: ag.status,
-                            observacoes: ag.observacoes || "",
-                            valorColetado: ag.valorColetado || "",
-                            valorFaturado: ag.valorFaturado || "",
-                            resultouVenda: ag.resultouVenda || false,
-                            vaiFechar: (ag as any).vaiFechar || false,
-                            comprovanteUrl: ag.comprovanteUrl || "",
-                          });
-                        }}>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-md">
-                            <DialogHeader><DialogTitle>Atualizar Agendamento</DialogTitle></DialogHeader>
-                            <div className="space-y-3">
-                              <div>
-                                <Label>Status</Label>
-                                <Select value={editForm.status} onValueChange={v => setEditForm({ ...editForm, status: v })}>
-                                  <SelectTrigger><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    {["confirmado","realizado","noshow","cancelado","remarcado"].map(s => <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                  <Label>Valor Faturado (R$)</Label>
-                                  <Input type="number" step="0.01" value={editForm.valorFaturado} onChange={e => setEditForm({ ...editForm, valorFaturado: e.target.value })} />
-                                </div>
-                                <div>
-                                  <Label>Valor Coletado (R$)</Label>
-                                  <Input type="number" step="0.01" value={editForm.valorColetado} onChange={e => setEditForm({ ...editForm, valorColetado: e.target.value })} />
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <input type="checkbox" id="vaiFechar" checked={editForm.vaiFechar || false} onChange={e => setEditForm({ ...editForm, vaiFechar: e.target.checked, resultouVenda: e.target.checked ? false : editForm.resultouVenda })} />
-                                <Label htmlFor="vaiFechar" className="text-violet-700 font-medium cursor-pointer">🤝 Vai Fechar</Label>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <input type="checkbox" id="resultouVenda" checked={editForm.resultouVenda} onChange={e => setEditForm({ ...editForm, resultouVenda: e.target.checked, vaiFechar: e.target.checked ? false : editForm.vaiFechar })} />
-                                <Label htmlFor="resultouVenda" className="cursor-pointer">Resultou em venda</Label>
-                              </div>
-                              <div>
-                                <Label>Observações</Label>
-                                <Textarea value={editForm.observacoes} onChange={e => setEditForm({ ...editForm, observacoes: e.target.value })} rows={2} className="resize-none" />
-                              </div>
-                              {/* Comprovante */}
-                              <div>
-                                <Label>Comprovante de Pagamento</Label>
-                                {editForm.comprovanteUrl ? (
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <a href={editForm.comprovanteUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                                      <Paperclip className="w-3 h-3" /> Ver comprovante
-                                    </a>
-                                    <button onClick={() => setEditForm((f: any) => ({ ...f, comprovanteUrl: "" }))} className="text-gray-400 hover:text-red-500">
-                                      <X className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleUploadComprovante(f); }} />
-                                    <Button type="button" variant="outline" size="sm" className="mt-1 w-full text-xs" onClick={() => fileInputRef.current?.click()} disabled={uploadingComprovante}>
-                                      {uploadingComprovante ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Enviando...</> : <><Upload className="w-3.5 h-3.5 mr-1.5" /> Anexar comprovante</>}
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                              <div className="flex gap-2 pt-1">
-                                {/* Botão Vai Fechar no modal */}
-                                {!editForm.resultouVenda && (
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    className="flex-1 text-violet-700 border-violet-300 hover:bg-violet-50 text-sm"
-                                    onClick={() => handleVaiFechar(ag)}
-                                  >
-                                    📌 Vai Fechar
-                                  </Button>
-                                )}
-                                <Button variant="outline" onClick={() => setOpenEdit(null)} className="flex-1">Cancelar</Button>
-                                <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={handleUpdate} disabled={updateMutation.isPending}>Salvar</Button>
-                              </div>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={() => {
+                            const servs = Array.isArray(ag.servicos) ? ag.servicos : [];
+                            setEditForm({
+                              id: ag.id,
+                              clienteNome: ag.clienteNome || "",
+                              clienteCpfCnpj: ag.clienteCpfCnpj || "",
+                              clienteTelefone: ag.clienteTelefone || "",
+                              tipo: "PF",
+                              valorFaturado: String(ag.valorFaturado || ""),
+                              valorColetado: String(ag.valorColetado || ""),
+                              comissaoPercent: "10",
+                              custoServico: "",
+                              dataVenda: ag.dataHora ? new Date(ag.dataHora).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+                              servicos: servs,
+                              formaPagamento: ag.formaPagamento || "",
+                              observacoes: ag.observacoes || "",
+                              parcelasQtd: ag.parcelasQtd || 0,
+                              datesVencimento: [],
+                              // guardar campos especiais do agendamento
+                              _status: ag.status,
+                              _resultouVenda: ag.resultouVenda || false,
+                              _vaiFechar: (ag as any).vaiFechar || false,
+                              _comprovanteUrl: ag.comprovanteUrl || "",
+                            } as any);
+                            setOpenEdit(ag);
+                          }}
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </Button>
                         {user?.role === "admin" && (
                           <Button variant="outline" size="sm" className="h-8 w-8 p-0 text-red-600 border-red-200 hover:bg-red-50"
                             onClick={() => { if (confirm("Remover agendamento?")) deleteMutation.mutate({ id: ag.id }); }}>
@@ -487,6 +442,17 @@ export default function Agendamentos() {
           </div>
         </DialogContent>
       </Dialog>
+      {/* Modal de Edição de Venda */}
+      <ModalEditarVenda
+        open={!!openEdit}
+        onClose={() => setOpenEdit(null)}
+        venda={editForm}
+        consultores={consultores}
+        showConsultor={false}
+        isSaving={updateMutation.isPending}
+        title="Editar Agendamento"
+        onSave={handleUpdate}
+      />
     </LifeDashboardLayout>
   );
 }
