@@ -302,30 +302,29 @@ export default function LifeDashboardLayout({ children, title }: LifeDashboardLa
           const Icon = item.icon;
           const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
           return (
-            <Link key={item.href} href={item.href}>
-              <a
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group ${isActive ? "text-white shadow-sm" : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] hover:text-white"}`}
-                style={isActive ? { background: "var(--ls-blue)" } : {}}
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Icon className="w-4 h-4 flex-shrink-0" />
-                <span className="flex-1">{item.label}</span>
-                {isActive && <ChevronRight className="w-3 h-3 opacity-60" />}
-              </a>
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group ${isActive ? "text-white shadow-sm" : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] hover:text-white"}`}
+              style={isActive ? { background: "var(--ls-blue)" } : {}}
+              onClick={() => setSidebarOpen(false)}
+            >
+              <Icon className="w-4 h-4 flex-shrink-0" />
+              <span className="flex-1">{item.label}</span>
+              {isActive && <ChevronRight className="w-3 h-3 opacity-60" />}
             </Link>
           );
         })}
 
         {!isAdmin && (
-          <Link href="/painel">
-            <a
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${location === "/painel" ? "text-white shadow-sm" : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] hover:text-white"}`}
-              style={location === "/painel" ? { background: "var(--ls-blue)" } : {}}
-              onClick={() => setSidebarOpen(false)}
-            >
-              <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
-              <span>Meu Painel</span>
-            </a>
+          <Link
+            href="/painel"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${location === "/painel" ? "text-white shadow-sm" : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] hover:text-white"}`}
+            style={location === "/painel" ? { background: "var(--ls-blue)" } : {}}
+            onClick={() => setSidebarOpen(false)}
+          >
+            <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
+            <span>Meu Painel</span>
           </Link>
         )}
 

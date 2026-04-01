@@ -223,6 +223,14 @@ export async function getParcelasByVenda(vendaId: number) {
   return db.select().from(parcelas).where(eq(parcelas.vendaId, vendaId)).orderBy(parcelas.vencimento);
 }
 
+export async function getParcelasByVendaIds(vendaIds: number[]) {
+  const db = await getDb();
+  if (!db || vendaIds.length === 0) return [];
+  return db.select().from(parcelas)
+    .where(sql`${parcelas.vendaId} IN (${sql.join(vendaIds.map(id => sql`${id}`), sql`, `)})`)
+    .orderBy(parcelas.vencimento);
+}
+
 export async function getParcelasPendentes() {
   const db = await getDb();
   if (!db) return [];

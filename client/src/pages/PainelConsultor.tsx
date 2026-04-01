@@ -983,6 +983,14 @@ export default function PainelConsultor() {
                                 <p className="text-sm font-semibold" style={{ color: "#0055FF" }}>{formatCurrency(parseFloat(String(v.valorColetado || 0)))}</p>
                                 <p className="text-xs text-gray-400">Fat: {formatCurrency(parseFloat(String(v.valorFaturado || 0)))}</p>
                                 <p className="text-xs text-amber-600">Com: {formatCurrency((parseFloat(String(v.valorColetado || 0)) - parseFloat(String(v.custoServico || 0))) * parseFloat(String(v.comissaoPercent || 10)) / 100)}</p>
+                                {(() => {
+                                  const parcs = (v as any).parcelas || [];
+                                  const pendentes = parcs.filter((p: any) => p.status === 'pendente');
+                                  const futuro = pendentes.reduce((s: number, p: any) => s + parseFloat(String(p.valor || 0)), 0);
+                                  return futuro > 0 ? (
+                                    <p className="text-xs text-emerald-600 font-medium">A Rec: {formatCurrency(futuro)} ({pendentes.length}x)</p>
+                                  ) : null;
+                                })()} 
                               </div>
                               <div className="flex gap-1">
                                 <Button variant="outline" size="sm" className="h-7 px-1.5 text-blue-600 border-blue-200 hover:bg-blue-50 flex-shrink-0"

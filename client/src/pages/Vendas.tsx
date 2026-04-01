@@ -230,7 +230,9 @@ export default function Vendas() {
               const consultor = consultores?.find(c => c.id === venda.consultorId);
               const comissao = (parseFloat(String(venda.valorColetado || 0)) - parseFloat(String(venda.custoServico || 0))) * parseFloat(String(venda.comissaoPercent || 10)) / 100;
               const parcelas = (venda as any).parcelas || [];
-              const parcelasPagas = parcelas.filter((p: any) => p.pago).length;
+              const parcelasPagas = parcelas.filter((p: any) => p.status === 'pago').length;
+              const parcelasPendentes = parcelas.filter((p: any) => p.status === 'pendente');
+              const valorFuturo = parcelasPendentes.reduce((s: number, p: any) => s + parseFloat(String(p.valor || 0)), 0);
               return (
                 <Card key={venda.id} className="border-gray-200 hover:shadow-sm transition-shadow">
                   <CardContent className="p-4">
@@ -258,13 +260,20 @@ export default function Vendas() {
                             <span className="text-gray-500 text-xs">Comissão: </span>
                             <span className="font-medium text-amber-600">{formatCurrency(comissao)}</span>
                           </div>
+                          {valorFuturo > 0 && (
+                            <div className="text-sm">
+                              <span className="text-gray-500 text-xs">A Receber: </span>
+                              <span className="font-medium text-emerald-600">{formatCurrency(valorFuturo)}</span>
+                              <span className="text-gray-400 text-xs ml-1">({parcelasPendentes.length} parcela{parcelasPendentes.length !== 1 ? 's' : ''})</span>
+                            </div>
+                          )}
                         </div>
                         <button
                           onClick={() => setOpenGerenciarParcelas(venda)}
                           className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1"
                         >
                           <CreditCard className="w-3 h-3" />
-                          {parcelas.length > 0 ? `${parcelasPagas}/${parcelas.length} parcelas` : "Gerenciar Parcelas"}
+                          {parcelas.length > 0 ? `${parcelasPagas}/${parcelas.length} parcelas pagas` : "Gerenciar Parcelas"}
                         </button>
                       </div>
                       <div className="flex gap-1.5">

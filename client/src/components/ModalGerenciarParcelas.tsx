@@ -58,7 +58,9 @@ export default function ModalGerenciarParcelas({ vendaId, clienteNome, valorFatu
     utils.vendas.listByPeriod.invalidate();
     utils.parcelas.listPendentes.invalidate();
     utils.parcelas.devedores.invalidate();
+    utils.parcelas.listAll.invalidate();
     utils.dashboard.stats.invalidate();
+    utils.parcelas.vencendoHoje.invalidate();
     onUpdate?.();
   }
 

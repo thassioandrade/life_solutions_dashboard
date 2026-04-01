@@ -11,7 +11,7 @@ import { upsertUser } from "./db";
 import { getAllUsers, updateUserRole, updateUserAvatar, deleteUser,
   getAllConsultores, getConsultorById, getConsultorByEmail, createConsultor, updateConsultor, deleteConsultor,
   getVendasByPeriod, getVendasByConsultor, getVendasAtivasByClienteNome, createVenda, updateVenda, deleteVenda, cancelarVenda, getVendaById,
-  getParcelasByVenda, getParcelasPendentes, getParcelasByConsultor, createParcelas, updateParcela,
+  getParcelasByVenda, getParcelasByVendaIds, getParcelasPendentes, getParcelasByConsultor, createParcelas, updateParcela,
   getAgendamentosByPeriod, getAgendamentosByConsultor, createAgendamento, updateAgendamento, deleteAgendamento, getAgendamentoById,
   getMetricasByPeriod, getAllMetricas, createMetrica, updateMetrica, deleteMetrica,
   getDespesasByPeriod, createDespesa, updateDespesa, deleteDespesa,
@@ -169,10 +169,40 @@ export const appRouter = router({
   vendas: router({
     listByPeriod: protectedProcedure
       .input(z.object({ mes: z.number(), ano: z.number() }))
-      .query(async ({ input }) => getVendasByPeriod(input.mes, input.ano)),
+      .query(async ({ input }) => {
+        const vendasList = await getVendasByPeriod(input.mes, input.ano);
+        if (vendasList.length === 0) return [];
+        // Buscar todas as parcelas das vendas do período em uma única query
+        const vendaIds = vendasList.map(v => v.id);
+        const todasParcelas = await getParcelasByVendaIds(vendaIds);
+        // Agrupar parcelas por vendaId
+        const parcelasPorVenda = new Map<number, typeof todasParcelas>();
+        for (const p of todasParcelas) {
+          if (!parcelasPorVenda.has(p.vendaId)) parcelasPorVenda.set(p.vendaId, []);
+          parcelasPorVenda.get(p.vendaId)!.push(p);
+        }
+        return vendasList.map(v => ({
+          ...v,
+          parcelas: parcelasPorVenda.get(v.id) || [],
+        }));
+      }),
     listByConsultor: protectedProcedure
       .input(z.object({ consultorId: z.number(), mes: z.number(), ano: z.number() }))
-      .query(async ({ input }) => getVendasByConsultor(input.consultorId, input.mes, input.ano)),
+      .query(async ({ input }) => {
+        const vendasList = await getVendasByConsultor(input.consultorId, input.mes, input.ano);
+        if (vendasList.length === 0) return [];
+        const vendaIds = vendasList.map(v => v.id);
+        const todasParcelas = await getParcelasByVendaIds(vendaIds);
+        const parcelasPorVenda = new Map<number, typeof todasParcelas>();
+        for (const p of todasParcelas) {
+          if (!parcelasPorVenda.has(p.vendaId)) parcelasPorVenda.set(p.vendaId, []);
+          parcelasPorVenda.get(p.vendaId)!.push(p);
+        }
+        return vendasList.map(v => ({
+          ...v,
+          parcelas: parcelasPorVenda.get(v.id) || [],
+        }));
+      }),
     create: protectedProcedure
       .input(z.object({
         clienteNome: z.string().min(1),
