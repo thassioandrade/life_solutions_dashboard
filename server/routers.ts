@@ -560,12 +560,12 @@ export const appRouter = router({
         comprovanteUrl: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
-        // Ao marcar como recebido, muda status para pago (visível no Admin também)
+        // Ao marcar como recebido, muda status para aguardando_confirmacao
+        // O admin precisa confirmar (dar baixa) para o status virar 'pago'
         await updateParcela(input.id, {
           okConsultor: input.ok,
           dataOkConsultor: input.ok ? new Date() : undefined,
-          status: input.ok ? "pago" : "pendente",
-          dataPagamento: input.ok ? new Date() : undefined,
+          status: input.ok ? "aguardando_confirmacao" : "pendente",
           formaPagamento: input.formaPagamento || undefined,
           comprovanteUrl: input.comprovanteUrl || undefined,
         });
@@ -587,7 +587,7 @@ export const appRouter = router({
       .input(z.object({ consultorId: z.number() }))
       .query(async ({ input }) => getParcelasFuturasConsultor(input.consultorId)),
     atualizarStatus: protectedProcedure
-      .input(z.object({ id: z.number(), status: z.enum(["pendente", "pago", "atrasado"]) }))
+      .input(z.object({ id: z.number(), status: z.enum(["pendente", "pago", "atrasado", "aguardando_confirmacao"]) }))
       .mutation(async ({ input }) => {
         await updateParcela(input.id, { status: input.status });
         return { success: true };
@@ -704,8 +704,7 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) return [];
         const { parcelas: parcelasTable, vendas: vendasTable } = await import("../drizzle/schema");
-        const { eq, and, inArray } = await import("drizzle-orm");
-
+         const { eq, and, inArray, sql } = await import("drizzle-orm");
         const vendasDoConsultor = await db.select({ id: vendasTable.id })
           .from(vendasTable)
           .where(and(eq(vendasTable.consultorId, input.consultorId), eq(vendasTable.cancelada, false)));
@@ -735,7 +734,8 @@ export const appRouter = router({
           .innerJoin(vendasTable, eq(parcelasTable.vendaId, vendasTable.id))
           .where(and(
             inArray(parcelasTable.vendaId, ids),
-            eq(parcelasTable.status, "pendente"),
+            // Mostrar pendentes E aguardando_confirmacao (consultor vê ambos)
+            sql`${parcelasTable.status} IN ('pendente', 'aguardando_confirmacao')`,
           ))
           .orderBy(parcelasTable.vencimento);
       }),

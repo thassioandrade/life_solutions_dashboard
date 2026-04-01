@@ -89,7 +89,7 @@ export default function Dashboard() {
   }, [todasParcelas, filtroConsultorParcelas]);
 
   const devedoresAdmin = useMemo(() => {
-    const atrasadas = parcelasFiltradas.filter((p: any) => p.status === 'pendente' && diasAtrasoAdmin(p.vencimento) > 0);
+    const atrasadas = parcelasFiltradas.filter((p: any) => (p.status === 'pendente' || p.status === 'aguardando_confirmacao') && diasAtrasoAdmin(p.vencimento) > 0);
     const map = new Map<string, { nome: string; cpf?: string; telefone?: string; consultorNome?: string; totalDevido: number; maxAtraso: number; parcelas: any[] }>();
     for (const p of atrasadas) {
       const key = p.clienteNome || 'Desconhecido';
@@ -102,7 +102,7 @@ export default function Dashboard() {
     return Array.from(map.values()).sort((a, b) => b.maxAtraso - a.maxAtraso);
   }, [parcelasFiltradas]);
 
-  const parcelasPendentes = useMemo(() => parcelasFiltradas.filter((p: any) => p.status === 'pendente'), [parcelasFiltradas]);
+  const parcelasPendentes = useMemo(() => parcelasFiltradas.filter((p: any) => p.status === 'pendente' || p.status === 'aguardando_confirmacao'), [parcelasFiltradas]);
 
   const qtdLimpaAdmin = (servicosVendidos || []).filter(v => (v.servicos as string[] | null)?.some(s => s.toLowerCase().includes("limpa"))).length;
   const qtdRatingAdmin = (servicosVendidos || []).filter(v => (v.servicos as string[] | null)?.some(s => s.toLowerCase().includes("rating"))).length;
@@ -255,6 +255,35 @@ export default function Dashboard() {
               </div>
             )}
 
+            {/* Card de Parcelas Aguardando Baixa */}
+            {(() => {
+              const aguardando = parcelasFiltradas.filter((p: any) => p.status === 'aguardando_confirmacao');
+              if (aguardando.length === 0) return null;
+              const totalAguardando = aguardando.reduce((s: number, p: any) => s + parseFloat(String(p.valor || 0)), 0);
+              return (
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                      <CreditCard className="w-4 h-4 text-blue-700" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Aguardando Confirmação de Baixa</p>
+                      <p className="text-xs text-blue-500">{aguardando.length} parcela{aguardando.length !== 1 ? 's' : ''} — consultor(a) marcou como recebida</p>
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-blue-800">{formatCurrency(totalAguardando)}</p>
+                  <div className="mt-2 space-y-1">
+                    {aguardando.slice(0, 5).map((p: any) => (
+                      <div key={p.id} className="flex justify-between text-xs bg-white rounded px-2 py-1 border border-blue-100">
+                        <span className="font-medium text-gray-700">{p.clienteNome || `Parcela #${p.id}`} — {p.consultorNome || '—'}</span>
+                        <span className="font-bold text-blue-700">{formatCurrency(parseFloat(String(p.valor || 0)))}</span>
+                      </div>
+                    ))}
+                    {aguardando.length > 5 && <p className="text-xs text-blue-500 text-center">+{aguardando.length - 5} mais — veja em Parcelas</p>}
+                  </div>
+                </div>
+              );
+            })()}
             {/* Serviços vendidos com exportação Excel */}
             {(qtdLimpaAdmin > 0 || qtdRatingAdmin > 0) && (
               <div className="grid grid-cols-2 gap-3">
@@ -451,7 +480,7 @@ export default function Dashboard() {
                 </div>
                 <div className="rounded-xl border p-3 bg-red-50 border-red-200">
                   <p className="text-xs font-medium text-red-700 uppercase tracking-wide">Em Atraso</p>
-                  <p className="text-xl font-bold text-red-800 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parcelasFiltradas.filter((p: any) => p.status === 'pendente' && diasAtrasoAdmin(p.vencimento) > 0).reduce((s: number, p: any) => s + parseFloat(String(p.valor || 0)), 0))}</p>
+                  <p className="text-xl font-bold text-red-800 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parcelasFiltradas.filter((p: any) => (p.status === 'pendente' || p.status === 'aguardando_confirmacao') && diasAtrasoAdmin(p.vencimento) > 0).reduce((s: number, p: any) => s + parseFloat(String(p.valor || 0)), 0))}</p>
                   <p className="text-xs text-red-600 mt-0.5">{devedoresAdmin.length} devedor{devedoresAdmin.length !== 1 ? 'es' : ''}</p>
                 </div>
                 <div className="rounded-xl border p-3 bg-green-50 border-green-200">

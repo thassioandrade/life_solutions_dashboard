@@ -72,8 +72,11 @@ export default function Parcelas() {
       utils.parcelas.listPendentes.invalidate();
       utils.parcelas.devedores.invalidate();
       utils.parcelas.vencendoHoje.invalidate();
+      utils.parcelas.listAll.invalidate();
+      utils.parcelas.coletadoAdmin.invalidate();
       utils.dashboard.stats.invalidate();
       utils.parcelas.coletadoByConsultor.invalidate();
+      utils.parcelas.pendentesConsultor.invalidate();
     },
     onError: (e) => toast.error("Erro ao dar baixa: " + e.message),
   });
@@ -95,9 +98,10 @@ export default function Parcelas() {
       list = list.filter(p => (p as any).consultorId === cId);
     }
     if (filtro === "pagas") return list.filter(p => p.status === "pago");
-    if (filtro === "pendentes") return list.filter(p => p.status === "pendente" && calcDiasAtraso(p.vencimento) <= 0);
-    if (filtro === "atrasadas") return list.filter(p => p.status === "pendente" && calcDiasAtraso(p.vencimento) > 0);
-    if (filtro === "vencendo_hoje") return list.filter(p => p.status === "pendente" && calcDiasAtraso(p.vencimento) === 0);
+    const isNaoPago = (p: any) => p.status === "pendente" || p.status === "aguardando_confirmacao";
+    if (filtro === "pendentes") return list.filter(p => isNaoPago(p) && calcDiasAtraso(p.vencimento) <= 0);
+    if (filtro === "atrasadas") return list.filter(p => isNaoPago(p) && calcDiasAtraso(p.vencimento) > 0);
+    if (filtro === "vencendo_hoje") return list.filter(p => isNaoPago(p) && calcDiasAtraso(p.vencimento) === 0);
     return list;
   }, [parcelas, filtro, filtroConsultor]);
 
@@ -137,8 +141,9 @@ export default function Parcelas() {
     return devedores.filter(d => d.consultorId === cId);
   }, [devedores, filtroConsultor]);
 
-  const pendentes = parcelas?.filter(p => p.status === "pendente" && calcDiasAtraso(p.vencimento) <= 0) || [];
-  const atrasadas = parcelas?.filter(p => p.status === "pendente" && calcDiasAtraso(p.vencimento) > 0) || [];
+  const isNaoPagoGlobal = (p: any) => p.status === "pendente" || p.status === "aguardando_confirmacao";
+  const pendentes = parcelas?.filter(p => isNaoPagoGlobal(p) && calcDiasAtraso(p.vencimento) <= 0) || [];
+  const atrasadas = parcelas?.filter(p => isNaoPagoGlobal(p) && calcDiasAtraso(p.vencimento) > 0) || [];
   const vencendoHoje = parcelasVencendo || [];
   const totalPendente = pendentes.reduce((s, p) => s + parseFloat(String(p.valor || 0)), 0);
   const totalAtrasado = atrasadas.reduce((s, p) => s + parseFloat(String(p.valor || 0)), 0);
@@ -354,16 +359,19 @@ export default function Parcelas() {
                 <div className="space-y-2">
                   {parcelasFiltradas.map((p) => {
                     const atraso = calcDiasAtraso(p.vencimento);
-                    const isAtrasada = p.status === "pendente" && atraso > 0;
-                    const isHoje = p.status === "pendente" && atraso === 0;
+                    const isAguardando = p.status === "aguardando_confirmacao";
+                    const isNaoPago = p.status === "pendente" || isAguardando;
+                    const isAtrasada = isNaoPago && atraso > 0;
+                    const isHoje = isNaoPago && atraso === 0;
                     const consultor = consultores?.find(c => c.id === (p as any).consultorId);
                     return (
-                      <div key={p.id} className={`flex items-center justify-between py-2.5 px-3 rounded-lg border transition-all ${isAtrasada ? "border-red-200 bg-red-50" : isHoje ? "border-amber-200 bg-amber-50" : p.status === "pago" ? "border-emerald-200 bg-emerald-50/50" : "border-gray-100 hover:bg-gray-50"}`}>
+                      <div key={p.id} className={`flex items-center justify-between py-2.5 px-3 rounded-lg border transition-all ${isAtrasada ? "border-red-200 bg-red-50" : isHoje ? "border-amber-200 bg-amber-50" : p.status === "pago" ? "border-emerald-200 bg-emerald-50/50" : isAguardando ? "border-blue-200 bg-blue-50" : "border-gray-100 hover:bg-gray-50"}`}>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-sm font-medium text-gray-800 truncate">{(p as any).clienteNome || `Parcela #${p.id}`}</p>
                             {isAtrasada && <Badge className="text-[10px] bg-red-100 text-red-700 border-red-200">{atraso}d atraso</Badge>}
                             {isHoje && <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200">Vence hoje</Badge>}
+                            {isAguardando && <Badge className="text-[10px] bg-blue-100 text-blue-700 border-blue-200">⏳ Aguardando Baixa</Badge>}
                             {p.status === "pago" && <Badge className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200">Pago</Badge>}
                           </div>
                           <div className="flex items-center gap-3 mt-0.5 flex-wrap text-xs text-gray-500">
@@ -373,13 +381,14 @@ export default function Parcelas() {
                             </span>
                             {(p as any).clienteTelefone && <span>{(p as any).clienteTelefone}</span>}
                             {consultor && <span className="text-gray-400">{consultor.nome}</span>}
+                            {isAguardando && <span className="text-blue-600 font-medium">Consultor marcou como recebido</span>}
                             {p.status === "pago" && (p as any).valorPago && parseFloat(String((p as any).valorPago)) !== parseFloat(String(p.valor)) && (
                               <span className="text-emerald-600 font-medium">Pago: {formatCurrency(parseFloat(String((p as any).valorPago)))}</span>
                             )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-                          <span className={`text-sm font-bold ${isAtrasada ? "text-red-600" : p.status === "pago" ? "text-emerald-600" : "text-amber-600"}`}>
+                          <span className={`text-sm font-bold ${isAtrasada ? "text-red-600" : p.status === "pago" ? "text-emerald-600" : isAguardando ? "text-blue-600" : "text-amber-600"}`}>
                             {formatCurrency(parseFloat(String(p.valor || 0)))}
                           </span>
                           {p.status === "pendente" && (
@@ -394,6 +403,13 @@ export default function Parcelas() {
                                 Dar Baixa
                               </Button>
                             </>
+                          )}
+                          {isAguardando && (
+                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white h-7 text-xs gap-1"
+                              onClick={() => abrirModalBaixa(p)}>
+                              <DollarSign className="w-3 h-3" />
+                              Confirmar Baixa
+                            </Button>
                           )}
                           {p.status === "pago" && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
                         </div>

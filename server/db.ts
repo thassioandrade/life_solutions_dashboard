@@ -234,7 +234,10 @@ export async function getParcelasByVendaIds(vendaIds: number[]) {
 export async function getParcelasPendentes() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(parcelas).where(eq(parcelas.status, "pendente")).orderBy(parcelas.vencimento);
+  // Inclui pendentes E aguardando_confirmacao (consultor marcou como recebido, aguardando baixa do admin)
+  return db.select().from(parcelas)
+    .where(sql`${parcelas.status} IN ('pendente', 'aguardando_confirmacao')`)
+    .orderBy(parcelas.vencimento);
 }
 
 export async function getParcelasByConsultor(consultorId: number) {
@@ -544,12 +547,11 @@ export async function getParcelasVencidas() {
     .from(parcelas)
     .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
     .where(and(
-      eq(parcelas.status, "pendente"),
+      sql`${parcelas.status} IN ('pendente', 'aguardando_confirmacao')`,
       lte(parcelas.vencimento, hoje),
     ))
     .orderBy(parcelas.vencimento);
 }
-
 export async function getParcelasVencendoHoje() {
   const db = await getDb();
   if (!db) return [];

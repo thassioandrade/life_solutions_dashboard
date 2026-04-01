@@ -152,6 +152,8 @@ export default function Promessas() {
       toast.success("Promessa registrada com sucesso!");
       utils.promessas.list.invalidate();
       utils.promessas.hoje.invalidate();
+      utils.promessas.listByConsultor.invalidate();
+      utils.promessas.hojeByConsultor.invalidate();
       setModalAberto(false);
       setForm(FORM_VAZIO);
     },
@@ -163,6 +165,8 @@ export default function Promessas() {
       toast.success("Promessa atualizada!");
       utils.promessas.list.invalidate();
       utils.promessas.hoje.invalidate();
+      utils.promessas.listByConsultor.invalidate();
+      utils.promessas.hojeByConsultor.invalidate();
       utils.vendas.listByPeriod.invalidate();
       setModalAberto(false);
       setModalPagamento(null);
@@ -178,6 +182,8 @@ export default function Promessas() {
       toast.success("Promessa removida.");
       utils.promessas.list.invalidate();
       utils.promessas.hoje.invalidate();
+      utils.promessas.listByConsultor.invalidate();
+      utils.promessas.hojeByConsultor.invalidate();
     },
     onError: (e) => toast.error("Erro: " + e.message),
   });

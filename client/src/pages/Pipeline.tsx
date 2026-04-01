@@ -405,11 +405,18 @@ export default function Pipeline() {
   const { data: colunas, refetch: refetchColunas } = trpc.pipeline.getColunas.useQuery();
   const { data: leads, refetch: refetchLeads } = trpc.pipeline.getLeads.useQuery({ mes, ano });
   const { data: consultores } = trpc.consultores.list.useQuery();
-  const { data: promessasPipeline } = trpc.promessas.list.useQuery();
 
   // Identificar o consultor logado (para não-admins)
   const isAdmin = user?.role === "admin";
   const consultorLogado = consultores?.find(c => c.email === user?.email);
+
+  // Promessas: admin busca todas, consultor busca apenas as suas
+  const { data: promessasPipelineAdmin } = trpc.promessas.list.useQuery(undefined, { enabled: isAdmin });
+  const { data: promessasPipelineConsultor } = trpc.promessas.listByConsultor.useQuery(
+    { consultorId: consultorLogado?.id || 0 },
+    { enabled: !isAdmin && !!consultorLogado?.id }
+  );
+  const promessasPipeline = isAdmin ? promessasPipelineAdmin : promessasPipelineConsultor;
 
   // Promessas pendentes para a coluna Vai Fechar
   const promessasPendentes = (promessasPipeline || []).filter((p: any) => p.status === "pendente");

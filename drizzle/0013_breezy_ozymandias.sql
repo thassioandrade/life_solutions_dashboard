@@ -1,0 +1,1 @@
+ALTER TABLE `parcelas` MODIFY COLUMN `status` enum('pendente','pago','atrasado','aguardando_confirmacao') NOT NULL DEFAULT 'pendente';

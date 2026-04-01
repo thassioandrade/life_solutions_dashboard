@@ -84,7 +84,7 @@ export const parcelas = mysqlTable("parcelas", {
   vendaId: int("vendaId").notNull(),
   valor: decimal("valor", { precision: 10, scale: 2 }).notNull(),
   vencimento: timestamp("vencimento").notNull(),
-  status: mysqlEnum("status", ["pendente", "pago", "atrasado"]).default("pendente").notNull(),
+  status: mysqlEnum("status", ["pendente", "pago", "atrasado", "aguardando_confirmacao"]).default("pendente").notNull(),
   dataPagamento: timestamp("dataPagamento"),
   comprovanteUrl: text("comprovanteUrl"),
   formaPagamento: varchar("formaPagamento", { length: 50 }),

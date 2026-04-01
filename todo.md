@@ -401,3 +401,25 @@
 - [x] Modal de gestão de parcelas na aba Vendas (Admin) — visualizar, adicionar, editar, excluir parcelas com datas de vencimento
 - [x] Modal de gestão de parcelas na aba Serviços Vendidos — mesma funcionalidade
 - [x] Parcelas refletindo em todo o dashboard (coletado parcelas, a receber, comissão parcelas)
+
+## Correções de Bugs v7 (Abr 2026) - Fluxo de Confirmação de Parcelas e Isolamento de Dados
+
+### Fluxo de Confirmação de Parcelas (okConsultor → aguardando_confirmacao → admin confirma → pago)
+- [x] Backend: okConsultor agora muda status para 'aguardando_confirmacao' em vez de 'pago'
+- [x] Backend: pendentesConsultor inclui status 'aguardando_confirmacao' (consultor vê ambos)
+- [x] Backend: getParcelasPendentes (admin) inclui 'aguardando_confirmacao' na listagem
+- [x] Backend: getParcelasVencidas inclui 'aguardando_confirmacao' na listagem de devedores
+- [x] Frontend Parcelas.tsx: badge "⏳ Aguardando Baixa" (azul) para parcelas aguardando confirmação
+- [x] Frontend Parcelas.tsx: botão "Confirmar Baixa" (azul) para admin confirmar parcelas aguardando
+- [x] Frontend Parcelas.tsx: filtros de pendentes/atrasadas incluem 'aguardando_confirmacao'
+- [x] Frontend PainelConsultor.tsx: badge "⏳ Aguardando" para parcelas aguardando confirmação
+- [x] Frontend PainelConsultor.tsx: botão "Recebi" só aparece para status 'pendente' (não para 'aguardando')
+- [x] Frontend PainelConsultor.tsx: mensagem toast atualizada para informar que aguarda confirmação do admin
+- [x] Frontend PainelConsultor.tsx: okConsultorMutation invalida pendentesConsultor
+- [x] Frontend Parcelas.tsx: baixarMutation invalida coletadoAdmin e listAll após dar baixa
+- [x] Frontend Dashboard.tsx: card "Aguardando Confirmação de Baixa" com lista de parcelas pendentes de confirmação
+- [x] Frontend Dashboard.tsx: filtros de devedores e parcelas pendentes incluem 'aguardando_confirmacao'
+
+### Isolamento de Dados por Consultor (Pipeline e Promessas)
+- [x] Frontend Pipeline.tsx: promessas filtradas por consultor logado (não-admin vê apenas as próprias)
+- [x] Frontend Promessas.tsx: mutations invalidam listByConsultor e hojeByConsultor após criar/editar/excluir

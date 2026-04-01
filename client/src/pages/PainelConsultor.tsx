@@ -227,9 +227,10 @@ export default function PainelConsultor() {
     onSuccess: () => {
       utils.parcelasCompletas.byConsultor.invalidate();
       utils.parcelas.coletadoByConsultor.invalidate();
+      utils.parcelas.pendentesConsultor.invalidate();
       setModalPagamentoParcela(null);
       setPagParcelaForm({ formaPagamento: "", comprovanteUrl: "", comprovanteFile: null });
-      toast.success("Parcela marcada como recebida!");
+      toast.success("⏳ Parcela marcada como recebida! Aguardando confirmação do administrador.");
     },
     onError: (e) => toast.error("Erro: " + e.message),
   });
@@ -341,8 +342,9 @@ export default function PainelConsultor() {
     if (!parcelasCompletas) return [];
     return parcelasCompletas.filter(p => {
       if (filtroParcelas === "pagas") return p.status === "pago";
-      if (filtroParcelas === "pendentes") return p.status === "pendente" && diasAtraso(p.vencimento) <= 0;
-      if (filtroParcelas === "atrasadas") return p.status === "pendente" && diasAtraso(p.vencimento) > 0;
+      const isPendente = p.status === "pendente" || p.status === "aguardando_confirmacao";
+      if (filtroParcelas === "pendentes") return isPendente && diasAtraso(p.vencimento) <= 0;
+      if (filtroParcelas === "atrasadas") return isPendente && diasAtraso(p.vencimento) > 0;
       return true;
     });
   }, [parcelasCompletas, filtroParcelas]);
@@ -1063,21 +1065,24 @@ export default function PainelConsultor() {
                     <div className="space-y-2">
                       {parcelasFiltradas.map(p => {
                         const atraso = diasAtraso(p.vencimento);
-                        const isAtrasada = p.status === "pendente" && atraso > 0;
-                        const isHoje = p.status === "pendente" && atraso === 0;
+                        const isPendente = p.status === "pendente" || p.status === "aguardando_confirmacao";
+                        const isAguardando = p.status === "aguardando_confirmacao";
+                        const isAtrasada = isPendente && atraso > 0;
+                        const isHoje = isPendente && atraso === 0;
                         return (
-                          <div key={p.id} className={`flex items-center justify-between py-2.5 px-3 rounded-lg border ${isAtrasada ? "border-red-200 bg-red-50" : isHoje ? "border-amber-200 bg-amber-50" : p.status === "pago" ? "border-emerald-200 bg-emerald-50/50" : "border-gray-100"}`}>
+                          <div key={p.id} className={`flex items-center justify-between py-2.5 px-3 rounded-lg border ${isAtrasada ? "border-red-200 bg-red-50" : isHoje ? "border-amber-200 bg-amber-50" : p.status === "pago" ? "border-emerald-200 bg-emerald-50/50" : isAguardando ? "border-blue-200 bg-blue-50" : "border-gray-100"}`}>
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-medium text-gray-800 truncate">{p.clienteNome}</p>
                               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                 <span className="text-xs text-gray-500">Venc: {new Date(p.vencimento).toLocaleDateString("pt-BR")}</span>
                                 {isAtrasada && <span className="text-xs font-medium text-red-600">{atraso}d atrasado</span>}
                                 {isHoje && <span className="text-xs font-medium text-amber-600">Vence hoje</span>}
+                                {isAguardando && <span className="text-xs font-medium text-blue-600">Aguardando admin</span>}
                                 {p.status === "pago" && p.dataPagamento && <span className="text-xs text-emerald-600">Pago em {new Date(p.dataPagamento).toLocaleDateString("pt-BR")}</span>}
                               </div>
                             </div>
                             <div className="flex items-center gap-3 ml-2 flex-shrink-0">
-                              <p className={`text-sm font-semibold ${isAtrasada ? "text-red-700" : p.status === "pago" ? "text-emerald-700" : "text-gray-800"}`}>
+                              <p className={`text-sm font-semibold ${isAtrasada ? "text-red-700" : p.status === "pago" ? "text-emerald-700" : isAguardando ? "text-blue-700" : "text-gray-800"}`}>
                                 {formatCurrency(parseFloat(String(p.valor || 0)))}
                               </p>
                               {p.status === "pendente" && (
@@ -1087,6 +1092,11 @@ export default function PainelConsultor() {
                                 >
                                   Recebi
                                 </button>
+                              )}
+                              {isAguardando && (
+                                <span className="text-xs px-2 py-1 rounded-lg bg-blue-50 border border-blue-300 text-blue-700 font-medium">
+                                  ⏳ Aguardando
+                                </span>
                               )}
                               {p.status === "pago" && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
                             </div>
