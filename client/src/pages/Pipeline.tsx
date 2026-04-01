@@ -407,6 +407,10 @@ export default function Pipeline() {
   const { data: consultores } = trpc.consultores.list.useQuery();
   const { data: promessasPipeline } = trpc.promessas.list.useQuery();
 
+  // Identificar o consultor logado (para não-admins)
+  const isAdmin = user?.role === "admin";
+  const consultorLogado = consultores?.find(c => c.email === user?.email);
+
   // Promessas pendentes para a coluna Vai Fechar
   const promessasPendentes = (promessasPipeline || []).filter((p: any) => p.status === "pendente");
 
@@ -505,20 +509,29 @@ export default function Pipeline() {
   const handleCreateLead = (e: React.FormEvent) => {
     e.preventDefault();
     if (!leadForm.nome || !selectedColuna) { toast.error("Preencha o nome"); return; }
+    // Para não-admins, usar automaticamente o consultorId do usuário logado
+    const consultorIdFinal = !isAdmin && consultorLogado
+      ? consultorLogado.id
+      : (leadForm.consultorId ? parseInt(leadForm.consultorId) : undefined);
     createLeadMutation.mutate({
       colunaId: selectedColuna,
       nome: leadForm.nome,
       telefone: leadForm.telefone || undefined,
       email: leadForm.email || undefined,
       valor: leadForm.valor ? parseFloat(leadForm.valor) : undefined,
-      consultorId: leadForm.consultorId ? parseInt(leadForm.consultorId) : undefined,
+      consultorId: consultorIdFinal,
       observacoes: leadForm.observacoes || undefined,
       mes, ano,
     });
   };
 
-  // Filtro de leads
+  // Filtro de leads: não-admins só veem os próprios leads
   const leadsVisiveis = leads?.filter(l => {
+    // Se não for admin, filtrar apenas os leads do consultor logado
+    if (!isAdmin && consultorLogado) {
+      return l.consultorId === consultorLogado.id;
+    }
+    // Admin pode filtrar por consultor específico
     if (filtroConsultor === "todos") return true;
     return String(l.consultorId) === filtroConsultor;
   }) || [];
