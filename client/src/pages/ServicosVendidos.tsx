@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, Download, AlertTriangle, CheckCircle2 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
@@ -24,6 +25,8 @@ function diasAtraso(vencimento: Date | string) {
 }
 
 export default function ServicosVendidos() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const now = new Date();
   const [mes, setMes] = useState(now.getMonth() + 1);
   const [ano, setAno] = useState(now.getFullYear());
@@ -31,8 +34,21 @@ export default function ServicosVendidos() {
   const [abaAtiva, setAbaAtiva] = useState<"servicos" | "devedores">("servicos");
   const [openGerenciarParcelas, setOpenGerenciarParcelas] = useState<any | null>(null);
 
-  const { data: servicosVendidos, isLoading } = trpc.servicosVendidos.byPeriodo.useQuery({ mes, ano });
-  const { data: consultores } = trpc.consultores.list.useQuery();
+  const { data: todosConsultores } = trpc.consultores.list.useQuery();
+  const consultorLogado = todosConsultores?.find(c => c.email === user?.email);
+  const consultorLogadoId = consultorLogado?.id;
+
+  // Admin vê todos; consultor vê apenas os próprios
+  const { data: servicosAdmin, isLoading: loadingAdmin } = trpc.servicosVendidos.byPeriodo.useQuery(
+    { mes, ano }, { enabled: isAdmin }
+  );
+  const { data: servicosConsultor, isLoading: loadingConsultor } = trpc.servicosVendidos.byConsultor.useQuery(
+    { consultorId: consultorLogadoId || 0, mes, ano },
+    { enabled: !isAdmin && !!consultorLogadoId }
+  );
+  const servicosVendidos = isAdmin ? servicosAdmin : servicosConsultor;
+  const isLoading = isAdmin ? loadingAdmin : loadingConsultor;
+  const consultores = isAdmin ? todosConsultores : undefined;
   const { data: parcelasVencidas } = trpc.parcelas.devedores.useQuery();
   const { data: custosServicos } = trpc.custosServicos.get.useQuery();
 

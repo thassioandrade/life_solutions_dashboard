@@ -41,8 +41,22 @@ export default function Vendas() {
   const [editForm, setEditForm] = useState<VendaEditData | null>(null);
   const [openGerenciarParcelas, setOpenGerenciarParcelas] = useState<any | null>(null);
 
-  const { data: vendas, refetch } = trpc.vendas.listByPeriod.useQuery({ mes, ano });
-  const { data: consultores } = trpc.consultores.list.useQuery();
+  const isAdmin = user?.role === "admin";
+  const { data: todosConsultores } = trpc.consultores.list.useQuery();
+  const consultorLogado = todosConsultores?.find(c => c.email === user?.email);
+  const consultorLogadoId = consultorLogado?.id;
+
+  // Admin vê todos; consultor vê apenas os próprios
+  const { data: vendasAdmin, refetch: refetchAdmin } = trpc.vendas.listByPeriod.useQuery(
+    { mes, ano }, { enabled: isAdmin }
+  );
+  const { data: vendasConsultor, refetch: refetchConsultor } = trpc.vendas.listByConsultor.useQuery(
+    { consultorId: consultorLogadoId || 0, mes, ano },
+    { enabled: !isAdmin && !!consultorLogadoId }
+  );
+  const vendas = isAdmin ? vendasAdmin : vendasConsultor;
+  const refetch = isAdmin ? refetchAdmin : refetchConsultor;
+  const consultores = isAdmin ? todosConsultores : undefined;
 
   const createMutation = trpc.vendas.create.useMutation({
     onSuccess: () => { toast.success("Venda registrada!"); setOpenCreate(false); setForm({ clienteNome: "", clienteEmail: "", clienteCpfCnpj: "", tipo: "PF", valorFaturado: "", valorColetado: "", formaPagamento: "", qtdParcelas: "1", consultorId: "", comissaoPercent: "10", dataVenda: new Date().toISOString().split("T")[0], servicos: [], custoServico: "" }); refetch(); },
@@ -114,7 +128,12 @@ export default function Vendas() {
             <Button variant="outline" size="icon" onClick={() => { if(mes===12){setMes(1);setAno(ano+1);}else setMes(mes+1); }} className="h-8 w-8">
               <ChevronRight className="w-4 h-4" />
             </Button>
-            <Dialog open={openCreate} onOpenChange={setOpenCreate}>
+            <Dialog open={openCreate} onOpenChange={(open) => {
+              setOpenCreate(open);
+              if (open && !isAdmin && consultorLogadoId) {
+                setForm(f => ({ ...f, consultorId: String(consultorLogadoId) }));
+              }
+            }}>
               <DialogTrigger asChild>
                 <Button className="bg-blue-600 hover:bg-blue-700 text-white ml-2">
                   <Plus className="w-4 h-4 mr-1" /> Nova Venda
@@ -166,6 +185,7 @@ export default function Vendas() {
                       <Label>Qtd. Parcelas</Label>
                       <Input type="number" min="1" max="60" value={form.qtdParcelas} onChange={e => setForm({ ...form, qtdParcelas: e.target.value })} />
                     </div>
+                    {isAdmin && (
                     <div>
                       <Label>Consultor</Label>
                       <Select value={form.consultorId} onValueChange={v => setForm({ ...form, consultorId: v })}>
@@ -175,6 +195,7 @@ export default function Vendas() {
                         </SelectContent>
                       </Select>
                     </div>
+                    )}
                     <div>
                       <Label>Comissão (%)</Label>
                       <Input type="number" step="0.1" value={form.comissaoPercent} onChange={e => setForm({ ...form, comissaoPercent: e.target.value })} />

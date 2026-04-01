@@ -116,9 +116,27 @@ export default function Promessas() {
   const [uploadingComprovante, setUploadingComprovante] = useState(false);
 
   const utils = trpc.useUtils();
-  const { data: promessas, isLoading } = trpc.promessas.list.useQuery(undefined, { enabled: isAdmin });
-  const { data: consultores } = trpc.consultores.list.useQuery(undefined, { enabled: isAdmin });
-  const { data: promessasHoje } = trpc.promessas.hoje.useQuery(undefined, { enabled: isAdmin });
+  // Identificar o consultor logado (para não-admins)
+  const { data: todosConsultores } = trpc.consultores.list.useQuery();
+  const consultorLogado = todosConsultores?.find(c => c.email === user?.email);
+  const consultorLogadoId = consultorLogado?.id;
+
+  // Admin vê todos; consultor vê apenas os próprios
+  const { data: promessasAdmin, isLoading: loadingAdmin } = trpc.promessas.list.useQuery(undefined, { enabled: isAdmin });
+  const { data: promessasConsultor, isLoading: loadingConsultor } = trpc.promessas.listByConsultor.useQuery(
+    { consultorId: consultorLogadoId || 0 },
+    { enabled: !isAdmin && !!consultorLogadoId }
+  );
+  const promessas = isAdmin ? promessasAdmin : promessasConsultor;
+  const isLoading = isAdmin ? loadingAdmin : loadingConsultor;
+  const consultores = isAdmin ? todosConsultores : undefined;
+
+  const { data: promessasHojeAdmin } = trpc.promessas.hoje.useQuery(undefined, { enabled: isAdmin });
+  const { data: promessasHojeConsultor } = trpc.promessas.hojeByConsultor.useQuery(
+    { consultorId: consultorLogadoId || 0 },
+    { enabled: !isAdmin && !!consultorLogadoId }
+  );
+  const promessasHoje = isAdmin ? promessasHojeAdmin : promessasHojeConsultor;
 
   const updateVendaMut = trpc.vendas.update.useMutation({
     onSuccess: () => {

@@ -680,6 +680,7 @@ export async function getServicosVendidosByConsultor(consultorId: number, mes: n
     valorColetado: vendas.valorColetado,
     valorFaturado: vendas.valorFaturado,
     dataVenda: vendas.dataVenda,
+    consultorId: vendas.consultorId,
   })
     .from(vendas)
     .where(and(
