@@ -42,6 +42,7 @@ export default function Despesas() {
   const utils = trpc.useUtils();
   const { data: despesas } = trpc.despesas.listByPeriod.useQuery({ mes, ano });
   const { data: colaboradores } = trpc.despesas.colaboradores.list.useQuery();
+  const { data: consultoresList } = trpc.consultores.list.useQuery();
   const { data: dashFinanceiro } = trpc.dashboardFinanceiro.get.useQuery({ mes, ano });
   const { data: custosServicos } = trpc.custosServicos.get.useQuery();
   const { data: rankingData } = trpc.rankings.automatico.useQuery({ mes, ano });
@@ -70,7 +71,11 @@ export default function Despesas() {
   const qtdLimpaName = dashFinanceiro?.qtdLimpaName ?? 0;
   const qtdRating = dashFinanceiro?.qtdRating ?? 0;
   const totalCustosServicos = (qtdLimpaName * custoLimpaName) + (qtdRating * custoRating);
-  const totalSalarios = colaboradores?.reduce((s, c) => s + parseFloat(String(c.salario || 0)), 0) ?? 0;
+  // Salários: colaboradores fixos + consultoras com receberSalario=true
+  const salarioColaboradores = colaboradores?.reduce((s, c) => s + parseFloat(String(c.salario || 0)), 0) ?? 0;
+  const consultoraSalario = (consultoresList ?? []).filter((c: any) => c.receberSalario && c.ativo);
+  const salarioConsultoras = consultoraSalario.reduce((s: number, c: any) => s + parseFloat(String(c.salario || 0)), 0);
+  const totalSalarios = salarioColaboradores + salarioConsultoras;
   const totalCustosAvulsos = despesas?.reduce((s, d) => s + parseFloat(String(d.valor || 0)), 0) ?? 0;
   const totalComissoes = dashFinanceiro?.totalComissoes ?? 0;
   const totalGastos = totalCustosServicos + totalSalarios + totalCustosAvulsos + totalComissoes;
@@ -155,7 +160,7 @@ export default function Despesas() {
                 {[
                   { label: "Coletado Bruto", sub: "Receita do mês", val: totalColetado, color: "text-blue-600", prefix: "" },
                   { label: "(-) Custos de Serviços", sub: `${qtdLimpaName > 0 ? `${qtdLimpaName}x Limpa Nome (${fmt(qtdLimpaName * custoLimpaName)})` : ""}${qtdLimpaName > 0 && qtdRating > 0 ? " + " : ""}${qtdRating > 0 ? `${qtdRating}x Rating (${fmt(qtdRating * custoRating)})` : ""}${qtdLimpaName === 0 && qtdRating === 0 ? "Nenhum serviço" : ""}`, val: totalCustosServicos, color: "text-red-500", prefix: "- " },
-                  { label: "(-) Salários", sub: `${colaboradores?.length || 0} colaborador(es)`, val: totalSalarios, color: "text-red-500", prefix: "- " },
+                  { label: "(-) Salários", sub: `${(colaboradores?.length || 0) + consultoraSalario.length} pessoa(s) — ${colaboradores?.length || 0} colaborador(es) + ${consultoraSalario.length} consultora(s)`, val: totalSalarios, color: "text-red-500", prefix: "- " },
                   { label: "(-) Comissões", sub: "Pagas às consultoras", val: totalComissoes, color: "text-red-500", prefix: "- " },
                   { label: "(-) Custos Avulsos", sub: `${despesas?.length || 0} lançamento(s)`, val: totalCustosAvulsos, color: "text-red-500", prefix: "- " },
                 ].map((item, i) => (

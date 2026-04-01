@@ -429,3 +429,7 @@
 - [x] Dashboard Admin: ao confirmar baixa, abrir modal com valor pago e forma de pagamento (igual ao Parcelas.tsx)
 - [x] Dashboard Admin: após confirmar, atualizar cards "Coletado Parcelas" e "Comissão a Pagar" do mês
 - [x] Dashboard Admin: garantir que os 3 cards (Aguardando, Coletado Parcelas, Comissão a Pagar) aparecem juntos — sempre visíveis em grid de 3 colunas
+
+## Bug: Salário de Consultora não aparece em Despesas (Abr 2026)
+- [x] Investigar por que salário de consultora (receberSalario=true, R$1.600) aparece como R$0,00 em Salários no Despesas
+- [x] Corrigir cálculo de totalSalarios no Despesas.tsx para incluir consultoras com receberSalario=true (soma colaboradores + consultoras)
