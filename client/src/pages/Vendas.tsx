@@ -37,6 +37,7 @@ export default function Vendas() {
     consultorId: "", comissaoPercent: "10", dataVenda: new Date().toISOString().split("T")[0],
     servicos: [] as string[], custoServico: "",
   });
+  const [formDatesVencimento, setFormDatesVencimento] = useState<string[]>([]);
   const [openEdit, setOpenEdit] = useState<any | null>(null);
   const [editForm, setEditForm] = useState<VendaEditData | null>(null);
   const [openGerenciarParcelas, setOpenGerenciarParcelas] = useState<any | null>(null);
@@ -58,8 +59,10 @@ export default function Vendas() {
   const refetch = isAdmin ? refetchAdmin : refetchConsultor;
   const consultores = isAdmin ? todosConsultores : undefined;
 
+  const createParcelasMut = trpc.parcelas.create.useMutation({
+    onError: (e) => toast.error("Erro ao criar parcelas: " + e.message),
+  });
   const createMutation = trpc.vendas.create.useMutation({
-    onSuccess: () => { toast.success("Venda registrada!"); setOpenCreate(false); setForm({ clienteNome: "", clienteEmail: "", clienteCpfCnpj: "", tipo: "PF", valorFaturado: "", valorColetado: "", formaPagamento: "", qtdParcelas: "1", consultorId: "", comissaoPercent: "10", dataVenda: new Date().toISOString().split("T")[0], servicos: [], custoServico: "" }); refetch(); },
     onError: (e) => toast.error(e.message),
   });
   const updateMutation = trpc.vendas.update.useMutation({
@@ -88,26 +91,60 @@ export default function Vendas() {
     return s + ((coletado - custo) * pct);
   }, 0) || 0;
 
-  const handleCreate = (e: React.FormEvent<HTMLFormElement>): void => {
+  const handleCreate = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     if (!form.clienteNome || !form.valorFaturado) { toast.error("Preencha os campos obrigatórios"); return; }
-    // Calcular custo automaticamente baseado nos serviços selecionados
     const custoAuto = form.servicos.includes("limpa_nome") && form.servicos.includes("rating") ? 180
       : form.servicos.includes("limpa_nome") ? 70
       : form.servicos.includes("rating") ? 110 : 0;
-    createMutation.mutate({
-      clienteNome: form.clienteNome,
-      clienteCpfCnpj: form.clienteCpfCnpj || undefined,
-      tipo: form.tipo as "PF" | "PJ",
-      valorFaturado: parseFloat(form.valorFaturado),
-      valorColetado: parseFloat(form.valorColetado || form.valorFaturado),
-      parcelasRestantes: parseInt(form.qtdParcelas) || 1,
-      consultorId: form.consultorId ? parseInt(form.consultorId) : undefined,
-      comissaoPercent: parseFloat(form.comissaoPercent) || 10,
-      dataVenda: form.dataVenda,
-      servicos: form.servicos,
-      custoServico: form.custoServico ? parseFloat(form.custoServico) : custoAuto,
-    });
+    const faturado = parseFloat(form.valorFaturado);
+    const coletado = parseFloat(form.valorColetado || form.valorFaturado);
+    const qtdParcelas = parseInt(form.qtdParcelas) || 0;
+    try {
+      const vendaResult = await createMutation.mutateAsync({
+        clienteNome: form.clienteNome,
+        clienteCpfCnpj: form.clienteCpfCnpj || undefined,
+        tipo: form.tipo as "PF" | "PJ",
+        valorFaturado: faturado,
+        valorColetado: coletado,
+        parcelasRestantes: qtdParcelas,
+        consultorId: form.consultorId ? parseInt(form.consultorId) : undefined,
+        comissaoPercent: parseFloat(form.comissaoPercent) || 10,
+        dataVenda: form.dataVenda,
+        servicos: form.servicos,
+        custoServico: form.custoServico ? parseFloat(form.custoServico) : custoAuto,
+      });
+      const vendaId = vendaResult?.vendaId;
+      // Criar parcelas se houver parcelamento
+      if (vendaId && qtdParcelas > 0 && coletado < faturado) {
+        let dates = formDatesVencimento;
+        if (dates.length === 0) {
+          const hoje = new Date();
+          dates = Array.from({ length: qtdParcelas }, (_, i) => {
+            const d = new Date(hoje);
+            d.setMonth(d.getMonth() + i + 1);
+            return d.toISOString().split("T")[0];
+          });
+        }
+        const restante = faturado - coletado;
+        const valorParcela = restante / qtdParcelas;
+        if (valorParcela > 0) {
+          await createParcelasMut.mutateAsync({
+            vendaId,
+            parcelas: dates.map(d => ({ valor: valorParcela, vencimento: d })),
+          });
+          toast.success(`Venda registrada com ${qtdParcelas} parcela(s)!`);
+        }
+      } else {
+        toast.success("Venda registrada!");
+      }
+      setOpenCreate(false);
+      setForm({ clienteNome: "", clienteEmail: "", clienteCpfCnpj: "", tipo: "PF", valorFaturado: "", valorColetado: "", formaPagamento: "", qtdParcelas: "1", consultorId: "", comissaoPercent: "10", dataVenda: new Date().toISOString().split("T")[0], servicos: [], custoServico: "" });
+      setFormDatesVencimento([]);
+      refetch();
+    } catch (err) {
+      console.error("Erro ao criar venda:", err);
+    }
   };
 
   return (
@@ -182,9 +219,42 @@ export default function Vendas() {
                       </Select>
                     </div>
                     <div>
-                      <Label>Qtd. Parcelas</Label>
-                      <Input type="number" min="1" max="60" value={form.qtdParcelas} onChange={e => setForm({ ...form, qtdParcelas: e.target.value })} />
+                      <Label>Qtd. Parcelas do Restante</Label>
+                      <Input type="number" min="0" max="60" value={form.qtdParcelas} onChange={e => {
+                        const qtd = parseInt(e.target.value) || 0;
+                        setForm({ ...form, qtdParcelas: e.target.value });
+                        // Gerar datas automáticas para as parcelas
+                        const hoje = new Date();
+                        const dates = Array.from({ length: qtd }, (_, i) => {
+                          const d = new Date(hoje);
+                          d.setMonth(d.getMonth() + i + 1);
+                          return d.toISOString().split("T")[0];
+                        });
+                        setFormDatesVencimento(dates);
+                      }} />
                     </div>
+                    {parseInt(form.qtdParcelas) > 0 && parseFloat(form.valorColetado || "0") < parseFloat(form.valorFaturado || "0") && (
+                      <div className="col-span-2">
+                        <Label className="text-sm font-medium">Datas de Vencimento das Parcelas</Label>
+                        <div className="space-y-2 mt-1">
+                          {Array.from({ length: parseInt(form.qtdParcelas) || 0 }, (_, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 w-16">Parcela {i + 1}:</span>
+                              <Input
+                                type="date"
+                                value={formDatesVencimento[i] || ""}
+                                onChange={e => {
+                                  const nd = [...formDatesVencimento];
+                                  nd[i] = e.target.value;
+                                  setFormDatesVencimento(nd);
+                                }}
+                                className="text-xs h-7 flex-1"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {isAdmin && (
                     <div>
                       <Label>Consultor</Label>

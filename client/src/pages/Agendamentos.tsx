@@ -72,6 +72,16 @@ export default function Agendamentos() {
   const uploadComprovanteMut = trpc.upload.comprovante.useMutation({
     onError: (e) => toast.error("Erro ao enviar comprovante: " + e.message),
   });
+  const createVendaMut = trpc.vendas.create.useMutation({
+    onError: (e) => toast.error("Erro ao criar venda: " + e.message),
+  });
+  const createParcelasMut = trpc.parcelas.create.useMutation({
+    onError: (e) => toast.error("Erro ao criar parcelas: " + e.message),
+  });
+  const updateVendaMut = trpc.vendas.update.useMutation({
+    onError: (e) => toast.error("Erro ao atualizar venda: " + e.message),
+  });
+
   const createPromessaMut = trpc.promessas.create.useMutation({
     onSuccess: () => {
       toast.success("Promessa registrada! Lead movido para 'Vai Fechar'.");
@@ -98,25 +108,95 @@ export default function Agendamentos() {
     });
   };
 
-  const handleUpdate = (data: VendaEditData) => {
+  const handleUpdate = async (data: VendaEditData) => {
     if (!openEdit) return;
     const custoAuto = data.servicos.includes("Limpa Nome") && data.servicos.includes("Rating Bancário") ? 180
       : data.servicos.includes("Limpa Nome") ? 70
       : data.servicos.includes("Rating Bancário") ? 110 : 0;
+    const custoFinal = data.custoServico ? parseFloat(data.custoServico) : custoAuto;
+    const resultouVenda = (editForm as any)?._resultouVenda ?? openEdit.resultouVenda;
+    const coletado = data.valorColetado ? parseFloat(data.valorColetado) : 0;
+    const faturado = data.valorFaturado ? parseFloat(data.valorFaturado) : 0;
+
+    // Atualizar agendamento
     updateMutation.mutate({
       id: openEdit.id,
       status: (editForm as any)?._status || openEdit.status,
-      resultouVenda: (editForm as any)?._resultouVenda,
+      resultouVenda,
       vaiFechar: (editForm as any)?._vaiFechar,
       comprovanteUrl: (editForm as any)?._comprovanteUrl,
       clienteTelefone: data.clienteTelefone || undefined,
-      valorColetado: data.valorColetado ? parseFloat(data.valorColetado) : undefined,
-      valorFaturado: data.valorFaturado ? parseFloat(data.valorFaturado) : undefined,
+      valorColetado: coletado || undefined,
+      valorFaturado: faturado || undefined,
       servicos: data.servicos,
       formaPagamento: data.formaPagamento || undefined,
       parcelasQtd: data.parcelasQtd || 0,
       observacoes: data.observacoes || undefined,
     });
+
+    // Se resultou em venda e tem valor coletado, criar/atualizar venda e parcelas
+    if (resultouVenda && coletado > 0) {
+      try {
+        const jaTemVenda = !!openEdit.vendaId;
+        let vendaIdFinal = openEdit.vendaId ?? null;
+        const consultorId = openEdit.consultorId || (data.consultorId ? parseInt(data.consultorId) : undefined);
+
+        if (!jaTemVenda) {
+          // Criar nova venda
+          const vendaResult = await createVendaMut.mutateAsync({
+            clienteNome: openEdit.clienteNome,
+            clienteCpfCnpj: data.clienteCpfCnpj || openEdit.clienteCpfCnpj || undefined,
+            clienteTelefone: data.clienteTelefone || openEdit.clienteTelefone || undefined,
+            tipo: "PF",
+            consultorId,
+            dataVenda: new Date().toISOString(),
+            valorFaturado: faturado,
+            valorColetado: coletado,
+            parcelasRestantes: data.parcelasQtd || 0,
+            servicos: data.servicos,
+            observacoes: data.observacoes || undefined,
+            comissaoPercent: 10,
+            custoServico: custoFinal,
+          });
+          vendaIdFinal = vendaResult?.vendaId ?? null;
+        } else {
+          // Atualizar venda existente
+          await updateVendaMut.mutateAsync({
+            id: vendaIdFinal!,
+            valorFaturado: faturado,
+            valorColetado: coletado,
+            servicos: data.servicos,
+            custoServico: custoFinal,
+            observacoes: data.observacoes || undefined,
+          });
+        }
+
+        // Criar parcelas se houver parcelamento e venda nova
+        const qtdParcelas = data.parcelasQtd ?? 0;
+        if (!jaTemVenda && vendaIdFinal && qtdParcelas > 0) {
+          let dates = data.datesVencimento || [];
+          if (dates.length === 0) {
+            const hoje = new Date();
+            dates = Array.from({ length: qtdParcelas }, (_, i) => {
+              const d = new Date(hoje);
+              d.setMonth(d.getMonth() + i + 1);
+              return d.toISOString().split("T")[0];
+            });
+          }
+          const restante = faturado - coletado;
+          const valorParcela = restante > 0 ? restante / qtdParcelas : faturado / qtdParcelas;
+          if (valorParcela > 0) {
+            await createParcelasMut.mutateAsync({
+              vendaId: vendaIdFinal,
+              parcelas: dates.map(d => ({ valor: valorParcela, vencimento: d })),
+            });
+            toast.success(`${data.parcelasQtd} parcela(s) criada(s) com sucesso!`);
+          }
+        }
+      } catch (e) {
+        console.error("Erro ao criar venda/parcelas:", e);
+      }
+    }
   };
 
   async function handleUploadComprovante(file: File) {
