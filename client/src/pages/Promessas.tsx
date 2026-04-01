@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
+import ModalEditarVenda, { type VendaEditData } from "@/components/ModalEditarVenda";
 
 function formatCurrency(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -108,6 +109,7 @@ export default function Promessas() {
   const [modalPagamento, setModalPagamento] = useState<Promessa | null>(null);
   const [editando, setEditando] = useState<Promessa | null>(null);
   const [form, setForm] = useState<FormState>(FORM_VAZIO);
+  const [openEditVenda, setOpenEditVenda] = useState<VendaEditData | null>(null);
   const [pagForm, setPagForm] = useState<PagamentoForm>(PAGAMENTO_VAZIO);
   const [filtroStatus, setFiltroStatus] = useState<"todas" | "pendente" | "concluido" | "cancelado">("todas");
   const [filtroConsultor, setFiltroConsultor] = useState<string>("todos");
@@ -117,6 +119,15 @@ export default function Promessas() {
   const { data: promessas, isLoading } = trpc.promessas.list.useQuery(undefined, { enabled: isAdmin });
   const { data: consultores } = trpc.consultores.list.useQuery(undefined, { enabled: isAdmin });
   const { data: promessasHoje } = trpc.promessas.hoje.useQuery(undefined, { enabled: isAdmin });
+
+  const updateVendaMut = trpc.vendas.update.useMutation({
+    onSuccess: () => {
+      utils.vendas.listByPeriod.invalidate();
+      utils.dashboard.stats.invalidate();
+      utils.parcelas.listAll.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao atualizar venda: " + e.message),
+  });
 
   const createMut = trpc.promessas.create.useMutation({
     onSuccess: () => {
@@ -190,18 +201,31 @@ export default function Promessas() {
   }
 
   function abrirEditar(p: Promessa) {
+    // Se a promessa já tem venda criada, abre o modal completo de edição de venda
+    // Caso contrário, abre o modal simples de promessa
     setEditando(p);
     const d = new Date(p.dataPromessa);
-    setForm({
+    const servicos = Array.isArray(p.servicos) ? p.servicos.map(s =>
+      s === "limpa_nome" ? "Limpa Nome" : s === "rating" ? "Rating Bancário" : s
+    ) : [];
+    setOpenEditVenda({
+      id: p.id,
       clienteNome: p.clienteNome,
-      clienteTelefone: p.clienteTelefone || "",
       clienteCpfCnpj: p.clienteCpfCnpj || "",
-      dataPromessa: d.toISOString().split("T")[0],
-      valor: p.valor ? String(parseFloat(p.valor)) : "",
+      clienteTelefone: p.clienteTelefone || "",
+      tipo: "PF",
+      valorFaturado: p.valorFaturado ? String(parseFloat(p.valorFaturado)) : p.valor ? String(parseFloat(p.valor)) : "",
+      valorColetado: p.valorColetado ? String(parseFloat(p.valorColetado)) : "",
+      comissaoPercent: "10",
+      custoServico: "",
+      dataVenda: d.toISOString().split("T")[0],
+      servicos,
+      formaPagamento: p.formaPagamento || "",
       observacoes: p.observacoes || "",
       consultorId: p.consultorId ? String(p.consultorId) : "",
+      parcelasQtd: p.parcelasQtd || 0,
+      datesVencimento: [],
     });
-    setModalAberto(true);
   }
 
   function abrirPagamento(p: Promessa) {
@@ -548,7 +572,63 @@ export default function Promessas() {
         </Card>
       </div>
 
-      {/* Modal de criação/edição */}
+      {/* Modal de Edição Completo de Promessa */}
+      <ModalEditarVenda
+        open={!!openEditVenda && !!editando}
+        onClose={() => { setOpenEditVenda(null); setEditando(null); }}
+        venda={openEditVenda}
+        consultores={consultores}
+        showConsultor={isAdmin}
+        isSaving={updateMut.isPending}
+        title={`Editar Promessa — ${editando?.clienteNome || ""}`}
+        onSave={(data) => {
+          if (!editando) return;
+          const custoAuto = data.servicos.includes("Limpa Nome") && data.servicos.includes("Rating Bancário") ? 180
+            : data.servicos.includes("Limpa Nome") ? 70
+            : data.servicos.includes("Rating Bancário") ? 110 : 0;
+          const custoServico = data.custoServico ? parseFloat(data.custoServico) : custoAuto;
+          // Mapear serviços de volta para o formato do banco
+          const servicosBanco = data.servicos.map(s =>
+            s === "Limpa Nome" ? "limpa_nome" : s === "Rating Bancário" ? "rating" : s
+          );
+          updateMut.mutate({
+            id: editando.id,
+            clienteNome: data.clienteNome,
+            clienteTelefone: data.clienteTelefone || undefined,
+            clienteCpfCnpj: data.clienteCpfCnpj || undefined,
+            dataPromessa: data.dataVenda,
+            valor: data.valorFaturado ? parseFloat(data.valorFaturado) : undefined,
+            observacoes: data.observacoes || undefined,
+            valorColetado: data.valorColetado ? parseFloat(data.valorColetado) : undefined,
+            valorFaturado: data.valorFaturado ? parseFloat(data.valorFaturado) : undefined,
+            servicos: servicosBanco,
+            formaPagamento: data.formaPagamento || undefined,
+            parcelasQtd: data.parcelasQtd || 0,
+            datesVencimento: data.datesVencimento && data.datesVencimento.length > 0 ? data.datesVencimento : undefined,
+          });
+          // Se a promessa já tem venda vinculada, atualizar a venda também
+          if (editando.vendaId && data.valorFaturado) {
+            updateVendaMut.mutate({
+              id: editando.vendaId,
+              clienteNome: data.clienteNome,
+              clienteCpfCnpj: data.clienteCpfCnpj || undefined,
+              clienteTelefone: data.clienteTelefone || undefined,
+              tipo: data.tipo as "PF" | "PJ",
+              valorFaturado: parseFloat(data.valorFaturado),
+              valorColetado: data.valorColetado ? parseFloat(data.valorColetado) : parseFloat(data.valorFaturado),
+              comissaoPercent: parseFloat(data.comissaoPercent || "10") || 10,
+              dataVenda: data.dataVenda,
+              servicos: servicosBanco,
+              custoServico,
+              observacoes: data.observacoes || undefined,
+            });
+          }
+          setOpenEditVenda(null);
+          setEditando(null);
+        }}
+      />
+
+      {/* Modal de criação simples de promessa */}
       <Dialog open={modalAberto} onOpenChange={open => { setModalAberto(open); if (!open) { setEditando(null); setForm(FORM_VAZIO); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
