@@ -4,13 +4,17 @@ import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   DollarSign, TrendingUp, Users, CalendarDays,
   ChevronLeft, ChevronRight, ArrowUpCircle, ArrowDownCircle,
-  Wallet, CreditCard, AlertCircle, CheckCircle2, Bell, Phone, Download, AlertTriangle
+  Wallet, CreditCard, AlertCircle, CheckCircle2, Bell, Phone, Download, AlertTriangle, Loader2
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
+import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -69,8 +73,39 @@ export default function Dashboard() {
   const { data: promessasHoje } = trpc.promessas.hoje.useQuery();
   const { data: servicosVendidos } = trpc.servicosVendidos.byPeriodo.useQuery({ mes, ano });
   const [filtroConsultorParcelas, setFiltroConsultorParcelas] = useState<number | null>(null);
-  const { data: todasParcelas } = trpc.parcelas.listAll.useQuery();
-  const { data: coletadoParcelasAdmin } = trpc.parcelas.coletadoAdmin.useQuery({ mes, ano });
+  const { data: todasParcelas, refetch: refetchParcelas } = trpc.parcelas.listAll.useQuery();
+  const { data: coletadoParcelasAdmin, refetch: refetchColetado } = trpc.parcelas.coletadoAdmin.useQuery({ mes, ano });
+
+  // Estado do modal de baixa no dashboard
+  const [modalBaixaDash, setModalBaixaDash] = useState<{ id: number; valor: number; clienteNome: string; consultorNome: string } | null>(null);
+  const [baixaValor, setBaixaValor] = useState("");
+  const [baixaForma, setBaixaForma] = useState("");
+  const utils = trpc.useUtils();
+
+  const baixarMutationDash = trpc.parcelas.baixar.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.saldoCriado > 0
+        ? `Parcela confirmada! Nova parcela criada para o saldo de ${formatCurrency(data.saldoCriado)}.`
+        : "Parcela confirmada com sucesso!"
+      );
+      setModalBaixaDash(null);
+      setBaixaValor("");
+      setBaixaForma("");
+      refetchParcelas();
+      refetchColetado();
+      utils.parcelas.listPendentes.invalidate();
+      utils.parcelas.coletadoAdmin.invalidate();
+      utils.parcelas.listAll.invalidate();
+      utils.dashboard.stats.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao confirmar baixa: " + e.message),
+  });
+
+  function abrirModalBaixaDash(p: any) {
+    setModalBaixaDash({ id: p.id, valor: parseFloat(String(p.valor || 0)), clienteNome: p.clienteNome || `Parcela #${p.id}`, consultorNome: p.consultorNome || '—' });
+    setBaixaValor(String(parseFloat(String(p.valor || 0))));
+    setBaixaForma("");
+  }
 
   function diasAtrasoAdmin(vencimento: Date | string) {
     const hoje = new Date();
@@ -205,55 +240,82 @@ export default function Dashboard() {
               <MetricCard title="A Receber" value={formatCurrency(stats.totalParcelasPendentes)} subtitle="Parcelas pendentes" icon={CreditCard} color="amber" />
               <MetricCard title="Comissões" value={formatCurrency(stats.totalComissoes)} subtitle="A pagar consultores" icon={Users} color="purple" />
             </div>
-            {/* Cards de Coletado Parcelas (separado do coletado normal) */}
-            {coletadoParcelasAdmin && coletadoParcelasAdmin.totalColetado > 0 && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center">
-                      <CreditCard className="w-4 h-4 text-teal-700" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-wide text-teal-700">Coletado Parcelas</p>
-                      <p className="text-xs text-teal-500">{MESES[mes-1]} {ano} — não entra no coletado normal</p>
-                    </div>
+            {/* Cards de Coletado Parcelas + Aguardando Baixa (sempre visíveis) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Coletado Parcelas */}
+              <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center">
+                    <CreditCard className="w-4 h-4 text-teal-700" />
                   </div>
-                  <p className="text-2xl font-bold text-teal-800">{formatCurrency(coletadoParcelasAdmin.totalColetado)}</p>
-                  {coletadoParcelasAdmin.porConsultor.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {coletadoParcelasAdmin.porConsultor.map((c: any) => (
-                        <div key={c.consultorId} className="flex justify-between text-xs bg-white rounded px-2 py-1 border border-teal-100">
-                          <span className="font-medium text-gray-700">{c.consultorNome}</span>
-                          <span className="font-bold text-teal-700">{formatCurrency(c.totalColetado)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
-                      <Users className="w-4 h-4 text-amber-700" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Comissão a Pagar (Parcelas)</p>
-                      <p className="text-xs text-amber-500">Sobre parcelas recebidas no mês</p>
-                    </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-teal-700">Coletado Parcelas</p>
+                    <p className="text-xs text-teal-500">{MESES[mes-1]} {ano}</p>
                   </div>
-                  <p className="text-2xl font-bold text-amber-800">{formatCurrency(coletadoParcelasAdmin.totalComissao)}</p>
-                  {coletadoParcelasAdmin.porConsultor.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {coletadoParcelasAdmin.porConsultor.map((c: any) => (
-                        <div key={c.consultorId} className="flex justify-between text-xs bg-white rounded px-2 py-1 border border-amber-100">
-                          <span className="font-medium text-gray-700">{c.consultorNome}</span>
-                          <span className="font-bold text-amber-700">{formatCurrency(c.totalComissao)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
+                <p className="text-2xl font-bold text-teal-800">{formatCurrency(coletadoParcelasAdmin?.totalColetado ?? 0)}</p>
+                {coletadoParcelasAdmin && coletadoParcelasAdmin.porConsultor.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {coletadoParcelasAdmin.porConsultor.map((c: any) => (
+                      <div key={c.consultorId} className="flex justify-between text-xs bg-white rounded px-2 py-1 border border-teal-100">
+                        <span className="font-medium text-gray-700">{c.consultorNome}</span>
+                        <span className="font-bold text-teal-700">{formatCurrency(c.totalColetado)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {(!coletadoParcelasAdmin || coletadoParcelasAdmin.totalColetado === 0) && (
+                  <p className="text-xs text-teal-400 mt-1">Nenhuma parcela confirmada ainda</p>
+                )}
               </div>
-            )}
+              {/* Comissão a Pagar Parcelas */}
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                    <Users className="w-4 h-4 text-amber-700" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Comissão a Pagar (Parcelas)</p>
+                    <p className="text-xs text-amber-500">Sobre parcelas recebidas no mês</p>
+                  </div>
+                </div>
+                <p className="text-2xl font-bold text-amber-800">{formatCurrency(coletadoParcelasAdmin?.totalComissao ?? 0)}</p>
+                {coletadoParcelasAdmin && coletadoParcelasAdmin.porConsultor.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {coletadoParcelasAdmin.porConsultor.map((c: any) => (
+                      <div key={c.consultorId} className="flex justify-between text-xs bg-white rounded px-2 py-1 border border-amber-100">
+                        <span className="font-medium text-gray-700">{c.consultorNome}</span>
+                        <span className="font-bold text-amber-700">{formatCurrency(c.totalComissao)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {(!coletadoParcelasAdmin || coletadoParcelasAdmin.totalComissao === 0) && (
+                  <p className="text-xs text-amber-400 mt-1">Nenhuma comissão gerada ainda</p>
+                )}
+              </div>
+              {/* Aguardando Baixa */}
+              {(() => {
+                const aguardando = parcelasFiltradas.filter((p: any) => p.status === 'aguardando_confirmacao');
+                const totalAguardando = aguardando.reduce((s: number, p: any) => s + parseFloat(String(p.valor || 0)), 0);
+                return (
+                  <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                        <AlertCircle className="w-4 h-4 text-blue-700" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Aguardando Baixa</p>
+                        <p className="text-xs text-blue-500">{aguardando.length} parcela{aguardando.length !== 1 ? 's' : ''} pendente{aguardando.length !== 1 ? 's' : ''}</p>
+                      </div>
+                    </div>
+                    <p className="text-2xl font-bold text-blue-800">{formatCurrency(totalAguardando)}</p>
+                    {aguardando.length === 0 && <p className="text-xs text-blue-400 mt-1">Nenhuma parcela aguardando</p>}
+                    {aguardando.length > 0 && <p className="text-xs text-blue-600 mt-1 font-medium">↓ Ver detalhes abaixo</p>}
+                  </div>
+                );
+              })()}
+            </div>
 
             {/* Card de Parcelas Aguardando Baixa */}
             {(() => {
@@ -262,24 +324,39 @@ export default function Dashboard() {
               const totalAguardando = aguardando.reduce((s: number, p: any) => s + parseFloat(String(p.valor || 0)), 0);
               return (
                 <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-3">
                     <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
                       <CreditCard className="w-4 h-4 text-blue-700" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Aguardando Confirmação de Baixa</p>
                       <p className="text-xs text-blue-500">{aguardando.length} parcela{aguardando.length !== 1 ? 's' : ''} — consultor(a) marcou como recebida</p>
                     </div>
+                    <p className="text-xl font-bold text-blue-800">{formatCurrency(totalAguardando)}</p>
                   </div>
-                  <p className="text-2xl font-bold text-blue-800">{formatCurrency(totalAguardando)}</p>
-                  <div className="mt-2 space-y-1">
-                    {aguardando.slice(0, 5).map((p: any) => (
-                      <div key={p.id} className="flex justify-between text-xs bg-white rounded px-2 py-1 border border-blue-100">
-                        <span className="font-medium text-gray-700">{p.clienteNome || `Parcela #${p.id}`} — {p.consultorNome || '—'}</span>
-                        <span className="font-bold text-blue-700">{formatCurrency(parseFloat(String(p.valor || 0)))}</span>
+                  <div className="space-y-2">
+                    {aguardando.map((p: any) => (
+                      <div key={p.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-blue-200 gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-800 truncate">{p.clienteNome || `Parcela #${p.id}`}</p>
+                          <p className="text-xs text-gray-500">{p.consultorNome || '—'} · Venc: {new Date(p.vencimento).toLocaleDateString('pt-BR')}</p>
+                          {p.formaPagamento && <p className="text-xs text-blue-600 font-medium">Forma: {p.formaPagamento}</p>}
+                          {p.comprovanteUrl && (
+                            <a href={p.comprovanteUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-600 underline">Ver comprovante</a>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-sm font-bold text-blue-700">{formatCurrency(parseFloat(String(p.valor || 0)))}</span>
+                          <button
+                            type="button"
+                            onClick={() => abrirModalBaixaDash(p)}
+                            className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition-colors"
+                          >
+                            ✓ Confirmar Baixa
+                          </button>
+                        </div>
                       </div>
                     ))}
-                    {aguardando.length > 5 && <p className="text-xs text-blue-500 text-center">+{aguardando.length - 5} mais — veja em Parcelas</p>}
                   </div>
                 </div>
               );
@@ -602,6 +679,68 @@ export default function Dashboard() {
           </>
         ) : null}
       </div>
+      {/* Modal de Confirmar Baixa no Dashboard */}
+      <Dialog open={!!modalBaixaDash} onOpenChange={(o) => { if (!o) { setModalBaixaDash(null); setBaixaValor(""); setBaixaForma(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-gray-800">Confirmar Baixa de Parcela</DialogTitle>
+          </DialogHeader>
+          {modalBaixaDash && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                <p className="text-sm font-semibold text-gray-800">{modalBaixaDash.clienteNome}</p>
+                <p className="text-xs text-gray-500">Consultor(a): {modalBaixaDash.consultorNome}</p>
+                <p className="text-sm font-bold text-blue-700 mt-1">Valor original: {formatCurrency(modalBaixaDash.valor)}</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-medium text-gray-700">Valor Recebido (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={baixaValor}
+                  onChange={e => setBaixaValor(e.target.value)}
+                  placeholder="0,00"
+                  className="text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-medium text-gray-700">Forma de Pagamento <span className="text-red-500">*</span></Label>
+                <Select value={baixaForma} onValueChange={setBaixaForma}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PIX">PIX</SelectItem>
+                    <SelectItem value="Boleto">Boleto</SelectItem>
+                    <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                    <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                    <SelectItem value="Transferência">Transferência</SelectItem>
+                    <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => { setModalBaixaDash(null); setBaixaValor(""); setBaixaForma(""); }}>Cancelar</Button>
+                <Button
+                  type="button"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  disabled={baixarMutationDash.isPending || !baixaForma || !baixaValor}
+                  onClick={() => {
+                    if (!modalBaixaDash || !baixaForma || !baixaValor) return;
+                    baixarMutationDash.mutate({
+                      id: modalBaixaDash.id,
+                      valorPago: parseFloat(baixaValor),
+                      formaPagamento: baixaForma,
+                    });
+                  }}
+                >
+                  {baixarMutationDash.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirmar Baixa"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </LifeDashboardLayout>
   );
 }

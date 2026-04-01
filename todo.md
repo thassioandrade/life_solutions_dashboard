@@ -423,3 +423,9 @@
 ### Isolamento de Dados por Consultor (Pipeline e Promessas)
 - [x] Frontend Pipeline.tsx: promessas filtradas por consultor logado (não-admin vê apenas as próprias)
 - [x] Frontend Promessas.tsx: mutations invalidam listByConsultor e hojeByConsultor após criar/editar/excluir
+
+## Dashboard Admin - Botão Confirmar Baixa e Cards de Coletado (Abr 2026)
+- [x] Dashboard Admin: adicionar botão "Confirmar Baixa" em cada parcela do card "Aguardando Confirmação"
+- [x] Dashboard Admin: ao confirmar baixa, abrir modal com valor pago e forma de pagamento (igual ao Parcelas.tsx)
+- [x] Dashboard Admin: após confirmar, atualizar cards "Coletado Parcelas" e "Comissão a Pagar" do mês
+- [x] Dashboard Admin: garantir que os 3 cards (Aguardando, Coletado Parcelas, Comissão a Pagar) aparecem juntos — sempre visíveis em grid de 3 colunas
