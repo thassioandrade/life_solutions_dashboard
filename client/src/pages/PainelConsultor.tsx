@@ -17,7 +17,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   ChevronLeft, ChevronRight, CalendarDays, DollarSign, TrendingUp,
   Clock, Upload, X, CheckCircle2, Trophy, Target, Loader2,
-  CreditCard, AlertTriangle, Bell, FileText, XCircle, Edit2
+  CreditCard, AlertTriangle, Bell, FileText, XCircle, Edit2,
+  Phone, Calendar
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -106,7 +107,7 @@ export default function PainelConsultor() {
   const [modalAberto, setModalAberto] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [uploadingComprovante, setUploadingComprovante] = useState(false);
-  const [abaPainel, setAbaPainel] = useState<"agenda" | "parcelas" | "devedores" | "vendas">("agenda");
+  const [abaPainel, setAbaPainel] = useState<"agenda" | "parcelas" | "devedores" | "vendas" | "cobrancas">("agenda");
   const [openEstornoConsultor, setOpenEstornoConsultor] = useState<any | null>(null);
   const [motivoEstornoConsultor, setMotivoEstornoConsultor] = useState("");
   const [openEditVenda, setOpenEditVenda] = useState<any | null>(null);
@@ -173,6 +174,10 @@ export default function PainelConsultor() {
     { enabled: !!consultor?.id }
   );
   const { data: parcelasFuturas } = trpc.parcelas.futurasConsultor.useQuery(
+    { consultorId: consultor?.id || 0 },
+    { enabled: !!consultor?.id }
+  );
+  const { data: parcelasPendentesConsultor } = trpc.parcelas.pendentesConsultor.useQuery(
     { consultorId: consultor?.id || 0 },
     { enabled: !!consultor?.id }
   );
@@ -870,6 +875,7 @@ export default function PainelConsultor() {
               {[
                 { key: "agenda", label: "Agenda", count: totalAg },
                 { key: "parcelas", label: "Parcelas", count: parcelasCompletas?.length || 0 },
+                { key: "cobrancas", label: "Cobranças", count: (parcelasPendentesConsultor || []).length, alert: (parcelasPendentesConsultor || []).some(p => new Date(p.vencimento) < new Date()) },
                 { key: "devedores", label: "Devedores", count: qtdDevedores, alert: qtdDevedores > 0 },
               ].map(aba => (
                 <button
@@ -1092,6 +1098,130 @@ export default function PainelConsultor() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Aba: Cobranças */}
+            {abaPainel === "cobrancas" && (() => {
+              const agora = new Date();
+              const atrasadas = (parcelasPendentesConsultor || []).filter(p => new Date(p.vencimento) < agora);
+              const futuras = (parcelasPendentesConsultor || []).filter(p => new Date(p.vencimento) >= agora);
+              const totalPendente = (parcelasPendentesConsultor || []).reduce((s, p) => s + parseFloat(String(p.valor || 0)), 0);
+              const totalComissaoPendente = (parcelasPendentesConsultor || []).reduce((s, p) => {
+                const comissao = parseFloat(String(p.comissaoPercent || 10));
+                return s + parseFloat(String(p.valor || 0)) * comissao / 100;
+              }, 0);
+              return (
+                <div className="space-y-4">
+                  {/* Cards de resumo */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                      <p className="text-xs text-blue-600 font-medium uppercase tracking-wide">A Receber</p>
+                      <p className="text-xl font-bold text-blue-700 mt-1">{formatCurrency(totalPendente)}</p>
+                      <p className="text-xs text-blue-500 mt-0.5">{(parcelasPendentesConsultor || []).length} parcelas pendentes</p>
+                    </div>
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                      <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">Comissão Futura</p>
+                      <p className="text-xl font-bold text-amber-700 mt-1">{formatCurrency(totalComissaoPendente)}</p>
+                      <p className="text-xs text-amber-500 mt-0.5">Quando pago pelo admin</p>
+                    </div>
+                  </div>
+
+                  {/* Atrasadas */}
+                  {atrasadas.length > 0 && (
+                    <Card className="border-red-200">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-semibold text-red-700 flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4" />
+                          Atrasadas ({atrasadas.length})
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          {atrasadas.map(p => {
+                            const diasAtrasados = Math.floor((agora.getTime() - new Date(p.vencimento).getTime()) / (1000 * 60 * 60 * 24));
+                            const comissao = parseFloat(String(p.valor || 0)) * parseFloat(String(p.comissaoPercent || 10)) / 100;
+                            return (
+                              <div key={p.id} className="p-3 rounded-lg border border-red-200 bg-red-50">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold text-red-800 truncate">{p.clienteNome}</p>
+                                    {p.clienteTelefone && (
+                                      <p className="text-xs text-red-600 flex items-center gap-1 mt-0.5">
+                                        <Phone className="w-3 h-3" />{p.clienteTelefone}
+                                      </p>
+                                    )}
+                                    <p className="text-xs text-red-500 mt-0.5">Venc: {new Date(p.vencimento).toLocaleDateString("pt-BR")}</p>
+                                  </div>
+                                  <div className="text-right flex-shrink-0">
+                                    <p className="text-sm font-bold text-red-700">{formatCurrency(parseFloat(String(p.valor || 0)))}</p>
+                                    <p className="text-xs text-red-500 font-medium">{diasAtrasados}d atrasado</p>
+                                    <p className="text-xs text-amber-600">Comissão: {formatCurrency(comissao)}</p>
+                                  </div>
+                                </div>
+                                {p.observacoes && (
+                                  <p className="text-xs text-red-500 mt-1.5 italic bg-red-100 rounded px-2 py-1">{p.observacoes}</p>
+                                )}
+                                <p className="text-[10px] text-red-400 mt-1.5 bg-red-100 rounded px-2 py-1 text-center">
+                                  ⚠️ A baixa deve ser dada pelo Administrador após confirmar o comprovante
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Futuras */}
+                  <Card className="border-gray-200">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
+                        Próximas Cobranças ({futuras.length})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {futuras.length === 0 ? (
+                        <div className="text-center py-6 text-gray-400 text-sm">
+                          <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                          Nenhuma cobrança futura
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {futuras.map(p => {
+                            const diasRestantes = Math.ceil((new Date(p.vencimento).getTime() - agora.getTime()) / (1000 * 60 * 60 * 24));
+                            const isHoje = diasRestantes === 0;
+                            const isAmanha = diasRestantes === 1;
+                            const comissao = parseFloat(String(p.valor || 0)) * parseFloat(String(p.comissaoPercent || 10)) / 100;
+                            return (
+                              <div key={p.id} className={`p-3 rounded-lg border ${isHoje ? "border-amber-200 bg-amber-50" : isAmanha ? "border-orange-200 bg-orange-50" : "border-gray-100 bg-white"}`}>
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-gray-800 truncate">{p.clienteNome}</p>
+                                    {p.clienteTelefone && (
+                                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                                        <Phone className="w-3 h-3" />{p.clienteTelefone}
+                                      </p>
+                                    )}
+                                    <p className="text-xs text-gray-500 mt-0.5">Venc: {new Date(p.vencimento).toLocaleDateString("pt-BR")}</p>
+                                  </div>
+                                  <div className="text-right flex-shrink-0">
+                                    <p className="text-sm font-bold text-gray-800">{formatCurrency(parseFloat(String(p.valor || 0)))}</p>
+                                    <p className={`text-xs font-medium ${isHoje ? "text-amber-600" : isAmanha ? "text-orange-600" : "text-blue-600"}`}>
+                                      {isHoje ? "Vence hoje" : isAmanha ? "Vence amanhã" : `Em ${diasRestantes}d`}
+                                    </p>
+                                    <p className="text-xs text-amber-600">Comissão: {formatCurrency(comissao)}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              );
+            })()}
 
             {/* Aba: Devedores */}
             {abaPainel === "devedores" && (

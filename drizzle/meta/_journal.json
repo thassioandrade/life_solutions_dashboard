@@ -85,6 +85,13 @@
       "when": 1774001471220,
       "tag": "0011_skinny_shockwave",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1775014103600,
+      "tag": "0012_regular_daimon_hellstrom",
+      "breakpoints": true
     }
   ]
 }

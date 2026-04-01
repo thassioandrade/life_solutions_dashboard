@@ -92,6 +92,8 @@ export const parcelas = mysqlTable("parcelas", {
   okConsultor: boolean("okConsultor").default(false),
   dataOkConsultor: timestamp("dataOkConsultor"),
   notificacaoEnviada: boolean("notificacaoEnviada").default(false),
+  valorPago: decimal("valorPago", { precision: 10, scale: 2 }), // valor real pago (pode ser diferente do valor original)
+  observacoes: text("observacoes"), // observações da baixa
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

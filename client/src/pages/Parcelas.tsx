@@ -4,10 +4,13 @@ import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CreditCard, CheckCircle, AlertCircle, Clock, AlertTriangle, Bell, Download, CheckCircle2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { CreditCard, CheckCircle, AlertCircle, Clock, AlertTriangle, Bell, Download, CheckCircle2, DollarSign, FileText, X } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
@@ -24,24 +27,64 @@ function calcDiasAtraso(vencimento: Date | string) {
   v.setHours(0, 0, 0, 0);
   return Math.floor((hoje.getTime() - v.getTime()) / (1000 * 60 * 60 * 24));
 }
+function toDateInputValue(d?: Date | string | null) {
+  if (!d) return new Date().toISOString().slice(0, 10);
+  return new Date(d).toISOString().slice(0, 10);
+}
+
+const FORMAS_PAGAMENTO = ["Pix", "Dinheiro", "Cartão de Crédito", "Cartão de Débito", "Transferência", "Boleto", "Outro"];
+
+interface ModalBaixaState {
+  parcelaId: number;
+  clienteNome: string;
+  valorOriginal: number;
+  valorPago: string;
+  dataPagamento: string;
+  formaPagamento: string;
+  observacoes: string;
+  comprovanteUrl: string;
+  criarNovaParcela: boolean;
+  novaParcelaData: string;
+  novaParcelaValor: number; // calculado automaticamente
+}
 
 export default function Parcelas() {
   const [filtro, setFiltro] = useState<"todas" | "pendentes" | "atrasadas" | "vencendo_hoje" | "pagas">("todas");
   const [abaAtiva, setAbaAtiva] = useState<"parcelas" | "devedores">("parcelas");
   const [filtroConsultor, setFiltroConsultor] = useState<string>("todos");
+  const [modalBaixa, setModalBaixa] = useState<ModalBaixaState | null>(null);
+  const [uploadingComprovante, setUploadingComprovante] = useState(false);
 
+  const utils = trpc.useUtils();
   const { data: parcelas, refetch } = trpc.parcelas.listPendentes.useQuery();
   const { data: parcelasVencendo } = trpc.parcelas.vencendoHoje.useQuery();
   const { data: parcelasVencidas } = trpc.parcelas.devedores.useQuery();
   const { data: consultores } = trpc.consultores.list.useQuery();
 
-  const markPaidMutation = trpc.parcelas.markPaid.useMutation({
-    onSuccess: () => { toast.success("Parcela marcada como paga!"); refetch(); },
-    onError: (e) => toast.error(e.message),
+  const baixarMutation = trpc.parcelas.baixar.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.saldoCriado > 0
+        ? `Parcela baixada! Nova parcela criada para o saldo de ${formatCurrency(data.saldoCriado)}.`
+        : "Parcela baixada com sucesso!"
+      );
+      setModalBaixa(null);
+      refetch();
+      utils.parcelas.listPendentes.invalidate();
+      utils.parcelas.devedores.invalidate();
+      utils.parcelas.vencendoHoje.invalidate();
+      utils.dashboard.stats.invalidate();
+      utils.parcelas.coletadoByConsultor.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao dar baixa: " + e.message),
   });
+
   const okConsultorMutation = trpc.parcelas.okConsultor.useMutation({
     onSuccess: () => refetch(),
     onError: (e) => toast.error("Erro: " + e.message),
+  });
+
+  const uploadComprovante = trpc.upload.comprovante.useMutation({
+    onError: (e) => toast.error("Erro no upload: " + e.message),
   });
 
   const parcelasFiltradas = useMemo(() => {
@@ -101,6 +144,72 @@ export default function Parcelas() {
   const totalAtrasado = atrasadas.reduce((s, p) => s + parseFloat(String(p.valor || 0)), 0);
   const totalDevedores = devedoresFiltrados.reduce((s, d) => s + d.totalDevido, 0);
 
+  function abrirModalBaixa(p: any) {
+    const valorOriginal = parseFloat(String(p.valor || 0));
+    setModalBaixa({
+      parcelaId: p.id,
+      clienteNome: p.clienteNome || `Parcela #${p.id}`,
+      valorOriginal,
+      valorPago: String(valorOriginal.toFixed(2)),
+      dataPagamento: toDateInputValue(new Date()),
+      formaPagamento: "",
+      observacoes: "",
+      comprovanteUrl: "",
+      criarNovaParcela: false,
+      novaParcelaData: toDateInputValue(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
+      novaParcelaValor: 0,
+    });
+  }
+
+  function calcSaldo() {
+    if (!modalBaixa) return 0;
+    const pago = parseFloat(modalBaixa.valorPago) || 0;
+    return Math.max(0, modalBaixa.valorOriginal - pago);
+  }
+
+  async function handleUploadComprovante(file: File) {
+    setUploadingComprovante(true);
+    try {
+      const reader = new FileReader();
+      const result = await new Promise<{ url: string }>((resolve, reject) => {
+        reader.onload = async (ev) => {
+          try {
+            const base64 = (ev.target?.result as string).split(",")[1];
+            const res = await uploadComprovante.mutateAsync({ fileBase64: base64, mimeType: file.type, tipo: "comprovante_parcela" });
+            resolve(res);
+          } catch (e) { reject(e); }
+        };
+        reader.readAsDataURL(file);
+      });
+      setModalBaixa(prev => prev ? { ...prev, comprovanteUrl: result.url } : prev);
+      toast.success("Comprovante enviado!");
+    } catch {
+      toast.error("Erro ao enviar comprovante");
+    } finally {
+      setUploadingComprovante(false);
+    }
+  }
+
+  function handleConfirmarBaixa() {
+    if (!modalBaixa) return;
+    const valorPago = parseFloat(modalBaixa.valorPago) || 0;
+    if (valorPago <= 0) { toast.error("Informe o valor pago"); return; }
+    const saldo = calcSaldo();
+    if (saldo > 0.01 && modalBaixa.criarNovaParcela && !modalBaixa.novaParcelaData) {
+      toast.error("Informe a data da nova parcela para o saldo restante");
+      return;
+    }
+    baixarMutation.mutate({
+      id: modalBaixa.parcelaId,
+      valorPago,
+      dataPagamento: modalBaixa.dataPagamento,
+      formaPagamento: modalBaixa.formaPagamento || undefined,
+      comprovanteUrl: modalBaixa.comprovanteUrl || undefined,
+      observacoes: modalBaixa.observacoes || undefined,
+      novaParcelaData: (saldo > 0.01 && modalBaixa.criarNovaParcela) ? modalBaixa.novaParcelaData : undefined,
+    });
+  }
+
   function exportarExcel() {
     const rows = parcelasFiltradas.map(p => {
       const consultor = consultores?.find(c => c.id === (p as any).consultorId);
@@ -139,13 +248,15 @@ export default function Parcelas() {
     XLSX.writeFile(wb, `devedores_${new Date().toLocaleDateString("pt-BR").replace(/\//g, "-")}.xlsx`);
   }
 
+  const saldo = calcSaldo();
+
   return (
     <LifeDashboardLayout title="Parcelas">
       <div className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h2 className="text-lg font-bold text-gray-800">Parcelas</h2>
-            <p className="text-sm text-gray-500">Controle de recebimentos e devedores</p>
+            <h2 className="text-lg font-bold text-gray-800">Parcelas Pendentes</h2>
+            <p className="text-sm text-gray-500">Controle de recebimentos, baixas e devedores</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {vencendoHoje.length > 0 && (
@@ -262,9 +373,12 @@ export default function Parcelas() {
                             </span>
                             {(p as any).clienteTelefone && <span>{(p as any).clienteTelefone}</span>}
                             {consultor && <span className="text-gray-400">{consultor.nome}</span>}
+                            {p.status === "pago" && (p as any).valorPago && parseFloat(String((p as any).valorPago)) !== parseFloat(String(p.valor)) && (
+                              <span className="text-emerald-600 font-medium">Pago: {formatCurrency(parseFloat(String((p as any).valorPago)))}</span>
+                            )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 ml-2 flex-shrink-0">
+                        <div className="flex items-center gap-2 ml-2 flex-shrink-0">
                           <span className={`text-sm font-bold ${isAtrasada ? "text-red-600" : p.status === "pago" ? "text-emerald-600" : "text-amber-600"}`}>
                             {formatCurrency(parseFloat(String(p.valor || 0)))}
                           </span>
@@ -274,10 +388,10 @@ export default function Parcelas() {
                                 <Checkbox id={`ok-${p.id}`} checked={!!(p as any).okConsultor} onCheckedChange={(checked) => okConsultorMutation.mutate({ id: p.id, ok: !!checked })} />
                                 <Label htmlFor={`ok-${p.id}`} className="text-xs text-gray-500 cursor-pointer">Recebi</Label>
                               </div>
-                              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white h-7 text-xs"
-                                onClick={() => markPaidMutation.mutate({ id: p.id })} disabled={markPaidMutation.isPending}>
-                                <CheckCircle className="w-3 h-3 mr-1" />
-                                Pago
+                              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs gap-1"
+                                onClick={() => abrirModalBaixa(p)}>
+                                <DollarSign className="w-3 h-3" />
+                                Dar Baixa
                               </Button>
                             </>
                           )}
@@ -334,13 +448,13 @@ export default function Parcelas() {
                       </div>
                       <div className="mt-2 space-y-1">
                         {d.parcelas.map(p => (
-                          <div key={p.id} className="flex items-center justify-between text-xs text-red-700 bg-red-100 rounded px-2 py-1">
+                          <div key={p.id} className="flex items-center justify-between text-xs text-red-700 bg-red-100 rounded px-2 py-1.5">
                             <span>Venc: {formatDate(p.vencimento)}</span>
                             <span className="font-medium text-red-600">{calcDiasAtraso(p.vencimento)}d atraso</span>
                             <span className="font-semibold">{formatCurrency(parseFloat(String(p.valor || 0)))}</span>
-                            <Button size="sm" className="h-5 text-[10px] px-2 bg-red-600 hover:bg-red-700 text-white"
-                              onClick={() => markPaidMutation.mutate({ id: p.id })} disabled={markPaidMutation.isPending}>
-                              Pago
+                            <Button size="sm" className="h-5 text-[10px] px-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                              onClick={() => abrirModalBaixa(p)}>
+                              Baixar
                             </Button>
                           </div>
                         ))}
@@ -353,6 +467,150 @@ export default function Parcelas() {
           </Card>
         )}
       </div>
+
+      {/* Modal de Baixa */}
+      <Dialog open={!!modalBaixa} onOpenChange={(open) => !open && setModalBaixa(null)}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-emerald-600" />
+              Dar Baixa — {modalBaixa?.clienteNome}
+            </DialogTitle>
+          </DialogHeader>
+          {modalBaixa && (
+            <div className="space-y-4 pt-2">
+              {/* Valor original */}
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <p className="text-xs text-gray-500">Valor original da parcela</p>
+                <p className="text-xl font-bold text-gray-800">{formatCurrency(modalBaixa.valorOriginal)}</p>
+              </div>
+
+              {/* Valor real pago */}
+              <div>
+                <Label className="text-xs font-semibold text-gray-700 mb-1.5 block">Valor Real Pago (R$) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={modalBaixa.valorOriginal}
+                  value={modalBaixa.valorPago}
+                  onChange={e => setModalBaixa(prev => prev ? { ...prev, valorPago: e.target.value } : prev)}
+                  className="text-lg font-bold"
+                  placeholder="0.00"
+                />
+                {saldo > 0.01 && (
+                  <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs text-amber-700 font-medium">
+                      Saldo restante: <strong>{formatCurrency(saldo)}</strong>
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Data do pagamento */}
+              <div>
+                <Label className="text-xs font-semibold text-gray-700 mb-1.5 block">Data do Pagamento</Label>
+                <Input
+                  type="date"
+                  value={modalBaixa.dataPagamento}
+                  onChange={e => setModalBaixa(prev => prev ? { ...prev, dataPagamento: e.target.value } : prev)}
+                />
+              </div>
+
+              {/* Forma de pagamento */}
+              <div>
+                <Label className="text-xs font-semibold text-gray-700 mb-1.5 block">Forma de Pagamento</Label>
+                <Select value={modalBaixa.formaPagamento} onValueChange={v => setModalBaixa(prev => prev ? { ...prev, formaPagamento: v } : prev)}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FORMAS_PAGAMENTO.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Comprovante */}
+              <div>
+                <Label className="text-xs font-semibold text-gray-700 mb-1.5 block">Comprovante</Label>
+                {modalBaixa.comprovanteUrl ? (
+                  <div className="flex items-center gap-2 p-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <FileText className="w-4 h-4 text-emerald-600" />
+                    <span className="text-xs text-emerald-700 flex-1 truncate">Comprovante enviado</span>
+                    <button onClick={() => setModalBaixa(prev => prev ? { ...prev, comprovanteUrl: "" } : prev)}>
+                      <X className="w-4 h-4 text-emerald-500 hover:text-red-500" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex items-center gap-2 p-2 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input type="file" accept="image/*,.pdf" className="hidden"
+                      onChange={e => e.target.files?.[0] && handleUploadComprovante(e.target.files[0])} />
+                    {uploadingComprovante ? (
+                      <span className="text-xs text-gray-500">Enviando...</span>
+                    ) : (
+                      <span className="text-xs text-gray-500">Clique para anexar comprovante (imagem ou PDF)</span>
+                    )}
+                  </label>
+                )}
+              </div>
+
+              {/* Observações */}
+              <div>
+                <Label className="text-xs font-semibold text-gray-700 mb-1.5 block">Observações</Label>
+                <Textarea
+                  value={modalBaixa.observacoes}
+                  onChange={e => setModalBaixa(prev => prev ? { ...prev, observacoes: e.target.value } : prev)}
+                  placeholder="Notas sobre o pagamento..."
+                  rows={2}
+                  className="text-sm"
+                />
+              </div>
+
+              {/* Nova parcela para saldo */}
+              {saldo > 0.01 && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="criar-nova-parcela"
+                      checked={modalBaixa.criarNovaParcela}
+                      onCheckedChange={checked => setModalBaixa(prev => prev ? { ...prev, criarNovaParcela: !!checked } : prev)}
+                    />
+                    <Label htmlFor="criar-nova-parcela" className="text-sm font-medium text-blue-800 cursor-pointer">
+                      Criar nova parcela para o saldo de {formatCurrency(saldo)}
+                    </Label>
+                  </div>
+                  {modalBaixa.criarNovaParcela && (
+                    <div>
+                      <Label className="text-xs font-semibold text-blue-700 mb-1.5 block">Data de vencimento da nova parcela</Label>
+                      <Input
+                        type="date"
+                        value={modalBaixa.novaParcelaData}
+                        onChange={e => setModalBaixa(prev => prev ? { ...prev, novaParcelaData: e.target.value } : prev)}
+                        className="border-blue-300"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Botões */}
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => setModalBaixa(null)}>
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                  onClick={handleConfirmarBaixa}
+                  disabled={baixarMutation.isPending}
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  {baixarMutation.isPending ? "Salvando..." : "Confirmar Baixa"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </LifeDashboardLayout>
   );
 }

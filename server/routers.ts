@@ -616,6 +616,129 @@ export const appRouter = router({
         await db.delete(parcelasTable).where((await import("drizzle-orm")).eq(parcelasTable.id, input.id));
         return { success: true };
       }),
+
+    /**
+     * Baixa de parcela pelo Admin:
+     * - Registra valor real pago (pode ser diferente do original)
+     * - Se valorPago < valorOriginal, cria nova parcela para o saldo restante
+     * - Calcula comissão no mês do pagamento (não no mês da venda)
+     * - Permite adicionar comprovante e observações
+     */
+    baixar: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        valorPago: z.number(), // valor real recebido
+        dataPagamento: z.string().optional(), // data do pagamento (default: hoje)
+        formaPagamento: z.string().optional(),
+        comprovanteUrl: z.string().optional(),
+        observacoes: z.string().optional(),
+        // Se houver saldo restante, criar nova parcela
+        novaParcelaData: z.string().optional(), // data de vencimento da nova parcela
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Apenas admin pode dar baixa
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem dar baixa em parcelas" });
+
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+
+        // Buscar parcela com dados da venda
+        const { parcelas: parcelasTable, vendas: vendasTable } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+
+        const [parcelaComVenda] = await db.select({
+          id: parcelasTable.id,
+          valor: parcelasTable.valor,
+          numeroParcela: parcelasTable.numeroParcela,
+          vendaId: parcelasTable.vendaId,
+          comissaoPercent: vendasTable.comissaoPercent,
+          custoServico: vendasTable.custoServico,
+          consultorId: vendasTable.consultorId,
+          clienteNome: vendasTable.clienteNome,
+        })
+          .from(parcelasTable)
+          .innerJoin(vendasTable, eq(parcelasTable.vendaId, vendasTable.id))
+          .where(eq(parcelasTable.id, input.id));
+
+        if (!parcelaComVenda) throw new TRPCError({ code: "NOT_FOUND", message: "Parcela não encontrada" });
+
+        const valorOriginal = parseFloat(String(parcelaComVenda.valor || 0));
+        const valorPago = input.valorPago;
+        const dataPagamento = input.dataPagamento ? new Date(input.dataPagamento) : new Date();
+
+        // Atualizar parcela como paga
+        await updateParcela(input.id, {
+          status: "pago",
+          valorPago: String(valorPago),
+          dataPagamento,
+          formaPagamento: input.formaPagamento || undefined,
+          comprovanteUrl: input.comprovanteUrl || undefined,
+          observacoes: input.observacoes || undefined,
+          okConsultor: true,
+          dataOkConsultor: dataPagamento,
+        });
+
+        // Se valorPago < valorOriginal e há data para nova parcela, criar parcela para o saldo
+        const saldo = valorOriginal - valorPago;
+        if (saldo > 0.01 && input.novaParcelaData) {
+          await createParcelas([{
+            vendaId: parcelaComVenda.vendaId,
+            valor: String(saldo),
+            vencimento: new Date(input.novaParcelaData),
+            status: "pendente" as const,
+            numeroParcela: (parcelaComVenda.numeroParcela || 1) + 1,
+            observacoes: `Saldo restante da parcela #${parcelaComVenda.numeroParcela || 1} (pago R$${valorPago.toFixed(2)} de R$${valorOriginal.toFixed(2)})`,
+          }]);
+        }
+
+        return { success: true, saldoCriado: saldo > 0.01 && !!input.novaParcelaData ? saldo : 0 };
+      }),
+
+    /**
+     * Lista todas as parcelas pendentes de um consultor (para o painel do vendedor)
+     * Inclui parcelas atrasadas e futuras, com dados do cliente
+     */
+    pendentesConsultor: protectedProcedure
+      .input(z.object({ consultorId: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        const { parcelas: parcelasTable, vendas: vendasTable } = await import("../drizzle/schema");
+        const { eq, and, inArray } = await import("drizzle-orm");
+
+        const vendasDoConsultor = await db.select({ id: vendasTable.id })
+          .from(vendasTable)
+          .where(and(eq(vendasTable.consultorId, input.consultorId), eq(vendasTable.cancelada, false)));
+
+        if (vendasDoConsultor.length === 0) return [];
+        const ids = vendasDoConsultor.map(v => v.id);
+
+        return db.select({
+          id: parcelasTable.id,
+          vendaId: parcelasTable.vendaId,
+          valor: parcelasTable.valor,
+          valorPago: parcelasTable.valorPago,
+          vencimento: parcelasTable.vencimento,
+          status: parcelasTable.status,
+          numeroParcela: parcelasTable.numeroParcela,
+          okConsultor: parcelasTable.okConsultor,
+          observacoes: parcelasTable.observacoes,
+          clienteNome: vendasTable.clienteNome,
+          clienteTelefone: vendasTable.clienteTelefone,
+          clienteCpfCnpj: vendasTable.clienteCpfCnpj,
+          comissaoPercent: vendasTable.comissaoPercent,
+          custoServico: vendasTable.custoServico,
+          servicos: vendasTable.servicos,
+          consultorId: vendasTable.consultorId,
+        })
+          .from(parcelasTable)
+          .innerJoin(vendasTable, eq(parcelasTable.vendaId, vendasTable.id))
+          .where(and(
+            inArray(parcelasTable.vendaId, ids),
+            eq(parcelasTable.status, "pendente"),
+          ))
+          .orderBy(parcelasTable.vencimento);
+      }),
   }),
   servicosVendidos: router({
     byPeriodo: protectedProcedure
