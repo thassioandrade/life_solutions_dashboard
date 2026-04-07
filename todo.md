@@ -433,3 +433,8 @@
 ## Bug: Salário de Consultora não aparece em Despesas (Abr 2026)
 - [x] Investigar por que salário de consultora (receberSalario=true, R$1.600) aparece como R$0,00 em Salários no Despesas
 - [x] Corrigir cálculo de totalSalarios no Despesas.tsx para incluir consultoras com receberSalario=true (soma colaboradores + consultoras)
+
+## Bug: Cancelar marcação de parcela como paga (Abr 2026)
+- [x] Adicionar procedure `parcelas.cancelarOkConsultor` no backend que reverte status para `pendente` e limpa `dataPagamento`, `okConsultor`, `valorPago`, `formaPagamento` (reutilizado o okConsultor com ok=false)
+- [x] Adicionar botão "✕ Cancelar" no PainelConsultor.tsx para parcelas com status `aguardando_confirmacao` (aba Parcelas e aba Cobranças)
+- [x] Ao cancelar, invalidar queries de parcelas e dashboard para atualizar os dados. Toast diferenciado para marcar vs cancelar

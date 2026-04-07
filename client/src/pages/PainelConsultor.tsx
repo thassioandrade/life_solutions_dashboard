@@ -224,13 +224,18 @@ export default function PainelConsultor() {
     onError: (e) => toast.error(e.message),
   });
   const okConsultorMutation = trpc.parcelas.okConsultor.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       utils.parcelasCompletas.byConsultor.invalidate();
       utils.parcelas.coletadoByConsultor.invalidate();
       utils.parcelas.pendentesConsultor.invalidate();
+      utils.parcelas.devedores.invalidate();
       setModalPagamentoParcela(null);
       setPagParcelaForm({ formaPagamento: "", comprovanteUrl: "", comprovanteFile: null });
-      toast.success("⏳ Parcela marcada como recebida! Aguardando confirmação do administrador.");
+      if (variables.ok) {
+        toast.success("⏳ Parcela marcada como recebida! Aguardando confirmação do administrador.");
+      } else {
+        toast.success("✓ Marcação cancelada. Parcela voltou para pendente.");
+      }
     },
     onError: (e) => toast.error("Erro: " + e.message),
   });
@@ -1094,9 +1099,23 @@ export default function PainelConsultor() {
                                 </button>
                               )}
                               {isAguardando && (
-                                <span className="text-xs px-2 py-1 rounded-lg bg-blue-50 border border-blue-300 text-blue-700 font-medium">
-                                  ⏳ Aguardando
-                                </span>
+                                <div className="flex items-center gap-1 flex-wrap justify-end">
+                                  <span className="text-xs px-2 py-1 rounded-lg bg-blue-50 border border-blue-300 text-blue-700 font-medium">
+                                    ⏳ Aguardando
+                                  </span>
+                                  <button
+                                    onClick={() => {
+                                      if (confirm("Cancelar marcação de recebimento? A parcela voltará para pendente.")) {
+                                        okConsultorMutation.mutate({ id: p.id, ok: false });
+                                      }
+                                    }}
+                                    disabled={okConsultorMutation.isPending}
+                                    className="text-xs px-2 py-1 rounded-lg bg-red-50 border border-red-300 text-red-600 hover:bg-red-100 transition-colors font-medium disabled:opacity-50"
+                                    title="Cancelar marcação de recebido (erro)"
+                                  >
+                                    ✕ Cancelar
+                                  </button>
+                                </div>
                               )}
                               {p.status === "pago" && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
                             </div>
@@ -1170,9 +1189,28 @@ export default function PainelConsultor() {
                                 {p.observacoes && (
                                   <p className="text-xs text-red-500 mt-1.5 italic bg-red-100 rounded px-2 py-1">{p.observacoes}</p>
                                 )}
-                                <p className="text-[10px] text-red-400 mt-1.5 bg-red-100 rounded px-2 py-1 text-center">
-                                  ⚠️ A baixa deve ser dada pelo Administrador após confirmar o comprovante
-                                </p>
+                                {p.status === 'aguardando_confirmacao' ? (
+                                  <div className="mt-1.5 flex items-center justify-between gap-2">
+                                    <p className="text-[10px] text-blue-500 bg-blue-50 rounded px-2 py-1 flex-1">
+                                      ⏳ Aguardando confirmação do admin
+                                    </p>
+                                    <button
+                                      onClick={() => {
+                                        if (confirm("Cancelar marcação de recebimento? A parcela voltará para pendente.")) {
+                                          okConsultorMutation.mutate({ id: p.id, ok: false });
+                                        }
+                                      }}
+                                      disabled={okConsultorMutation.isPending}
+                                      className="text-[10px] px-2 py-1 rounded bg-red-100 border border-red-300 text-red-600 hover:bg-red-200 transition-colors font-medium disabled:opacity-50 whitespace-nowrap"
+                                    >
+                                      ✕ Cancelar
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <p className="text-[10px] text-red-400 mt-1.5 bg-red-100 rounded px-2 py-1 text-center">
+                                    ⚠️ A baixa deve ser dada pelo Administrador após confirmar o comprovante
+                                  </p>
+                                )}
                               </div>
                             );
                           })}
