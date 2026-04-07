@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Plus, Trash2, Edit2, CheckCircle, Clock, AlertTriangle, X } from "lucide-react";
+import { Plus, Trash2, Edit2, CheckCircle, Clock, X } from "lucide-react";
 
 function formatCurrency(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -14,6 +14,7 @@ function formatCurrency(v: number) {
 
 function statusColor(status: string, vencimento: Date | string) {
   if (status === "pago") return "bg-emerald-100 text-emerald-700 border-emerald-200";
+  if (status === "aguardando_confirmacao") return "bg-blue-100 text-blue-700 border-blue-200";
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   const v = new Date(vencimento); v.setHours(0, 0, 0, 0);
   if (v < hoje) return "bg-red-100 text-red-700 border-red-200";
@@ -23,6 +24,7 @@ function statusColor(status: string, vencimento: Date | string) {
 
 function statusLabel(status: string, vencimento: Date | string) {
   if (status === "pago") return "Pago";
+  if (status === "aguardando_confirmacao") return "⏳ Aguardando";
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   const v = new Date(vencimento); v.setHours(0, 0, 0, 0);
   if (v < hoje) return "Atrasado";
@@ -38,9 +40,11 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onUpdate?: () => void;
+  /** Se true, esconde botões de edição/exclusão/pagar (modo consultor) */
+  modoConsultor?: boolean;
 }
 
-export default function ModalGerenciarParcelas({ vendaId, clienteNome, valorFaturado, valorColetado, open, onClose, onUpdate }: Props) {
+export default function ModalGerenciarParcelas({ vendaId, clienteNome, valorFaturado, valorColetado, open, onClose, onUpdate, modoConsultor = false }: Props) {
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState({ vencimento: "", valor: "", observacoes: "" });
   const [novasParcelas, setNovasParcelas] = useState<{ vencimento: string; valor: string }[]>([]);
@@ -61,6 +65,12 @@ export default function ModalGerenciarParcelas({ vendaId, clienteNome, valorFatu
     utils.parcelas.listAll.invalidate();
     utils.dashboard.stats.invalidate();
     utils.parcelas.vencendoHoje.invalidate();
+    utils.parcelas.coletadoByConsultor.invalidate();
+    utils.parcelas.pendentesConsultor.invalidate();
+    utils.parcelasCompletas.byConsultor.invalidate();
+    utils.parcelas.coletadoAdmin.invalidate();
+    utils.dashboardFinanceiro.get.invalidate();
+    utils.rankings.listByPeriod.invalidate();
     onUpdate?.();
   }
 
@@ -77,6 +87,18 @@ export default function ModalGerenciarParcelas({ vendaId, clienteNome, valorFatu
   const markPaid = trpc.parcelas.markPaid.useMutation({
     onSuccess: () => { toast.success("Parcela marcada como paga!"); invalidar(); },
     onError: (e) => toast.error(e.message),
+  });
+
+  const okConsultorMutation = trpc.parcelas.okConsultor.useMutation({
+    onSuccess: (_data, variables) => {
+      invalidar();
+      if (variables.ok) {
+        toast.success("⏳ Parcela marcada como recebida! Aguardando confirmação do administrador.");
+      } else {
+        toast.success("✓ Marcação cancelada. Parcela voltou para pendente.");
+      }
+    },
+    onError: (e) => toast.error("Erro: " + e.message),
   });
 
   const createParcelas = trpc.parcelas.create.useMutation({
@@ -104,13 +126,11 @@ export default function ModalGerenciarParcelas({ vendaId, clienteNome, valorFatu
   }
 
   function adicionarLinhaNovaParcela() {
-    // Calcular próxima data sugerida
     const ultimaData = parcelas && parcelas.length > 0
       ? new Date(parcelas[parcelas.length - 1].vencimento)
       : new Date();
     const proxData = new Date(ultimaData);
     proxData.setMonth(proxData.getMonth() + 1);
-    // Calcular valor sugerido: restante / 1
     const totalParcelas = parseFloat(String(parcelas?.reduce((s, p) => s + parseFloat(String(p.valor || 0)), 0) || 0));
     const restante = valorFaturado - valorColetado - totalParcelas;
     const valorSugerido = restante > 0 ? restante : 0;
@@ -173,83 +193,112 @@ export default function ModalGerenciarParcelas({ vendaId, clienteNome, valorFatu
               <p className="text-xs mt-1">Clique em "Adicionar Parcela" para criar</p>
             </div>
           ) : (
-            parcelas.map((p, idx) => (
-              <div key={p.id} className={`rounded-lg border p-3 ${p.status === "pago" ? "bg-emerald-50 border-emerald-200" : "bg-white border-gray-200"}`}>
-                {editandoId === p.id ? (
-                  // Modo edição
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-xs">Data de Vencimento</Label>
-                        <Input type="date" value={editForm.vencimento} onChange={e => setEditForm({ ...editForm, vencimento: e.target.value })} className="h-8 text-sm" />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Valor (R$)</Label>
-                        <Input type="number" step="0.01" value={editForm.valor} onChange={e => setEditForm({ ...editForm, valor: e.target.value })} className="h-8 text-sm" />
-                      </div>
-                      <div className="col-span-2">
-                        <Label className="text-xs">Observações</Label>
-                        <Input value={editForm.observacoes} onChange={e => setEditForm({ ...editForm, observacoes: e.target.value })} className="h-8 text-sm" placeholder="Opcional..." />
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={() => salvarEdicao(p.id)} disabled={updateVencimento.isPending}>Salvar</Button>
-                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditandoId(null)}>Cancelar</Button>
-                    </div>
-                  </div>
-                ) : (
-                  // Modo visualização
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <span className="text-xs text-gray-500 font-medium w-6 shrink-0">#{idx + 1}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-semibold text-gray-800">{formatCurrency(parseFloat(String(p.valor || 0)))}</span>
-                          <span className="text-xs text-gray-500">Venc: {new Date(p.vencimento).toLocaleDateString("pt-BR")}</span>
-                          <Badge className={`text-[10px] border ${statusColor(p.status, p.vencimento)}`}>
-                            {statusLabel(p.status, p.vencimento)}
-                          </Badge>
-                          {p.okConsultor && <span className="text-[10px] text-emerald-600">✓ Confirmado consultora</span>}
+            parcelas.map((p, idx) => {
+              const isAguardando = p.status === "aguardando_confirmacao";
+              const isPago = p.status === "pago";
+              return (
+                <div key={p.id} className={`rounded-lg border p-3 ${isPago ? "bg-emerald-50 border-emerald-200" : isAguardando ? "bg-blue-50 border-blue-200" : "bg-white border-gray-200"}`}>
+                  {editandoId === p.id ? (
+                    // Modo edição
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">Data de Vencimento</Label>
+                          <Input type="date" value={editForm.vencimento} onChange={e => setEditForm({ ...editForm, vencimento: e.target.value })} className="h-8 text-sm" />
                         </div>
-                        {(p as any).observacoes && <p className="text-xs text-gray-400 mt-0.5">{(p as any).observacoes}</p>}
-                        {p.dataPagamento && <p className="text-xs text-emerald-600 mt-0.5">Pago em: {new Date(p.dataPagamento).toLocaleDateString("pt-BR")}</p>}
+                        <div>
+                          <Label className="text-xs">Valor (R$)</Label>
+                          <Input type="number" step="0.01" value={editForm.valor} onChange={e => setEditForm({ ...editForm, valor: e.target.value })} className="h-8 text-sm" />
+                        </div>
+                        <div className="col-span-2">
+                          <Label className="text-xs">Observações</Label>
+                          <Input value={editForm.observacoes} onChange={e => setEditForm({ ...editForm, observacoes: e.target.value })} className="h-8 text-sm" placeholder="Opcional..." />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={() => salvarEdicao(p.id)} disabled={updateVencimento.isPending}>Salvar</Button>
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditandoId(null)}>Cancelar</Button>
                       </div>
                     </div>
-                    <div className="flex gap-1 shrink-0">
-                      {p.status !== "pago" && (
-                        <>
-                          <Button size="sm" variant="outline" className="h-7 w-7 p-0 text-blue-600 border-blue-200 hover:bg-blue-50"
-                            title="Editar parcela"
-                            onClick={() => iniciarEdicao(p)}>
-                            <Edit2 className="w-3 h-3" />
-                          </Button>
+                  ) : (
+                    // Modo visualização
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <span className="text-xs text-gray-500 font-medium w-6 shrink-0">#{idx + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-semibold text-gray-800">{formatCurrency(parseFloat(String(p.valor || 0)))}</span>
+                            <span className="text-xs text-gray-500">Venc: {new Date(p.vencimento).toLocaleDateString("pt-BR")}</span>
+                            <Badge className={`text-[10px] border ${statusColor(p.status, p.vencimento)}`}>
+                              {statusLabel(p.status, p.vencimento)}
+                            </Badge>
+                            {p.okConsultor && !isAguardando && <span className="text-[10px] text-emerald-600">✓ Confirmado consultora</span>}
+                          </div>
+                          {(p as any).observacoes && <p className="text-xs text-gray-400 mt-0.5">{(p as any).observacoes}</p>}
+                          {p.dataPagamento && <p className="text-xs text-emerald-600 mt-0.5">Pago em: {new Date(p.dataPagamento).toLocaleDateString("pt-BR")}</p>}
+                        </div>
+                      </div>
+                      <div className="flex gap-1 shrink-0 flex-wrap justify-end">
+                        {/* Botões para admin (não modoConsultor) */}
+                        {!modoConsultor && !isPago && !isAguardando && (
+                          <>
+                            <Button size="sm" variant="outline" className="h-7 w-7 p-0 text-blue-600 border-blue-200 hover:bg-blue-50"
+                              title="Editar parcela"
+                              onClick={() => iniciarEdicao(p)}>
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button size="sm" className="h-7 px-2 text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white"
+                              onClick={() => { if (confirm("Marcar parcela como paga?")) markPaid.mutate({ id: p.id }); }}
+                              disabled={markPaid.isPending}>
+                              <CheckCircle className="w-3 h-3 mr-1" />Pagar
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 w-7 p-0 text-red-600 border-red-200 hover:bg-red-50"
+                              title="Remover parcela"
+                              onClick={() => { if (confirm("Remover esta parcela?")) deleteParcela.mutate({ id: p.id }); }}>
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </>
+                        )}
+                        {/* Botão Recebi para consultor (pendente) */}
+                        {modoConsultor && !isPago && !isAguardando && (
                           <Button size="sm" className="h-7 px-2 text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white"
-                            onClick={() => { if (confirm("Marcar parcela como paga?")) markPaid.mutate({ id: p.id }); }}
-                            disabled={markPaid.isPending}>
-                            <CheckCircle className="w-3 h-3 mr-1" />Pagar
+                            onClick={() => { if (confirm("Confirmar que recebeu esta parcela? O administrador precisará validar.")) okConsultorMutation.mutate({ id: p.id, ok: true }); }}
+                            disabled={okConsultorMutation.isPending}>
+                            <CheckCircle className="w-3 h-3 mr-1" />Recebi
                           </Button>
-                          <Button size="sm" variant="outline" className="h-7 w-7 p-0 text-red-600 border-red-200 hover:bg-red-50"
-                            title="Remover parcela"
-                            onClick={() => { if (confirm("Remover esta parcela?")) deleteParcela.mutate({ id: p.id }); }}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </>
-                      )}
-                      {p.status === "pago" && (
-                        <span className="text-xs text-emerald-600 flex items-center gap-1 px-2">
-                          <CheckCircle className="w-3.5 h-3.5" /> Pago
-                        </span>
-                      )}
+                        )}
+                        {/* Badge + Botão Cancelar para aguardando_confirmacao */}
+                        {isAguardando && (
+                          <div className="flex items-center gap-1 flex-wrap justify-end">
+                            <span className="text-[10px] px-2 py-1 rounded bg-blue-100 border border-blue-300 text-blue-700 font-medium">
+                              ⏳ Aguardando admin
+                            </span>
+                            <Button size="sm" variant="outline"
+                              className="h-7 px-2 text-[10px] text-red-600 border-red-300 hover:bg-red-50"
+                              title="Cancelar marcação de recebido (erro)"
+                              onClick={() => { if (confirm("Cancelar marcação de recebimento? A parcela voltará para pendente.")) okConsultorMutation.mutate({ id: p.id, ok: false }); }}
+                              disabled={okConsultorMutation.isPending}>
+                              <X className="w-3 h-3 mr-1" />Cancelar
+                            </Button>
+                          </div>
+                        )}
+                        {/* Pago: apenas ícone */}
+                        {isPago && (
+                          <span className="text-xs text-emerald-600 flex items-center gap-1 px-2">
+                            <CheckCircle className="w-3.5 h-3.5" /> Pago
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
 
-        {/* Adicionar novas parcelas */}
-        {adicionando && (
+        {/* Adicionar novas parcelas (somente admin) */}
+        {!modoConsultor && adicionando && (
           <div className="border border-blue-200 rounded-lg p-3 bg-blue-50 space-y-2 mt-2">
             <p className="text-xs font-semibold text-blue-700">Nova(s) Parcela(s)</p>
             {novasParcelas.map((np, i) => (
@@ -290,10 +339,13 @@ export default function ModalGerenciarParcelas({ vendaId, clienteNome, valorFatu
 
         {/* Botões de ação */}
         <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-          <Button size="sm" variant="outline" className="text-xs h-8 gap-1 text-blue-600 border-blue-200 hover:bg-blue-50"
-            onClick={() => { setAdicionando(true); if (novasParcelas.length === 0) adicionarLinhaNovaParcela(); }}>
-            <Plus className="w-3.5 h-3.5" /> Adicionar Parcela
-          </Button>
+          {!modoConsultor && (
+            <Button size="sm" variant="outline" className="text-xs h-8 gap-1 text-blue-600 border-blue-200 hover:bg-blue-50"
+              onClick={() => { setAdicionando(true); if (novasParcelas.length === 0) adicionarLinhaNovaParcela(); }}>
+              <Plus className="w-3.5 h-3.5" /> Adicionar Parcela
+            </Button>
+          )}
+          {modoConsultor && <div />}
           <Button size="sm" variant="outline" className="text-xs h-8" onClick={onClose}>Fechar</Button>
         </div>
       </DialogContent>

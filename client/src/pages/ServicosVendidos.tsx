@@ -432,6 +432,7 @@ export default function ServicosVendidos() {
           valorColetado={parseFloat(String(openGerenciarParcelas.valorColetado || 0))}
           open={!!openGerenciarParcelas}
           onClose={() => setOpenGerenciarParcelas(null)}
+          modoConsultor={!isAdmin}
         />
       )}
     </LifeDashboardLayout>

@@ -225,10 +225,19 @@ export default function PainelConsultor() {
   });
   const okConsultorMutation = trpc.parcelas.okConsultor.useMutation({
     onSuccess: (_data, variables) => {
+      // Invalidar queries do consultor
       utils.parcelasCompletas.byConsultor.invalidate();
       utils.parcelas.coletadoByConsultor.invalidate();
       utils.parcelas.pendentesConsultor.invalidate();
       utils.parcelas.devedores.invalidate();
+      utils.parcelas.futurasConsultor.invalidate();
+      // Invalidar queries do painel admin
+      utils.parcelas.coletadoAdmin.invalidate();
+      utils.parcelas.listAll.invalidate();
+      utils.parcelas.listPendentes.invalidate();
+      utils.dashboard.stats.invalidate();
+      utils.dashboardFinanceiro.get.invalidate();
+      utils.rankings.listByPeriod.invalidate();
       setModalPagamentoParcela(null);
       setPagParcelaForm({ formaPagamento: "", comprovanteUrl: "", comprovanteFile: null });
       if (variables.ok) {

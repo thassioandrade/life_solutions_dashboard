@@ -438,3 +438,7 @@
 - [x] Adicionar procedure `parcelas.cancelarOkConsultor` no backend que reverte status para `pendente` e limpa `dataPagamento`, `okConsultor`, `valorPago`, `formaPagamento` (reutilizado o okConsultor com ok=false)
 - [x] Adicionar botão "✕ Cancelar" no PainelConsultor.tsx para parcelas com status `aguardando_confirmacao` (aba Parcelas e aba Cobranças)
 - [x] Ao cancelar, invalidar queries de parcelas e dashboard para atualizar os dados. Toast diferenciado para marcar vs cancelar
+
+## Bug: Botão cancelar parcela ausente na aba Serviços Vendidos (Abr 2026)
+- [x] Adicionar botão "✕ Cancelar" no modal de parcelas da aba Serviços Vendidos (ModalGerenciarParcelas com modoConsultor={!isAdmin})
+- [x] Garantir que ao cancelar, todas as queries do painel admin e consultor sejam invalidadas (coletadoAdmin, listAll, listPendentes, dashboard.stats, dashboardFinanceiro, rankings)
