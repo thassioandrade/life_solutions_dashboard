@@ -442,3 +442,7 @@
 ## Bug: Botão cancelar parcela ausente na aba Serviços Vendidos (Abr 2026)
 - [x] Adicionar botão "✕ Cancelar" no modal de parcelas da aba Serviços Vendidos (ModalGerenciarParcelas com modoConsultor={!isAdmin})
 - [x] Garantir que ao cancelar, todas as queries do painel admin e consultor sejam invalidadas (coletadoAdmin, listAll, listPendentes, dashboard.stats, dashboardFinanceiro, rankings)
+
+## Bug: Parcelas não atualizam após adicionar/editar na aba Vendas (Abr 2026)
+- [x] Investigar mutations de criar/editar parcelas no PainelConsultor e ModalGerenciarParcelas — problema estava no Vendas.tsx (createParcelasMut sem onSuccess) e ServicosVendidos.tsx (sem onUpdate)
+- [x] Corrigir invalidações: Vendas.tsx e ServicosVendidos.tsx agora chamam invalidarTudo() em todas as mutations (criar, editar, deletar, cancelar, pagar parcela)

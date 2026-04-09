@@ -59,26 +59,45 @@ export default function Vendas() {
   const refetch = isAdmin ? refetchAdmin : refetchConsultor;
   const consultores = isAdmin ? todosConsultores : undefined;
 
+  const utils = trpc.useUtils();
+
+  function invalidarTudo() {
+    refetch();
+    utils.parcelasCompletas.byConsultor.invalidate();
+    utils.parcelas.pendentesConsultor.invalidate();
+    utils.parcelas.coletadoByConsultor.invalidate();
+    utils.parcelas.futurasConsultor.invalidate();
+    utils.parcelas.devedores.invalidate();
+    utils.parcelas.listPendentes.invalidate();
+    utils.parcelas.listAll.invalidate();
+    utils.parcelas.vencendoHoje.invalidate();
+    utils.parcelas.coletadoAdmin.invalidate();
+    utils.dashboard.stats.invalidate();
+    utils.dashboardFinanceiro.get.invalidate();
+    utils.rankings.listByPeriod.invalidate();
+  }
+
   const createParcelasMut = trpc.parcelas.create.useMutation({
+    onSuccess: () => invalidarTudo(),
     onError: (e) => toast.error("Erro ao criar parcelas: " + e.message),
   });
   const createMutation = trpc.vendas.create.useMutation({
     onError: (e) => toast.error(e.message),
   });
   const updateMutation = trpc.vendas.update.useMutation({
-    onSuccess: () => { toast.success("Venda atualizada!"); setOpenEdit(null); refetch(); },
+    onSuccess: () => { toast.success("Venda atualizada!"); setOpenEdit(null); invalidarTudo(); },
     onError: (e) => toast.error(e.message),
   });
   const deleteMutation = trpc.vendas.delete.useMutation({
-    onSuccess: () => { toast.success("Removido!"); refetch(); },
+    onSuccess: () => { toast.success("Removido!"); invalidarTudo(); },
     onError: (e) => toast.error(e.message),
   });
   const cancelarMutation = trpc.vendas.cancelar.useMutation({
-    onSuccess: () => { toast.success("Venda cancelada e cliente movido para Estorno no Pipeline!"); setOpenEstorno(null); setMotivoEstorno(""); refetch(); },
+    onSuccess: () => { toast.success("Venda cancelada e cliente movido para Estorno no Pipeline!"); setOpenEstorno(null); setMotivoEstorno(""); invalidarTudo(); },
     onError: (e) => toast.error(e.message),
   });
   const pagarParcelaMutation = trpc.parcelas.markPaid.useMutation({
-    onSuccess: () => { toast.success("Parcela paga!"); refetch(); },
+    onSuccess: () => { toast.success("Parcela paga!"); invalidarTudo(); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -141,7 +160,7 @@ export default function Vendas() {
       setOpenCreate(false);
       setForm({ clienteNome: "", clienteEmail: "", clienteCpfCnpj: "", tipo: "PF", valorFaturado: "", valorColetado: "", formaPagamento: "", qtdParcelas: "1", consultorId: "", comissaoPercent: "10", dataVenda: new Date().toISOString().split("T")[0], servicos: [], custoServico: "" });
       setFormDatesVencimento([]);
-      refetch();
+      invalidarTudo();
     } catch (err) {
       console.error("Erro ao criar venda:", err);
     }
@@ -502,7 +521,7 @@ export default function Vendas() {
           valorColetado={parseFloat(String(openGerenciarParcelas.valorColetado || 0))}
           open={!!openGerenciarParcelas}
           onClose={() => setOpenGerenciarParcelas(null)}
-          onUpdate={() => refetch()}
+          onUpdate={() => invalidarTudo()}
         />
       )}
     </LifeDashboardLayout>

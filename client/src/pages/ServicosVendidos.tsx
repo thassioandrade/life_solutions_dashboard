@@ -34,15 +34,16 @@ export default function ServicosVendidos() {
   const [abaAtiva, setAbaAtiva] = useState<"servicos" | "devedores">("servicos");
   const [openGerenciarParcelas, setOpenGerenciarParcelas] = useState<any | null>(null);
 
+  const utils = trpc.useUtils();
   const { data: todosConsultores } = trpc.consultores.list.useQuery();
   const consultorLogado = todosConsultores?.find(c => c.email === user?.email);
   const consultorLogadoId = consultorLogado?.id;
 
   // Admin vê todos; consultor vê apenas os próprios
-  const { data: servicosAdmin, isLoading: loadingAdmin } = trpc.servicosVendidos.byPeriodo.useQuery(
+  const { data: servicosAdmin, isLoading: loadingAdmin, refetch: refetchAdmin } = trpc.servicosVendidos.byPeriodo.useQuery(
     { mes, ano }, { enabled: isAdmin }
   );
-  const { data: servicosConsultor, isLoading: loadingConsultor } = trpc.servicosVendidos.byConsultor.useQuery(
+  const { data: servicosConsultor, isLoading: loadingConsultor, refetch: refetchConsultor } = trpc.servicosVendidos.byConsultor.useQuery(
     { consultorId: consultorLogadoId || 0, mes, ano },
     { enabled: !isAdmin && !!consultorLogadoId }
   );
@@ -51,6 +52,22 @@ export default function ServicosVendidos() {
   const consultores = isAdmin ? todosConsultores : undefined;
   const { data: parcelasVencidas } = trpc.parcelas.devedores.useQuery();
   const { data: custosServicos } = trpc.custosServicos.get.useQuery();
+
+  function invalidarTudo() {
+    if (isAdmin) refetchAdmin(); else refetchConsultor();
+    utils.parcelasCompletas.byConsultor.invalidate();
+    utils.parcelas.pendentesConsultor.invalidate();
+    utils.parcelas.coletadoByConsultor.invalidate();
+    utils.parcelas.futurasConsultor.invalidate();
+    utils.parcelas.devedores.invalidate();
+    utils.parcelas.listPendentes.invalidate();
+    utils.parcelas.listAll.invalidate();
+    utils.parcelas.vencendoHoje.invalidate();
+    utils.parcelas.coletadoAdmin.invalidate();
+    utils.dashboard.stats.invalidate();
+    utils.dashboardFinanceiro.get.invalidate();
+    utils.rankings.listByPeriod.invalidate();
+  }
 
   const custoLimpaName = custosServicos?.custo_limpa_nome ?? 70;
   const custoRating = custosServicos?.custo_rating ?? 110;
@@ -432,6 +449,7 @@ export default function ServicosVendidos() {
           valorColetado={parseFloat(String(openGerenciarParcelas.valorColetado || 0))}
           open={!!openGerenciarParcelas}
           onClose={() => setOpenGerenciarParcelas(null)}
+          onUpdate={() => invalidarTudo()}
           modoConsultor={!isAdmin}
         />
       )}
