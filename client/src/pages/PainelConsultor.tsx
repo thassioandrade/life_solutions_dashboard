@@ -220,9 +220,24 @@ export default function PainelConsultor() {
     onError: (e) => toast.error(e.message),
   });
   const updateVendaMutation = trpc.vendas.update.useMutation({
-    onSuccess: () => { toast.success("Venda atualizada!"); setOpenEditVenda(null); utils.vendas.listByConsultor.invalidate(); },
     onError: (e) => toast.error(e.message),
   });
+
+  function invalidarTudoConsultor() {
+    utils.vendas.listByConsultor.invalidate();
+    utils.parcelasCompletas.byConsultor.invalidate();
+    utils.parcelas.pendentesConsultor.invalidate();
+    utils.parcelas.coletadoByConsultor.invalidate();
+    utils.parcelas.futurasConsultor.invalidate();
+    utils.parcelas.devedores.invalidate();
+    utils.parcelas.listPendentes.invalidate();
+    utils.parcelas.listAll.invalidate();
+    utils.parcelas.vencendoHoje.invalidate();
+    utils.parcelas.coletadoAdmin.invalidate();
+    utils.dashboard.stats.invalidate();
+    utils.dashboardFinanceiro.get.invalidate();
+    utils.rankings.listByPeriod.invalidate();
+  }
   const okConsultorMutation = trpc.parcelas.okConsultor.useMutation({
     onSuccess: (_data, variables) => {
       // Invalidar queries do consultor
@@ -1635,24 +1650,46 @@ export default function PainelConsultor() {
         venda={editVendaForm}
         showConsultor={false}
         isSaving={updateVendaMutation.isPending}
-        onSave={(data) => {
+        onSave={async (data) => {
           const custoAuto = data.servicos.includes("Limpa Nome") && data.servicos.includes("Rating Bancário") ? 180
             : data.servicos.includes("Limpa Nome") ? 70
             : data.servicos.includes("Rating Bancário") ? 110 : 0;
-          updateVendaMutation.mutate({
-            id: data.id,
-            clienteNome: data.clienteNome,
-            clienteCpfCnpj: data.clienteCpfCnpj || undefined,
-            clienteTelefone: data.clienteTelefone || undefined,
-            tipo: data.tipo as "PF" | "PJ",
-            valorFaturado: parseFloat(data.valorFaturado),
-            valorColetado: parseFloat(data.valorColetado || data.valorFaturado),
-            comissaoPercent: parseFloat(data.comissaoPercent || "10") || 10,
-            dataVenda: data.dataVenda,
-            servicos: data.servicos,
-            custoServico: data.custoServico ? parseFloat(data.custoServico) : custoAuto,
-            observacoes: data.observacoes || undefined,
-          });
+          try {
+            await updateVendaMutation.mutateAsync({
+              id: data.id,
+              clienteNome: data.clienteNome,
+              clienteCpfCnpj: data.clienteCpfCnpj || undefined,
+              clienteTelefone: data.clienteTelefone || undefined,
+              tipo: data.tipo as "PF" | "PJ",
+              valorFaturado: parseFloat(data.valorFaturado),
+              valorColetado: parseFloat(data.valorColetado || data.valorFaturado),
+              comissaoPercent: parseFloat(data.comissaoPercent || "10") || 10,
+              dataVenda: data.dataVenda,
+              servicos: data.servicos,
+              custoServico: data.custoServico ? parseFloat(data.custoServico) : custoAuto,
+              observacoes: data.observacoes || undefined,
+            });
+            // Criar parcelas se informadas
+            const qtd = data.parcelasQtd || 0;
+            const faturado = parseFloat(data.valorFaturado) || 0;
+            const coletado = parseFloat(data.valorColetado || data.valorFaturado) || 0;
+            const restante = faturado - coletado;
+            if (qtd > 0 && restante > 0 && data.datesVencimento && data.datesVencimento.length > 0) {
+              const valorParcela = restante / qtd;
+              const datas = data.datesVencimento.slice(0, qtd);
+              await createParcelas.mutateAsync({
+                vendaId: data.id,
+                parcelas: datas.map(d => ({ valor: valorParcela, vencimento: d })),
+              });
+              toast.success(`Venda atualizada com ${qtd} parcela(s) criada(s)!`);
+            } else {
+              toast.success("Venda atualizada!");
+            }
+            setOpenEditVenda(null);
+            invalidarTudoConsultor();
+          } catch (err: any) {
+            toast.error("Erro ao salvar: " + (err?.message || "Tente novamente"));
+          }
         }}
       />
 

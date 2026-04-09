@@ -85,7 +85,6 @@ export default function Vendas() {
     onError: (e) => toast.error(e.message),
   });
   const updateMutation = trpc.vendas.update.useMutation({
-    onSuccess: () => { toast.success("Venda atualizada!"); setOpenEdit(null); invalidarTudo(); },
     onError: (e) => toast.error(e.message),
   });
   const deleteMutation = trpc.vendas.delete.useMutation({
@@ -445,25 +444,47 @@ export default function Vendas() {
         consultores={consultores}
         showConsultor={true}
         isSaving={updateMutation.isPending}
-        onSave={(data) => {
+        onSave={async (data) => {
           const custoAuto = data.servicos.includes("Limpa Nome") && data.servicos.includes("Rating Bancário") ? 180
             : data.servicos.includes("Limpa Nome") ? 70
             : data.servicos.includes("Rating Bancário") ? 110 : 0;
-          updateMutation.mutate({
-            id: data.id,
-            clienteNome: data.clienteNome,
-            clienteCpfCnpj: data.clienteCpfCnpj || undefined,
-            clienteTelefone: data.clienteTelefone || undefined,
-            tipo: data.tipo as "PF" | "PJ",
-            valorFaturado: parseFloat(data.valorFaturado),
-            valorColetado: parseFloat(data.valorColetado || data.valorFaturado),
-            consultorId: data.consultorId ? parseInt(data.consultorId) : undefined,
-            comissaoPercent: parseFloat(data.comissaoPercent || "10") || 10,
-            dataVenda: data.dataVenda,
-            servicos: data.servicos,
-            custoServico: data.custoServico ? parseFloat(data.custoServico) : custoAuto,
-            observacoes: data.observacoes || undefined,
-          });
+          try {
+            await updateMutation.mutateAsync({
+              id: data.id,
+              clienteNome: data.clienteNome,
+              clienteCpfCnpj: data.clienteCpfCnpj || undefined,
+              clienteTelefone: data.clienteTelefone || undefined,
+              tipo: data.tipo as "PF" | "PJ",
+              valorFaturado: parseFloat(data.valorFaturado),
+              valorColetado: parseFloat(data.valorColetado || data.valorFaturado),
+              consultorId: data.consultorId ? parseInt(data.consultorId) : undefined,
+              comissaoPercent: parseFloat(data.comissaoPercent || "10") || 10,
+              dataVenda: data.dataVenda,
+              servicos: data.servicos,
+              custoServico: data.custoServico ? parseFloat(data.custoServico) : custoAuto,
+              observacoes: data.observacoes || undefined,
+            });
+            // Criar parcelas se informadas
+            const qtd = data.parcelasQtd || 0;
+            const faturado = parseFloat(data.valorFaturado) || 0;
+            const coletado = parseFloat(data.valorColetado || data.valorFaturado) || 0;
+            const restante = faturado - coletado;
+            if (qtd > 0 && restante > 0 && data.datesVencimento && data.datesVencimento.length > 0) {
+              const valorParcela = restante / qtd;
+              const datas = data.datesVencimento.slice(0, qtd);
+              await createParcelasMut.mutateAsync({
+                vendaId: data.id,
+                parcelas: datas.map(d => ({ valor: valorParcela, vencimento: d })),
+              });
+              toast.success(`Venda atualizada com ${qtd} parcela(s) criada(s)!`);
+            } else {
+              toast.success("Venda atualizada!");
+            }
+            setOpenEdit(null);
+            invalidarTudo();
+          } catch (err: any) {
+            toast.error("Erro ao salvar: " + (err?.message || "Tente novamente"));
+          }
         }}
       />
 

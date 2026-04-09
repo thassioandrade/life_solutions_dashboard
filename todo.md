@@ -446,3 +446,7 @@
 ## Bug: Parcelas não atualizam após adicionar/editar na aba Vendas (Abr 2026)
 - [x] Investigar mutations de criar/editar parcelas no PainelConsultor e ModalGerenciarParcelas — problema estava no Vendas.tsx (createParcelasMut sem onSuccess) e ServicosVendidos.tsx (sem onUpdate)
 - [x] Corrigir invalidações: Vendas.tsx e ServicosVendidos.tsx agora chamam invalidarTudo() em todas as mutations (criar, editar, deletar, cancelar, pagar parcela)
+
+## Bug: Editar venda não cria parcelas (Abr 2026)
+- [x] Investigar ModalEditarVenda — ao editar venda com parcelas, as parcelas não são criadas (problema: onSave só chamava updateMutation sem criar parcelas)
+- [x] Corrigir fluxo de edição: Vendas.tsx e PainelConsultor.tsx agora criam parcelas após update (mutateAsync + createParcelas + invalidarTudo)
