@@ -122,6 +122,7 @@ export default function PainelConsultor() {
   const [promessaData, setPromessaData] = useState({ dataPromessa: "", horarioPromessa: "", valor: "", observacoes: "" });
   const [salvandoPromessa, setSalvandoPromessa] = useState(false);
   const [drillDown, setDrillDown] = useState<DrillDownConsultor>(null);
+  const [buscaVenda, setBuscaVenda] = useState("");
   const [, navigate] = useLocation();
   // Ao fechar o modal de agendamento, abre o de promessa com delay para evitar conflito Radix
   const [pendingOpenPromessa, setPendingOpenPromessa] = useState(false);
@@ -1046,11 +1047,20 @@ export default function PainelConsultor() {
                 {vendas && vendas.length > 0 && (
                   <Card className="border-gray-200">
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-semibold text-gray-700">Vendas Registradas — {MESES[mes-1]} {ano}</CardTitle>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <CardTitle className="text-sm font-semibold text-gray-700">Vendas Registradas — {MESES[mes-1]} {ano} ({vendas.length})</CardTitle>
+                        <input
+                          type="text"
+                          placeholder="Buscar cliente..."
+                          value={buscaVenda}
+                          onChange={e => setBuscaVenda(e.target.value)}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 w-36 focus:outline-none focus:ring-1 focus:ring-blue-300 bg-white"
+                        />
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        {vendas.map(v => (
+                        {(buscaVenda ? vendas.filter(v => v.clienteNome.toLowerCase().includes(buscaVenda.toLowerCase())) : vendas).map(v => (
                           <div key={v.id} className="flex items-start justify-between py-2.5 px-3 rounded-lg border border-gray-100 bg-gray-50/50">
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-800">{v.clienteNome}</p>

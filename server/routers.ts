@@ -638,8 +638,29 @@ export const appRouter = router({
       .query(async ({ input }) => getParcelasFuturasConsultor(input.consultorId)),
     atualizarStatus: protectedProcedure
       .input(z.object({ id: z.number(), status: z.enum(["pendente", "pago", "atrasado", "aguardando_confirmacao"]) }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const { parcelas: parcelasTable, vendas: vendasTable } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        // Buscar parcela atual para verificar se está revertendo de pago para pendente
+        const [parcelaAtual] = await db.select({
+          id: parcelasTable.id,
+          status: parcelasTable.status,
+          valorPago: parcelasTable.valorPago,
+          vendaId: parcelasTable.vendaId,
+          valorColetadoVenda: vendasTable.valorColetado,
+        }).from(parcelasTable)
+          .innerJoin(vendasTable, eq(parcelasTable.vendaId, vendasTable.id))
+          .where(eq(parcelasTable.id, input.id));
         await updateParcela(input.id, { status: input.status });
+        // Se revertendo de pago para pendente, subtrair valorPago do valorColetado da venda
+        if (parcelaAtual && parcelaAtual.status === "pago" && (input.status === "pendente" || input.status === "atrasado")) {
+          const valorPagoAnterior = parseFloat(String(parcelaAtual.valorPago || 0));
+          const valorColetadoAtual = parseFloat(String(parcelaAtual.valorColetadoVenda || 0));
+          const novoColetado = Math.max(0, valorColetadoAtual - valorPagoAnterior);
+          await updateVenda(parcelaAtual.vendaId, { valorColetado: String(novoColetado) });
+        }
         return { success: true };
       }),
     updateVencimento: protectedProcedure
