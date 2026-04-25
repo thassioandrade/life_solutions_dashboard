@@ -550,14 +550,22 @@ export const appRouter = router({
         parcelas: z.array(z.object({ valor: z.number(), vencimento: z.string(), numeroParcela: z.number().optional() })),
       }))
       .mutation(async ({ input }) => {
-        await createParcelas(input.parcelas.map((p, idx) => ({
-          vendaId: input.vendaId,
-          valor: String(p.valor),
-          vencimento: new Date(p.vencimento),
-          status: "pendente" as const,
-          numeroParcela: p.numeroParcela ?? (idx + 1),
-        })));
-        return { success: true };
+        // Buscar parcelas existentes para evitar duplicatas por numeroParcela
+        const existentes = await getParcelasByVenda(input.vendaId);
+        const numerosExistentes = new Set(existentes.map(p => p.numeroParcela));
+        // Determinar o próximo numeroParcela disponível
+        const maxNumero = existentes.length > 0 ? Math.max(...existentes.map(p => p.numeroParcela ?? 0)) : 0;
+        const novas = input.parcelas
+          .map((p, idx) => ({
+            vendaId: input.vendaId,
+            valor: String(p.valor),
+            vencimento: new Date(p.vencimento),
+            status: "pendente" as const,
+            numeroParcela: p.numeroParcela ?? (maxNumero + idx + 1),
+          }))
+          .filter(p => !numerosExistentes.has(p.numeroParcela)); // ignorar duplicatas
+        if (novas.length > 0) await createParcelas(novas);
+        return { success: true, criadas: novas.length, ignoradas: input.parcelas.length - novas.length };
       }),
      markPaid: protectedProcedure
       .input(z.object({ id: z.number(), comprovanteUrl: z.string().optional() }))
