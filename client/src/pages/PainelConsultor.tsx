@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
+import DrillDownModal from "@/components/DrillDownModal";
+type DrillDownConsultor = "coletado" | "faturado" | "comissao" | "aReceber" | "coletadoParcelas" | null;
 
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const DIAS_SEMANA = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
@@ -119,6 +121,7 @@ export default function PainelConsultor() {
   const [modalPromessaAberto, setModalPromessaAberto] = useState(false);
   const [promessaData, setPromessaData] = useState({ dataPromessa: "", horarioPromessa: "", valor: "", observacoes: "" });
   const [salvandoPromessa, setSalvandoPromessa] = useState(false);
+  const [drillDown, setDrillDown] = useState<DrillDownConsultor>(null);
   const [, navigate] = useLocation();
   // Ao fechar o modal de agendamento, abre o de promessa com delay para evitar conflito Radix
   const [pendingOpenPromessa, setPendingOpenPromessa] = useState(false);
@@ -186,6 +189,28 @@ export default function PainelConsultor() {
     { enabled: !!consultor?.id }
   );
   // parcelasMesmoMes removido — valorColetado da venda já inclui parcelas pagas
+
+  // Drill-down queries (lazy — só buscam quando o modal é aberto)
+  const { data: detalheColetado, isLoading: loadingDetalheColetado } = trpc.consultorDetalhe.coletado.useQuery(
+    { consultorId: consultor?.id || 0, mes, ano },
+    { enabled: drillDown === "coletado" && !!consultor?.id }
+  );
+  const { data: detalheFaturado, isLoading: loadingDetalheFaturado } = trpc.consultorDetalhe.faturado.useQuery(
+    { consultorId: consultor?.id || 0, mes, ano },
+    { enabled: drillDown === "faturado" && !!consultor?.id }
+  );
+  const { data: detalheComissao, isLoading: loadingDetalheComissao } = trpc.consultorDetalhe.comissao.useQuery(
+    { consultorId: consultor?.id || 0, mes, ano },
+    { enabled: drillDown === "comissao" && !!consultor?.id }
+  );
+  const { data: detalheAReceber, isLoading: loadingDetalheAReceber } = trpc.consultorDetalhe.aReceber.useQuery(
+    { consultorId: consultor?.id || 0 },
+    { enabled: drillDown === "aReceber" && !!consultor?.id }
+  );
+  const { data: detalheColetadoParcelas, isLoading: loadingDetalheColetadoParcelas } = trpc.consultorDetalhe.coletadoParcelas.useQuery(
+    { consultorId: consultor?.id || 0, mes, ano },
+    { enabled: drillDown === "coletadoParcelas" && !!consultor?.id }
+  );
 
   const updateAgendamento = trpc.agendamentos.update.useMutation({
     onSuccess: () => {
@@ -658,30 +683,45 @@ export default function PainelConsultor() {
           <>
             {/* Métricas */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="rounded-xl p-4 border" style={{ background: "rgba(0,85,255,0.06)", borderColor: "rgba(0,85,255,0.2)" }}>
+              {/* Card Coletado — clicável */}
+              <button
+                onClick={() => setDrillDown("coletado")}
+                className="rounded-xl p-4 border text-left transition-all hover:shadow-md hover:scale-[1.02] cursor-pointer"
+                style={{ background: "rgba(0,85,255,0.06)", borderColor: "rgba(0,85,255,0.2)" }}
+              >
                 <div className="flex items-center gap-1.5 mb-1">
                   <DollarSign className="w-4 h-4" style={{ color: "#0055FF" }} />
                   <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#0055FF" }}>Coletado</p>
                 </div>
                 <p className="text-xl font-bold text-gray-800">{formatCurrency(totalColetado)}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{vendas?.length || 0} vendas</p>
-              </div>
-              <div className="rounded-xl p-4 border" style={{ background: "rgba(0,85,255,0.06)", borderColor: "rgba(0,85,255,0.2)" }}>
+                <p className="text-xs text-gray-400 mt-0.5">{vendas?.length || 0} vendas · clique para detalhar</p>
+              </button>
+              {/* Card Faturado — clicável */}
+              <button
+                onClick={() => setDrillDown("faturado")}
+                className="rounded-xl p-4 border text-left transition-all hover:shadow-md hover:scale-[1.02] cursor-pointer"
+                style={{ background: "rgba(0,85,255,0.06)", borderColor: "rgba(0,85,255,0.2)" }}
+              >
                 <div className="flex items-center gap-1.5 mb-1">
                   <TrendingUp className="w-4 h-4" style={{ color: "#0055FF" }} />
                   <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#0055FF" }}>Faturado</p>
                 </div>
                 <p className="text-xl font-bold text-gray-800">{formatCurrency(totalFaturado)}</p>
-                <p className="text-xs text-gray-400 mt-0.5">Total contratado</p>
-              </div>
-              <div className="rounded-xl p-4 border bg-amber-50 border-amber-200">
+                <p className="text-xs text-gray-400 mt-0.5">Total contratado · clique para detalhar</p>
+              </button>
+              {/* Card Comissão — clicável */}
+              <button
+                onClick={() => setDrillDown("comissao")}
+                className="rounded-xl p-4 border bg-amber-50 border-amber-200 text-left transition-all hover:shadow-md hover:scale-[1.02] cursor-pointer"
+              >
                 <div className="flex items-center gap-1.5 mb-1">
                   <CreditCard className="w-4 h-4 text-amber-600" />
                   <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">Comissão</p>
                 </div>
                 <p className="text-xl font-bold text-amber-700">{formatCurrency(comissaoTotal)}</p>
-                <p className="text-xs text-gray-400 mt-0.5">Sua comissão do mês</p>
-              </div>
+                <p className="text-xs text-gray-400 mt-0.5">Sua comissão · clique para detalhar</p>
+              </button>
+              {/* Card Vendas — sem drill-down (apenas contagem) */}
               <div className="rounded-xl p-4 border bg-emerald-50 border-emerald-200">
                 <div className="flex items-center gap-1.5 mb-1">
                   <Trophy className="w-4 h-4 text-emerald-600" />
@@ -694,7 +734,11 @@ export default function PainelConsultor() {
 
             {/* Cards de Coletado Parcelas (separado do coletado normal) */}
             {coletadoParcelas && (coletadoParcelas.totalColetado > 0 || coletadoParcelas.parcelas.length > 0) && (
-              <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
+              <div
+                className="rounded-xl border border-teal-200 bg-teal-50 p-4 cursor-pointer transition-all hover:shadow-md hover:scale-[1.01]"
+                onClick={() => setDrillDown("coletadoParcelas")}
+                title="Clique para ver detalhes"
+              >
                 <div className="flex items-start justify-between flex-wrap gap-3">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
@@ -1798,6 +1842,52 @@ export default function PainelConsultor() {
           )}
         </DialogContent>
       </Dialog>
+      {/* DrillDown Modais — Painel Consultor */}
+      <DrillDownModal
+        open={drillDown === "coletado"}
+        onClose={() => setDrillDown(null)}
+        title={`Coletado — ${MESES[mes-1]} ${ano}`}
+        total={detalheColetado?.total || 0}
+        items={(detalheColetado?.itens || []).map(i => ({ ...i, data: new Date(i.data) }))}
+        isLoading={loadingDetalheColetado}
+        color="blue"
+      />
+      <DrillDownModal
+        open={drillDown === "faturado"}
+        onClose={() => setDrillDown(null)}
+        title={`Faturado — ${MESES[mes-1]} ${ano}`}
+        total={detalheFaturado?.total || 0}
+        items={(detalheFaturado?.itens || []).map(i => ({ ...i, data: new Date(i.data) }))}
+        isLoading={loadingDetalheFaturado}
+        color="teal"
+      />
+      <DrillDownModal
+        open={drillDown === "comissao"}
+        onClose={() => setDrillDown(null)}
+        title={`Comissão — ${MESES[mes-1]} ${ano}`}
+        total={detalheComissao?.total || 0}
+        items={(detalheComissao?.itens || []).map(i => ({ ...i, data: new Date(i.data) }))}
+        isLoading={loadingDetalheComissao}
+        color="amber"
+      />
+      <DrillDownModal
+        open={drillDown === "aReceber"}
+        onClose={() => setDrillDown(null)}
+        title="A Receber — Parcelas Pendentes"
+        total={detalheAReceber?.total || 0}
+        items={(detalheAReceber?.itens || []).map(i => ({ ...i, data: new Date(i.data) }))}
+        isLoading={loadingDetalheAReceber}
+        color="rose"
+      />
+      <DrillDownModal
+        open={drillDown === "coletadoParcelas"}
+        onClose={() => setDrillDown(null)}
+        title={`Coletado Parcelas — ${MESES[mes-1]} ${ano}`}
+        total={detalheColetadoParcelas?.total || 0}
+        items={(detalheColetadoParcelas?.itens || []).map(i => ({ ...i, data: new Date(i.data) }))}
+        isLoading={loadingDetalheColetadoParcelas}
+        color="green"
+      />
     </LifeDashboardLayout>
   );
 }

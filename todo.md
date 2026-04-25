@@ -494,3 +494,8 @@
 - [x] Verificar: Dashboard Admin — cards Coletado e Comissões refletem valorColetado atualizado (parcelasMesmoMes removido do cálculo)
 - [x] Verificar: Painel Consultor — coletado pessoal e comissão refletem valorColetado atualizado
 - [x] Verificar: Ranking — valorColetado do ranking inclui parcelas pagas (via valorColetado da venda)
+
+## Drill-Down nos Cards do PainelConsultor (Abr 2026)
+
+- [ ] Backend: procedures de drill-down por consultorId (coletado, faturado, aReceber, coletadoParcelas)
+- [ ] Frontend: DrillDownModal nos 4 cards do PainelConsultor com onClick

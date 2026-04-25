@@ -37,6 +37,11 @@ import { getAllUsers, updateUserRole, updateUserAvatar, deleteUser,
   getDetalheColetadoParcelas,
   getDetalheComissaoParcelas,
   getDetalheAguardandoBaixa,
+  getDetalheColetadoConsultor,
+  getDetalheFaturadoConsultor,
+  getDetalheComissaoConsultor,
+  getDetalheAReceberConsultor,
+  getDetalheColetadoParcelasConsultor,
 } from "./db";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
@@ -1500,6 +1505,73 @@ export const appRouter = router({
       .query(async ({ input }) => getDetalheComissaoParcelas(input.mes, input.ano)),
     aguardandoBaixa: adminProcedure
       .query(async () => getDetalheAguardandoBaixa()),
+  }),
+  consultorDetalhe: router({
+    coletado: protectedProcedure
+      .input(z.object({ consultorId: z.number(), mes: z.number(), ano: z.number() }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          const db2 = await getDb();
+          if (!db2) throw new TRPCError({ code: "FORBIDDEN" });
+          const { consultores: consultoresTable } = await import("../drizzle/schema");
+          const { eq: eqFn } = await import("drizzle-orm");
+          const [consultor] = await db2.select().from(consultoresTable).where(eqFn(consultoresTable.userId, ctx.user.id)).limit(1);
+          if (!consultor || consultor.id !== input.consultorId) throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return getDetalheColetadoConsultor(input.consultorId, input.mes, input.ano);
+      }),
+    faturado: protectedProcedure
+      .input(z.object({ consultorId: z.number(), mes: z.number(), ano: z.number() }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          const db2 = await getDb();
+          if (!db2) throw new TRPCError({ code: "FORBIDDEN" });
+          const { consultores: consultoresTable } = await import("../drizzle/schema");
+          const { eq: eqFn } = await import("drizzle-orm");
+          const [consultor] = await db2.select().from(consultoresTable).where(eqFn(consultoresTable.userId, ctx.user.id)).limit(1);
+          if (!consultor || consultor.id !== input.consultorId) throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return getDetalheFaturadoConsultor(input.consultorId, input.mes, input.ano);
+      }),
+    comissao: protectedProcedure
+      .input(z.object({ consultorId: z.number(), mes: z.number(), ano: z.number() }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          const db2 = await getDb();
+          if (!db2) throw new TRPCError({ code: "FORBIDDEN" });
+          const { consultores: consultoresTable } = await import("../drizzle/schema");
+          const { eq: eqFn } = await import("drizzle-orm");
+          const [consultor] = await db2.select().from(consultoresTable).where(eqFn(consultoresTable.userId, ctx.user.id)).limit(1);
+          if (!consultor || consultor.id !== input.consultorId) throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return getDetalheComissaoConsultor(input.consultorId, input.mes, input.ano);
+      }),
+    aReceber: protectedProcedure
+      .input(z.object({ consultorId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          const db2 = await getDb();
+          if (!db2) throw new TRPCError({ code: "FORBIDDEN" });
+          const { consultores: consultoresTable } = await import("../drizzle/schema");
+          const { eq: eqFn } = await import("drizzle-orm");
+          const [consultor] = await db2.select().from(consultoresTable).where(eqFn(consultoresTable.userId, ctx.user.id)).limit(1);
+          if (!consultor || consultor.id !== input.consultorId) throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return getDetalheAReceberConsultor(input.consultorId);
+      }),
+    coletadoParcelas: protectedProcedure
+      .input(z.object({ consultorId: z.number(), mes: z.number(), ano: z.number() }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          const db2 = await getDb();
+          if (!db2) throw new TRPCError({ code: "FORBIDDEN" });
+          const { consultores: consultoresTable } = await import("../drizzle/schema");
+          const { eq: eqFn } = await import("drizzle-orm");
+          const [consultor] = await db2.select().from(consultoresTable).where(eqFn(consultoresTable.userId, ctx.user.id)).limit(1);
+          if (!consultor || consultor.id !== input.consultorId) throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return getDetalheColetadoParcelasConsultor(input.consultorId, input.mes, input.ano);
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;
