@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -1251,4 +1251,272 @@ export async function getRankingAutomatico(mes: number, ano: number) {
     .filter(e => e.totalVendas > 0 || e.totalReunioesFeitas > 0)
     .sort((a, b) => b.valorColetado - a.valorColetado)
     .map((e, i) => ({ ...e, posicao: i + 1 }));
+}
+
+// ==================== DRILL-DOWN DETALHAMENTO DOS CARDS DO DASHBOARD ====================
+
+/** Detalhamento do card COLETADO: vendas à vista + parcelas pagas no mesmo mês da venda */
+export async function getDetalheColetado(mes: number, ano: number) {
+  const db = await getDb();
+  if (!db) return { itens: [], total: 0 };
+  const startDate = new Date(ano, mes - 1, 1);
+  const endDate = new Date(ano, mes, 0, 23, 59, 59);
+
+  // Vendas à vista do mês
+  const vendasMes = await db.select().from(vendas)
+    .where(and(gte(vendas.dataVenda, startDate), lte(vendas.dataVenda, endDate), eq(vendas.cancelada, false)));
+
+  // Consultores para nome
+  const consultoresList = await db.select().from(consultores);
+  const consultorMap = new Map(consultoresList.map(c => [c.id, c.nome]));
+
+  const itens: Array<{ tipo: string; clienteNome: string; consultorNome: string; valor: number; data: Date; descricao: string }> = [];
+
+  for (const v of vendasMes) {
+    const valorColetado = parseFloat(String(v.valorColetado || 0));
+    if (valorColetado > 0) {
+      itens.push({
+        tipo: "venda_avista",
+        clienteNome: v.clienteNome,
+        consultorNome: consultorMap.get(v.consultorId ?? 0) || "—",
+        valor: valorColetado,
+        data: v.dataVenda,
+        descricao: `Coletado à vista — ${(v.servicos as string[] || []).join(", ") || "Serviço"}`,
+      });
+    }
+  }
+
+  // Parcelas pagas no mesmo mês da venda
+  const parcelasMesmo = await getParcelasMesmoMesDaVenda(mes, ano);
+  for (const p of parcelasMesmo) {
+    itens.push({
+      tipo: "parcela_mesmo_mes",
+      clienteNome: p.clienteNome || "—",
+      consultorNome: consultorMap.get(p.consultorId ?? 0) || "—",
+      valor: parseFloat(String(p.valor || 0)),
+      data: p.dataPagamento || new Date(),
+      descricao: `Parcela paga no mesmo mês da venda`,
+    });
+  }
+
+  itens.sort((a, b) => b.data.getTime() - a.data.getTime());
+  const total = itens.reduce((s, i) => s + i.valor, 0);
+  return { itens, total };
+}
+
+/** Detalhamento do card FATURADO: todas as vendas do mês */
+export async function getDetalheFaturado(mes: number, ano: number) {
+  const db = await getDb();
+  if (!db) return { itens: [], total: 0 };
+  const startDate = new Date(ano, mes - 1, 1);
+  const endDate = new Date(ano, mes, 0, 23, 59, 59);
+
+  const vendasMes = await db.select().from(vendas)
+    .where(and(gte(vendas.dataVenda, startDate), lte(vendas.dataVenda, endDate), eq(vendas.cancelada, false)))
+    .orderBy(desc(vendas.dataVenda));
+
+  const consultoresList = await db.select().from(consultores);
+  const consultorMap = new Map(consultoresList.map(c => [c.id, c.nome]));
+
+  const itens = vendasMes.map(v => ({
+    tipo: "venda",
+    clienteNome: v.clienteNome,
+    consultorNome: consultorMap.get(v.consultorId ?? 0) || "—",
+    valor: parseFloat(String(v.valorFaturado || 0)),
+    data: v.dataVenda,
+    descricao: `Venda — ${(v.servicos as string[] || []).join(", ") || "Serviço"}`,
+  }));
+
+  const total = itens.reduce((s, i) => s + i.valor, 0);
+  return { itens, total };
+}
+
+/** Detalhamento do card A RECEBER: parcelas pendentes */
+export async function getDetalheAReceber(mes: number, ano: number) {
+  const db = await getDb();
+  if (!db) return { itens: [], total: 0 };
+
+  // Busca todas as parcelas pendentes ou aguardando confirmação
+  const todasParcelas = await db.select({
+    id: parcelas.id,
+    vendaId: parcelas.vendaId,
+    numeroParcela: parcelas.numeroParcela,
+    valor: parcelas.valor,
+    vencimento: parcelas.vencimento,
+    status: parcelas.status,
+    clienteNome: vendas.clienteNome,
+    consultorId: vendas.consultorId,
+  })
+    .from(parcelas)
+    .leftJoin(vendas, eq(parcelas.vendaId, vendas.id))
+    .where(sql`${parcelas.status} IN ('pendente', 'aguardando_confirmacao')`);
+
+  const consultoresList = await db.select().from(consultores);
+  const consultorMap = new Map(consultoresList.map(c => [c.id, c.nome]));
+
+  const itens = todasParcelas.map(p => ({
+    tipo: "parcela_pendente",
+    clienteNome: p.clienteNome || "—",
+    consultorNome: consultorMap.get(p.consultorId ?? 0) || "—",
+    valor: parseFloat(String(p.valor || 0)),
+    data: p.vencimento || new Date(),
+    descricao: `Parcela #${p.numeroParcela} — venc. ${p.vencimento ? new Date(p.vencimento).toLocaleDateString("pt-BR") : "—"} — ${p.status === "aguardando_confirmacao" ? "⏳ Aguardando baixa" : "Pendente"}`,
+  })).sort((a, b) => a.data.getTime() - b.data.getTime());
+
+  const total = itens.reduce((s, i) => s + i.valor, 0);
+  return { itens, total };
+}
+
+/** Detalhamento do card COMISSÕES: comissão de vendas do mês */
+export async function getDetalheComissoes(mes: number, ano: number) {
+  const db = await getDb();
+  if (!db) return { itens: [], total: 0 };
+  const startDate = new Date(ano, mes - 1, 1);
+  const endDate = new Date(ano, mes, 0, 23, 59, 59);
+
+  const vendasMes = await db.select().from(vendas)
+    .where(and(gte(vendas.dataVenda, startDate), lte(vendas.dataVenda, endDate), eq(vendas.cancelada, false)))
+    .orderBy(desc(vendas.dataVenda));
+
+  const consultoresList = await db.select().from(consultores);
+  const consultorMap = new Map(consultoresList.map(c => [c.id, c.nome]));
+
+  const itens: Array<{ tipo: string; clienteNome: string; consultorNome: string; valor: number; data: Date; descricao: string }> = [];
+
+  for (const v of vendasMes) {
+    const base = parseFloat(String(v.valorColetado || 0)) - parseFloat(String(v.custoServico || 0));
+    const comissao = base * (parseFloat(String(v.comissaoPercent || 10)) / 100);
+    if (comissao > 0) {
+      itens.push({
+        tipo: "comissao_venda",
+        clienteNome: v.clienteNome,
+        consultorNome: consultorMap.get(v.consultorId ?? 0) || "—",
+        valor: comissao,
+        data: v.dataVenda,
+        descricao: `${parseFloat(String(v.comissaoPercent || 10))}% sobre R$ ${base.toFixed(2)} (coletado - custo serviço)`,
+      });
+    }
+  }
+
+  // Comissão de parcelas do mesmo mês
+  const parcelasMesmo = await getParcelasMesmoMesDaVenda(mes, ano);
+  for (const p of parcelasMesmo) {
+    const comissao = parseFloat(String(p.valor || 0)) * 0.10;
+    if (comissao > 0) {
+      itens.push({
+        tipo: "comissao_parcela_mesmo_mes",
+        clienteNome: p.clienteNome || "—",
+        consultorNome: consultorMap.get(p.consultorId ?? 0) || "—",
+        valor: comissao,
+        data: p.dataPagamento || new Date(),
+        descricao: `10% sobre parcela #${(p as any).numeroParcela ?? ""} paga no mesmo mês da venda`,
+      });
+    }
+  }
+
+  itens.sort((a, b) => b.data.getTime() - a.data.getTime());
+  const total = itens.reduce((s, i) => s + i.valor, 0);
+  return { itens, total };
+}
+
+/** Detalhamento do card COLETADO PARCELAS: parcelas de meses anteriores pagas no mês */
+export async function getDetalheColetadoParcelas(mes: number, ano: number) {
+  const db = await getDb();
+  if (!db) return { itens: [], total: 0 };
+
+  const startPag = new Date(ano, mes - 1, 1);
+  const endPag = new Date(ano, mes, 0, 23, 59, 59);
+
+  // Parcelas pagas no mês, mas cuja venda foi em mês DIFERENTE
+  const rows = await db.select({
+    id: parcelas.id,
+    vendaId: parcelas.vendaId,
+    numeroParcela: parcelas.numeroParcela,
+    valor: parcelas.valor,
+    dataPagamento: parcelas.dataPagamento,
+    clienteNome: vendas.clienteNome,
+    consultorId: vendas.consultorId,
+    dataVenda: vendas.dataVenda,
+  })
+    .from(parcelas)
+    .leftJoin(vendas, eq(parcelas.vendaId, vendas.id))
+    .where(and(
+      eq(parcelas.status, "pago"),
+      gte(parcelas.dataPagamento, startPag),
+      lte(parcelas.dataPagamento, endPag),
+    ));
+
+  const consultoresList = await db.select().from(consultores);
+  const consultorMap = new Map(consultoresList.map(c => [c.id, c.nome]));
+
+  // Filtrar apenas parcelas de meses DIFERENTES da venda
+  const itens = rows
+    .filter(p => {
+      if (!p.dataVenda || !p.dataPagamento) return false;
+      const mesVenda = p.dataVenda.getMonth();
+      const anoVenda = p.dataVenda.getFullYear();
+      const mesPag = p.dataPagamento.getMonth();
+      const anoPag = p.dataPagamento.getFullYear();
+      return !(mesVenda === mesPag && anoVenda === anoPag);
+    })
+    .map(p => ({
+      tipo: "parcela_mes_anterior",
+      clienteNome: p.clienteNome || "—",
+      consultorNome: consultorMap.get(p.consultorId ?? 0) || "—",
+      valor: parseFloat(String(p.valor || 0)),
+      data: p.dataPagamento || new Date(),
+      descricao: `Parcela #${p.numeroParcela} — venda de ${p.dataVenda ? new Date(p.dataVenda).toLocaleDateString("pt-BR") : "—"}`,
+    }))
+    .sort((a, b) => b.data.getTime() - a.data.getTime());
+
+  const total = itens.reduce((s, i) => s + i.valor, 0);
+  return { itens, total };
+}
+
+/** Detalhamento do card COMISSÃO PARCELAS: comissão sobre parcelas de meses anteriores */
+export async function getDetalheComissaoParcelas(mes: number, ano: number) {
+  const { itens: parcelasItens, total: totalParcelas } = await getDetalheColetadoParcelas(mes, ano);
+  const itens = parcelasItens.map(p => ({
+    ...p,
+    tipo: "comissao_parcela_mes_anterior",
+    valor: p.valor * 0.10,
+    descricao: `10% sobre ${p.descricao}`,
+  }));
+  const total = itens.reduce((s, i) => s + i.valor, 0);
+  return { itens, total };
+}
+
+/** Detalhamento do card AGUARDANDO BAIXA: parcelas aguardando confirmação do admin */
+export async function getDetalheAguardandoBaixa() {
+  const db = await getDb();
+  if (!db) return { itens: [], total: 0 };
+
+  const rows = await db.select({
+    id: parcelas.id,
+    vendaId: parcelas.vendaId,
+    numeroParcela: parcelas.numeroParcela,
+    valor: parcelas.valor,
+    vencimento: parcelas.vencimento,
+    clienteNome: vendas.clienteNome,
+    consultorId: vendas.consultorId,
+    updatedAt: parcelas.updatedAt,
+  })
+    .from(parcelas)
+    .leftJoin(vendas, eq(parcelas.vendaId, vendas.id))
+    .where(eq(parcelas.status, "aguardando_confirmacao"));
+
+  const consultoresList = await db.select().from(consultores);
+  const consultorMap = new Map(consultoresList.map(c => [c.id, c.nome]));
+
+  const itens = rows.map(p => ({
+    tipo: "aguardando_baixa",
+    clienteNome: p.clienteNome || "—",
+    consultorNome: consultorMap.get(p.consultorId ?? 0) || "—",
+    valor: parseFloat(String(p.valor || 0)),
+    data: p.updatedAt || new Date(),
+    descricao: `Parcela #${p.numeroParcela} — venc. ${p.vencimento ? new Date(p.vencimento).toLocaleDateString("pt-BR") : "—"} — aguardando confirmação do admin`,
+  })).sort((a, b) => b.data.getTime() - a.data.getTime());
+
+  const total = itens.reduce((s, i) => s + i.valor, 0);
+  return { itens, total };
 }

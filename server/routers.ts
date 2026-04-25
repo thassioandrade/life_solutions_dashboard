@@ -30,6 +30,13 @@ import { getAllUsers, updateUserRole, updateUserAvatar, deleteUser,
   getPromessaById, createPromessa, updatePromessa, deletePromessa,
   getRankingAutomatico,
   getParcelasMesmoMesDaVenda,
+  getDetalheColetado,
+  getDetalheFaturado,
+  getDetalheAReceber,
+  getDetalheComissoes,
+  getDetalheColetadoParcelas,
+  getDetalheComissaoParcelas,
+  getDetalheAguardandoBaixa,
 } from "./db";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
@@ -1474,6 +1481,27 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
+  dashboardDetalhe: router({
+    coletado: adminProcedure
+      .input(z.object({ mes: z.number(), ano: z.number() }))
+      .query(async ({ input }) => getDetalheColetado(input.mes, input.ano)),
+    faturado: adminProcedure
+      .input(z.object({ mes: z.number(), ano: z.number() }))
+      .query(async ({ input }) => getDetalheFaturado(input.mes, input.ano)),
+    aReceber: adminProcedure
+      .input(z.object({ mes: z.number(), ano: z.number() }))
+      .query(async ({ input }) => getDetalheAReceber(input.mes, input.ano)),
+    comissoes: adminProcedure
+      .input(z.object({ mes: z.number(), ano: z.number() }))
+      .query(async ({ input }) => getDetalheComissoes(input.mes, input.ano)),
+    coletadoParcelas: adminProcedure
+      .input(z.object({ mes: z.number(), ano: z.number() }))
+      .query(async ({ input }) => getDetalheColetadoParcelas(input.mes, input.ano)),
+    comissaoParcelas: adminProcedure
+      .input(z.object({ mes: z.number(), ano: z.number() }))
+      .query(async ({ input }) => getDetalheComissaoParcelas(input.mes, input.ano)),
+    aguardandoBaixa: adminProcedure
+      .query(async () => getDetalheAguardandoBaixa()),
+  }),
 });
-
 export type AppRouter = typeof appRouter;

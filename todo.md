@@ -475,3 +475,13 @@
 - [x] Criar script de recálculo seguro (não altera vendas/parcelas, só recalcula métricas derivadas)
 - [x] Recalcular rankings históricos com parcelas do mesmo mês incluídas no coletado
 - [x] Verificar e confirmar resultados do recálculo
+
+## Drill-Down nos Cards do Dashboard Admin (Abr 2026)
+
+- [x] Backend: 7 funções de detalhamento no db.ts (getDetalheColetado, getDetalheFaturado, getDetalheAReceber, getDetalheComissoes, getDetalheColetadoParcelas, getDetalheComissaoParcelas, getDetalheAguardandoBaixa)
+- [x] Backend: router dashboardDetalhe com 7 procedures (coletado, faturado, aReceber, comissoes, coletadoParcelas, comissaoParcelas, aguardandoBaixa) — todas adminProcedure
+- [x] Frontend: componente DrillDownModal reutilizável (client/src/components/DrillDownModal.tsx) com lista de itens, total, badges por tipo, estado vazio e loading
+- [x] Frontend Dashboard.tsx: MetricCard aceita prop onClick opcional com indicador visual "🔍 Ver detalhes"
+- [x] Frontend Dashboard.tsx: todos os 7 cards são clicáveis e abrem DrillDownModal com dados do período selecionado
+- [x] Frontend Dashboard.tsx: queries lazy (só buscam quando o card está aberto) para não sobrecarregar o servidor
+- [x] Drill-down mostra: cliente, consultora, data, valor (BRL), descrição da transação, badge por tipo

@@ -16,6 +16,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import DrillDownModal from "@/components/DrillDownModal";
 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -23,8 +24,10 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
 
-function MetricCard({ title, value, subtitle, icon: Icon, color = "green", trend }: {
-  title: string; value: string; subtitle?: string; icon: React.ElementType; color?: string; trend?: "up" | "down" | "neutral";
+type DrillDownCard = "coletado" | "faturado" | "aReceber" | "comissoes" | "coletadoParcelas" | "comissaoParcelas" | "aguardandoBaixa" | null;
+
+function MetricCard({ title, value, subtitle, icon: Icon, color = "green", trend, onClick }: {
+  title: string; value: string; subtitle?: string; icon: React.ElementType; color?: string; trend?: "up" | "down" | "neutral"; onClick?: () => void;
 }) {
   const colorMap: Record<string, string> = {
     green: "bg-blue-50 border-blue-200 text-blue-700",
@@ -41,12 +44,17 @@ function MetricCard({ title, value, subtitle, icon: Icon, color = "green", trend
     purple: "text-purple-600 bg-purple-100",
   };
   return (
-    <div className={`rounded-xl border p-4 ${colorMap[color] || colorMap.green}`}>
+    <div
+      className={`rounded-xl border p-4 ${colorMap[color] || colorMap.green} ${onClick ? "cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all" : ""}`}
+      onClick={onClick}
+      title={onClick ? "Clique para ver detalhes" : undefined}
+    >
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <p className="text-xs font-medium opacity-70 uppercase tracking-wide">{title}</p>
           <p className="text-xl font-bold mt-1">{value}</p>
           {subtitle && <p className="text-xs opacity-60 mt-0.5">{subtitle}</p>}
+          {onClick && <p className="text-xs opacity-50 mt-1 font-medium">🔍 Ver detalhes</p>}
         </div>
         <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${iconColorMap[color] || iconColorMap.green}`}>
           <Icon className="w-4 h-4" />
@@ -62,6 +70,7 @@ export default function Dashboard() {
   const now = new Date();
   const [mes, setMes] = useState(now.getMonth() + 1);
   const [ano, setAno] = useState(now.getFullYear());
+  const [drillDown, setDrillDown] = useState<DrillDownCard>(null);
 
   if (user && user.role !== "admin") {
     navigate("/painel");
@@ -81,6 +90,29 @@ export default function Dashboard() {
   const [baixaValor, setBaixaValor] = useState("");
   const [baixaForma, setBaixaForma] = useState("");
   const utils = trpc.useUtils();
+
+  // Queries de drill-down (lazy — só buscam quando o card está aberto)
+  const { data: detalheColetado, isLoading: loadingColetado } = trpc.dashboardDetalhe.coletado.useQuery(
+    { mes, ano }, { enabled: drillDown === "coletado" }
+  );
+  const { data: detalheFaturado, isLoading: loadingFaturado } = trpc.dashboardDetalhe.faturado.useQuery(
+    { mes, ano }, { enabled: drillDown === "faturado" }
+  );
+  const { data: detalheAReceber, isLoading: loadingAReceber } = trpc.dashboardDetalhe.aReceber.useQuery(
+    { mes, ano }, { enabled: drillDown === "aReceber" }
+  );
+  const { data: detalheComissoes, isLoading: loadingComissoes } = trpc.dashboardDetalhe.comissoes.useQuery(
+    { mes, ano }, { enabled: drillDown === "comissoes" }
+  );
+  const { data: detalheColetadoParcelas, isLoading: loadingColetadoParcelas } = trpc.dashboardDetalhe.coletadoParcelas.useQuery(
+    { mes, ano }, { enabled: drillDown === "coletadoParcelas" }
+  );
+  const { data: detalheComissaoParcelas, isLoading: loadingComissaoParcelas } = trpc.dashboardDetalhe.comissaoParcelas.useQuery(
+    { mes, ano }, { enabled: drillDown === "comissaoParcelas" }
+  );
+  const { data: detalheAguardandoBaixa, isLoading: loadingAguardandoBaixa } = trpc.dashboardDetalhe.aguardandoBaixa.useQuery(
+    undefined, { enabled: drillDown === "aguardandoBaixa" }
+  );
 
   const baixarMutationDash = trpc.parcelas.baixar.useMutation({
     onSuccess: (data) => {
@@ -168,6 +200,15 @@ export default function Dashboard() {
     if (mes === 12) { setMes(1); setAno(ano + 1); } else setMes(mes + 1);
   };
 
+  // Helpers para o DrillDownModal
+  function normalizarItens(data: any) {
+    if (!data?.itens) return [];
+    return data.itens.map((item: any) => ({
+      ...item,
+      data: item.data ? new Date(item.data) : new Date(),
+    }));
+  }
+
   return (
     <LifeDashboardLayout title="Dashboard Geral">
       <div className="space-y-6">
@@ -207,7 +248,7 @@ export default function Dashboard() {
         )}
 
         {/* Period selector */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h2 className="text-lg font-bold text-gray-800">Dashboard Geral</h2>
             <p className="text-sm text-gray-500">Todos os dados integrados (vendas + agendamentos)</p>
@@ -233,17 +274,38 @@ export default function Dashboard() {
           </div>
         ) : stats ? (
           <>
-            {/* Main metrics */}
+            {/* Main metrics — todos clicáveis */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <MetricCard title="Coletado" value={formatCurrency(stats.totalColetado)} subtitle="Recebido à vista" icon={Wallet} color="green" />
-              <MetricCard title="Faturado" value={formatCurrency(stats.totalFaturado)} subtitle="Total das vendas" icon={TrendingUp} color="blue" />
-              <MetricCard title="A Receber" value={formatCurrency(stats.totalParcelasPendentes)} subtitle="Parcelas pendentes" icon={CreditCard} color="amber" />
-              <MetricCard title="Comissões" value={formatCurrency(stats.totalComissoes)} subtitle="A pagar consultores" icon={Users} color="purple" />
+              <MetricCard
+                title="Coletado" value={formatCurrency(stats.totalColetado)} subtitle="Recebido à vista"
+                icon={Wallet} color="green"
+                onClick={() => setDrillDown("coletado")}
+              />
+              <MetricCard
+                title="Faturado" value={formatCurrency(stats.totalFaturado)} subtitle="Total das vendas"
+                icon={TrendingUp} color="blue"
+                onClick={() => setDrillDown("faturado")}
+              />
+              <MetricCard
+                title="A Receber" value={formatCurrency(stats.totalParcelasPendentes)} subtitle="Parcelas pendentes"
+                icon={CreditCard} color="amber"
+                onClick={() => setDrillDown("aReceber")}
+              />
+              <MetricCard
+                title="Comissões" value={formatCurrency(stats.totalComissoes)} subtitle="A pagar consultores"
+                icon={Users} color="purple"
+                onClick={() => setDrillDown("comissoes")}
+              />
             </div>
+
             {/* Cards de Coletado Parcelas + Aguardando Baixa (sempre visíveis) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Coletado Parcelas */}
-              <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
+              <div
+                className="rounded-xl border border-teal-200 bg-teal-50 p-4 cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all"
+                onClick={() => setDrillDown("coletadoParcelas")}
+                title="Clique para ver detalhes"
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center">
                     <CreditCard className="w-4 h-4 text-teal-700" />
@@ -252,6 +314,7 @@ export default function Dashboard() {
                     <p className="text-xs font-bold uppercase tracking-wide text-teal-700">Coletado Parcelas</p>
                     <p className="text-xs text-teal-500">{MESES[mes-1]} {ano}</p>
                   </div>
+                  <span className="ml-auto text-xs text-teal-500 font-medium">🔍 Detalhes</span>
                 </div>
                 <p className="text-2xl font-bold text-teal-800">{formatCurrency(coletadoParcelasAdmin?.totalColetado ?? 0)}</p>
                 {coletadoParcelasAdmin && coletadoParcelasAdmin.porConsultor.length > 0 && (
@@ -268,8 +331,13 @@ export default function Dashboard() {
                   <p className="text-xs text-teal-400 mt-1">Nenhuma parcela confirmada ainda</p>
                 )}
               </div>
+
               {/* Comissão a Pagar Parcelas */}
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <div
+                className="rounded-xl border border-amber-200 bg-amber-50 p-4 cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all"
+                onClick={() => setDrillDown("comissaoParcelas")}
+                title="Clique para ver detalhes"
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
                     <Users className="w-4 h-4 text-amber-700" />
@@ -278,6 +346,7 @@ export default function Dashboard() {
                     <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Comissão a Pagar (Parcelas)</p>
                     <p className="text-xs text-amber-500">Sobre parcelas recebidas no mês</p>
                   </div>
+                  <span className="ml-auto text-xs text-amber-500 font-medium">🔍 Detalhes</span>
                 </div>
                 <p className="text-2xl font-bold text-amber-800">{formatCurrency(coletadoParcelasAdmin?.totalComissao ?? 0)}</p>
                 {coletadoParcelasAdmin && coletadoParcelasAdmin.porConsultor.length > 0 && (
@@ -294,12 +363,17 @@ export default function Dashboard() {
                   <p className="text-xs text-amber-400 mt-1">Nenhuma comissão gerada ainda</p>
                 )}
               </div>
+
               {/* Aguardando Baixa */}
               {(() => {
                 const aguardando = parcelasFiltradas.filter((p: any) => p.status === 'aguardando_confirmacao');
                 const totalAguardando = aguardando.reduce((s: number, p: any) => s + parseFloat(String(p.valor || 0)), 0);
                 return (
-                  <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                  <div
+                    className="rounded-xl border border-blue-200 bg-blue-50 p-4 cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all"
+                    onClick={() => setDrillDown("aguardandoBaixa")}
+                    title="Clique para ver detalhes"
+                  >
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
                         <AlertCircle className="w-4 h-4 text-blue-700" />
@@ -308,6 +382,7 @@ export default function Dashboard() {
                         <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Aguardando Baixa</p>
                         <p className="text-xs text-blue-500">{aguardando.length} parcela{aguardando.length !== 1 ? 's' : ''} pendente{aguardando.length !== 1 ? 's' : ''}</p>
                       </div>
+                      <span className="ml-auto text-xs text-blue-500 font-medium">🔍 Detalhes</span>
                     </div>
                     <p className="text-2xl font-bold text-blue-800">{formatCurrency(totalAguardando)}</p>
                     {aguardando.length === 0 && <p className="text-xs text-blue-400 mt-1">Nenhuma parcela aguardando</p>}
@@ -349,7 +424,7 @@ export default function Dashboard() {
                           <span className="text-sm font-bold text-blue-700">{formatCurrency(parseFloat(String(p.valor || 0)))}</span>
                           <button
                             type="button"
-                            onClick={() => abrirModalBaixaDash(p)}
+                            onClick={(e) => { e.stopPropagation(); abrirModalBaixaDash(p); }}
                             className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition-colors"
                           >
                             ✓ Confirmar Baixa
@@ -361,6 +436,7 @@ export default function Dashboard() {
                 </div>
               );
             })()}
+
             {/* Serviços vendidos com exportação Excel */}
             {(qtdLimpaAdmin > 0 || qtdRatingAdmin > 0) && (
               <div className="grid grid-cols-2 gap-3">
@@ -406,23 +482,23 @@ export default function Dashboard() {
                     {[
                       { label: "Coletado Bruto", value: stats.totalColetado, positive: true },
                       ...(coletadoParcelasAdmin && coletadoParcelasAdmin.totalColetado > 0 ? [{ label: "(+) Coletado Parcelas", value: coletadoParcelasAdmin.totalColetado, positive: true }] : []),
-                      { label: "(-) Investimento Tráfego", value: stats.investimento, positive: false },
-                      { label: "(-) Custo Serviços", value: stats.totalCustos, positive: false },
-                      { label: "(-) Despesas", value: stats.totalDespesas, positive: false },
-                      { label: "(-) Salários", value: stats.totalSalarios, positive: false },
+                      { label: "(-) Custos de Serviços", value: stats.totalCustos, positive: false },
                       { label: "(-) Comissões", value: stats.totalComissoes, positive: false },
                       ...(coletadoParcelasAdmin && coletadoParcelasAdmin.totalComissao > 0 ? [{ label: "(-) Comissão Parcelas", value: coletadoParcelasAdmin.totalComissao, positive: false }] : []),
-                    ].map((item, i) => (
-                      <div key={i} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
-                        <span className="text-sm text-gray-600">{item.label}</span>
-                        <span className={`text-sm font-medium ${item.positive ? "text-blue-600" : "text-red-500"}`}>
-                          {item.positive ? "" : "- "}{formatCurrency(item.value)}
+                      { label: "(-) Despesas Operacionais", value: stats.totalDespesas, positive: false },
+                      { label: "(-) Salários", value: stats.totalSalarios, positive: false },
+                      { label: "(-) Investimento em Tráfego", value: stats.investimento, positive: false },
+                    ].map(({ label, value, positive }) => (
+                      <div key={label} className="flex justify-between items-center py-1.5 border-b border-gray-50 last:border-0">
+                        <span className="text-sm text-gray-600">{label}</span>
+                        <span className={`text-sm font-semibold ${positive ? "text-emerald-600" : "text-red-500"}`}>
+                          {positive ? "+" : "-"} {formatCurrency(value)}
                         </span>
                       </div>
                     ))}
-                    <div className="flex items-center justify-between py-2 bg-blue-50 rounded-lg px-3 mt-2">
-                      <span className="text-sm font-bold text-green-800">Lucro Líquido</span>
-                      <span className={`text-base font-bold ${stats.lucroLiquido >= 0 ? "text-blue-700" : "text-red-600"}`}>
+                    <div className="flex justify-between items-center pt-2 border-t-2 border-gray-200">
+                      <span className="text-sm font-bold text-gray-800">Lucro Líquido</span>
+                      <span className={`text-base font-bold ${stats.lucroLiquido >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                         {formatCurrency(stats.lucroLiquido)}
                       </span>
                     </div>
@@ -430,61 +506,51 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              {/* Agendamentos stats */}
               <Card className="border-gray-200">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-gray-700">Agendamentos do Mês</CardTitle>
+                  <CardTitle className="text-sm font-semibold text-gray-700">Agendamentos — {MESES[mes - 1]} {ano}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="text-center p-3 bg-blue-50 rounded-lg">
-                      <p className="text-2xl font-bold text-blue-700">{stats.agendamentos.total}</p>
-                      <p className="text-xs text-blue-600 mt-0.5">Total</p>
-                    </div>
-                    <div className="text-center p-3 bg-blue-50 rounded-lg">
-                      <p className="text-2xl font-bold text-blue-700">{stats.agendamentos.realizadas}</p>
-                      <p className="text-xs text-blue-600 mt-0.5">Realizadas</p>
-                    </div>
-                    <div className="text-center p-3 bg-amber-50 rounded-lg">
-                      <p className="text-2xl font-bold text-amber-700">{stats.agendamentos.confirmadas}</p>
-                      <p className="text-xs text-amber-600 mt-0.5">Confirmadas</p>
-                    </div>
-                    <div className="text-center p-3 bg-red-50 rounded-lg">
-                      <p className="text-2xl font-bold text-red-700">{stats.agendamentos.noshow}</p>
-                      <p className="text-xs text-red-600 mt-0.5">No-Show</p>
-                    </div>
+                    {[
+                      { label: "Total", value: stats.agendamentos.total, color: "text-gray-700" },
+                      { label: "Realizadas", value: stats.agendamentos.realizadas, color: "text-emerald-600" },
+                      { label: "Confirmadas", value: stats.agendamentos.confirmadas, color: "text-blue-600" },
+                      { label: "No-show", value: stats.agendamentos.noshow, color: "text-red-500" },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="text-center p-3 bg-gray-50 rounded-lg">
+                        <p className={`text-2xl font-bold ${color}`}>{value}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+                      </div>
+                    ))}
                   </div>
-                  {stats.agendamentos.total > 0 && (
-                    <div className="mt-4 space-y-2">
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>Taxa de Comparecimento</span>
-                        <span className="font-medium text-blue-600">
-                          {Math.round((stats.agendamentos.realizadas / stats.agendamentos.total) * 100)}%
+                  {stats.agendamentos.realizadas > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <p className="text-xs text-gray-500 text-center">
+                        Taxa de fechamento: <span className="font-bold text-emerald-600">
+                          {Math.round((stats.totalVendas / stats.agendamentos.realizadas) * 100)}%
                         </span>
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>Taxa de Fechamento</span>
-                        <span className="font-medium text-blue-600">
-                          {stats.agendamentos.realizadas > 0 ? Math.round((stats.totalVendas / stats.agendamentos.realizadas) * 100) : 0}%
-                        </span>
-                      </div>
+                      </p>
                     </div>
                   )}
                 </CardContent>
               </Card>
             </div>
 
-            {/* Vendas table */}
+            {/* Tabela de Vendas */}
             {stats.vendas && stats.vendas.length > 0 && (
               <Card className="border-gray-200">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-gray-700">Detalhamento de Vendas por Cliente</CardTitle>
+                  <CardTitle className="text-sm font-semibold text-gray-700">
+                    Vendas do Período — {MESES[mes - 1]} {ano} ({stats.vendas.length})
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-gray-100">
+                          <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 uppercase">Data</th>
                           <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 uppercase">Cliente</th>
                           <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 uppercase">Tipo</th>
                           <th className="text-right py-2 px-3 text-xs font-medium text-gray-500 uppercase">Faturado</th>
@@ -493,11 +559,15 @@ export default function Dashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {stats.vendas.map((venda: any) => {
+                        {(stats.vendas as any[]).map((venda: any) => {
                           const consultor = consultores?.find(c => c.id === venda.consultorId);
-                          const comissao = (parseFloat(String(venda.valorColetado || 0)) - parseFloat(String(venda.custoServico || 0))) * parseFloat(String(venda.comissaoPercent || 10)) / 100;
+                          const coletado = parseFloat(String(venda.valorColetado || 0));
+                          const custo = parseFloat(String(venda.custoServico || 0));
+                          const pct = parseFloat(String(venda.comissaoPercent || 10));
+                          const comissao = (coletado - custo) * pct / 100;
                           return (
                             <tr key={venda.id} className="border-b border-gray-50 hover:bg-gray-50">
+                              <td className="py-2 px-3 text-xs text-gray-500">{new Date(venda.dataVenda).toLocaleDateString("pt-BR")}</td>
                               <td className="py-2 px-3">
                                 <p className="font-medium text-gray-800">{venda.clienteNome}</p>
                                 {consultor && <p className="text-xs text-gray-400">{consultor.nome}</p>}
@@ -679,6 +749,7 @@ export default function Dashboard() {
           </>
         ) : null}
       </div>
+
       {/* Modal de Confirmar Baixa no Dashboard */}
       <Dialog open={!!modalBaixaDash} onOpenChange={(o) => { if (!o) { setModalBaixaDash(null); setBaixaValor(""); setBaixaForma(""); } }}>
         <DialogContent className="max-w-sm">
@@ -741,6 +812,71 @@ export default function Dashboard() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* DrillDown Modals — um por card */}
+      <DrillDownModal
+        open={drillDown === "coletado"}
+        onClose={() => setDrillDown(null)}
+        title={`Coletado — ${MESES[mes-1]} ${ano}`}
+        total={detalheColetado?.total ?? 0}
+        items={normalizarItens(detalheColetado)}
+        isLoading={loadingColetado}
+        color="green"
+      />
+      <DrillDownModal
+        open={drillDown === "faturado"}
+        onClose={() => setDrillDown(null)}
+        title={`Faturado — ${MESES[mes-1]} ${ano}`}
+        total={detalheFaturado?.total ?? 0}
+        items={normalizarItens(detalheFaturado)}
+        isLoading={loadingFaturado}
+        color="blue"
+      />
+      <DrillDownModal
+        open={drillDown === "aReceber"}
+        onClose={() => setDrillDown(null)}
+        title={`A Receber — Parcelas Pendentes`}
+        total={detalheAReceber?.total ?? 0}
+        items={normalizarItens(detalheAReceber)}
+        isLoading={loadingAReceber}
+        color="amber"
+      />
+      <DrillDownModal
+        open={drillDown === "comissoes"}
+        onClose={() => setDrillDown(null)}
+        title={`Comissões — ${MESES[mes-1]} ${ano}`}
+        total={detalheComissoes?.total ?? 0}
+        items={normalizarItens(detalheComissoes)}
+        isLoading={loadingComissoes}
+        color="purple"
+      />
+      <DrillDownModal
+        open={drillDown === "coletadoParcelas"}
+        onClose={() => setDrillDown(null)}
+        title={`Coletado Parcelas — ${MESES[mes-1]} ${ano}`}
+        total={detalheColetadoParcelas?.total ?? 0}
+        items={normalizarItens(detalheColetadoParcelas)}
+        isLoading={loadingColetadoParcelas}
+        color="teal"
+      />
+      <DrillDownModal
+        open={drillDown === "comissaoParcelas"}
+        onClose={() => setDrillDown(null)}
+        title={`Comissão Parcelas — ${MESES[mes-1]} ${ano}`}
+        total={detalheComissaoParcelas?.total ?? 0}
+        items={normalizarItens(detalheComissaoParcelas)}
+        isLoading={loadingComissaoParcelas}
+        color="amber"
+      />
+      <DrillDownModal
+        open={drillDown === "aguardandoBaixa"}
+        onClose={() => setDrillDown(null)}
+        title="Aguardando Baixa"
+        total={detalheAguardandoBaixa?.total ?? 0}
+        items={normalizarItens(detalheAguardandoBaixa)}
+        isLoading={loadingAguardandoBaixa}
+        color="blue"
+      />
     </LifeDashboardLayout>
   );
 }
