@@ -235,6 +235,7 @@ export default function PainelConsultor() {
     },
     onError: (e) => toast.error("Erro ao registrar venda: " + e.message),
   });
+  const deletePendentesByVenda = trpc.parcelas.deletePendentesByVenda.useMutation();
   const createParcelas = trpc.parcelas.create.useMutation({
     onError: (e) => toast.error("Erro ao criar parcelas: " + e.message),
   });
@@ -1719,6 +1720,8 @@ export default function PainelConsultor() {
             const coletado = parseFloat(data.valorColetado || data.valorFaturado) || 0;
             const restante = faturado - coletado;
             if (qtd > 0 && restante > 0 && data.datesVencimento && data.datesVencimento.length > 0) {
+              // Deletar parcelas pendentes antes de recriar para evitar duplicação
+              await deletePendentesByVenda.mutateAsync({ vendaId: data.id });
               const valorParcela = restante / qtd;
               const datas = data.datesVencimento.slice(0, qtd);
               await createParcelas.mutateAsync({

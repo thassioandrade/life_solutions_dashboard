@@ -499,3 +499,11 @@
 
 - [ ] Backend: procedures de drill-down por consultorId (coletado, faturado, aReceber, coletadoParcelas)
 - [ ] Frontend: DrillDownModal nos 4 cards do PainelConsultor com onClick
+
+## Bugs Críticos de Cálculo (Abril 2026)
+
+- [ ] Bug: parcelas pagas no mesmo mês da venda não somam ao coletado do mês no Painel Consultor e Dashboard Admin
+- [ ] Bug: divergência de valores entre Serviços Vendidos e Parcelas Pendentes (mesma venda com valores diferentes)
+- [ ] Bug: editar venda para adicionar parcelas duplica as parcelas existentes
+- [ ] Limpeza: remover parcelas duplicadas existentes no banco e recalcular valorColetado das vendas afetadas
+- [ ] Verificar: todos os painéis refletem valores corretos após correção

@@ -658,9 +658,24 @@ export const appRouter = router({
         await db.delete(parcelasTable).where((await import("drizzle-orm")).eq(parcelasTable.id, input.id));
         return { success: true };
       }),
-
+    // Deletar todas as parcelas PENDENTES de uma venda (antes de recriar ao editar)
+    deletePendentesByVenda: protectedProcedure
+      .input(z.object({ vendaId: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const { parcelas: parcelasTable } = await import("../drizzle/schema");
+        const { eq: eqFn, and: andFn, inArray: inArrayFn } = await import("drizzle-orm");
+        await db.delete(parcelasTable).where(
+          andFn(
+            eqFn(parcelasTable.vendaId, input.vendaId),
+            inArrayFn(parcelasTable.status, ["pendente", "aguardando_confirmacao"])
+          )
+        );
+        return { success: true };
+      }),
     /**
-     * Baixa de parcela pelo Admin:
+     * Baixa de parcela pelo Admin::
      * - Registra valor real pago (pode ser diferente do original)
      * - Se valorPago < valorOriginal, cria nova parcela para o saldo restante
      * - Calcula comissão no mês do pagamento (não no mês da venda)
