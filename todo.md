@@ -468,3 +468,10 @@
 - [x] PainelConsultor.tsx: nova query parcelasMesmoMesByConsultor, totalColetado e comissaoTotal incluem parcelas do mesmo mês
 - [x] Nova procedure parcelas.parcelasMesmoMesByConsultor no routers.ts
 - [x] Nova função getParcelasMesmoMesDaVenda no db.ts
+
+## Recálculo Histórico com Nova Lógica de Parcelas (Abr 2026)
+
+- [x] Analisar dados existentes (vendas, parcelas, rankings) no banco
+- [x] Criar script de recálculo seguro (não altera vendas/parcelas, só recalcula métricas derivadas)
+- [x] Recalcular rankings históricos com parcelas do mesmo mês incluídas no coletado
+- [x] Verificar e confirmar resultados do recálculo
