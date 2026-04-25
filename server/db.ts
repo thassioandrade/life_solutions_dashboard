@@ -731,7 +731,7 @@ export async function getDashboardFinanceiro(mes: number, ano: number) {
   const inicio = new Date(ano, mes - 1, 1);
   const fim = new Date(ano, mes, 0, 23, 59, 59);
 
-  const [vendasMes, parcelasMes, custos, parcelasMesmoMesFinanc] = await Promise.all([
+  const [vendasMes, parcelasMes, custos] = await Promise.all([
     db.select().from(vendas).where(and(gte(vendas.dataVenda, inicio), lte(vendas.dataVenda, fim), eq(vendas.cancelada, false))),
     db.select({
       id: parcelas.id,
@@ -743,29 +743,11 @@ export async function getDashboardFinanceiro(mes: number, ano: number) {
       vendaId: parcelas.vendaId,
     }).from(parcelas).where(and(gte(parcelas.vencimento, inicio), lte(parcelas.vencimento, fim))),
     getCustosServicos(),
-    // Parcelas pagas no mesmo mês da venda (entram no coletado normal)
-    db.select({
-      id: parcelas.id,
-      valor: parcelas.valor,
-      comissaoPercent: vendas.comissaoPercent,
-    })
-      .from(parcelas)
-      .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
-      .where(and(
-        eq(parcelas.status, "pago"),
-        eq(vendas.cancelada, false),
-        sql`MONTH(${parcelas.dataPagamento}) = ${mes}`,
-        sql`YEAR(${parcelas.dataPagamento}) = ${ano}`,
-        sql`MONTH(${vendas.dataVenda}) = ${mes}`,
-        sql`YEAR(${vendas.dataVenda}) = ${ano}`
-      )),
   ]);
 
   const totalFaturado = vendasMes.reduce((s, v) => s + parseFloat(String(v.valorFaturado || 0)), 0);
-  const totalColetadoVendasFinanc = vendasMes.reduce((s, v) => s + parseFloat(String(v.valorColetado || 0)), 0);
-  // Parcelas pagas no mesmo mês da venda entram no coletado bruto
-  const totalColetadoParcelasMesmoMesFinanc = parcelasMesmoMesFinanc.reduce((s, p) => s + parseFloat(String(p.valor || 0)), 0);
-  const totalColetado = totalColetadoVendasFinanc + totalColetadoParcelasMesmoMesFinanc;
+  // valorColetado da venda já inclui parcelas pagas confirmadas (atualizado ao dar baixa)
+  const totalColetado = vendasMes.reduce((s, v) => s + parseFloat(String(v.valorColetado || 0)), 0);
 
   // Contar serviços vendidos
   let qtdLimpaName = 0;
@@ -784,20 +766,13 @@ export async function getDashboardFinanceiro(mes: number, ano: number) {
   const totalCustosServicos = custoCustoLimpaName + custoCustoRating;
   const salarioFixo = custos["salario_fixo"];
 
-  // Comissão total: (coletado - custoServico) × 10% por venda
-  const totalComissoesVendasFinanc = vendasMes.reduce((s, v) => {
+  // Comissão total: (coletado - custoServico) × 10% por venda (coletado já inclui parcelas pagas)
+  const totalComissoes = vendasMes.reduce((s, v) => {
     const coletado = parseFloat(String(v.valorColetado || 0));
     const custo = parseFloat(String(v.custoServico || 0));
     const pct = parseFloat(String(v.comissaoPercent || 10));
     return s + ((coletado - custo) * pct / 100);
   }, 0);
-  // Comissão das parcelas do mesmo mês (sem desconto de custo, pois o custo já foi descontado na venda)
-  const totalComissoesParcelasMesmoMesFinanc = parcelasMesmoMesFinanc.reduce((s, p) => {
-    const valor = parseFloat(String(p.valor || 0));
-    const pct = parseFloat(String(p.comissaoPercent || 10));
-    return s + (valor * pct / 100);
-  }, 0);
-  const totalComissoes = totalComissoesVendasFinanc + totalComissoesParcelasMesmoMesFinanc;
 
   // Parcelas do mês
   const parcelasPagas = parcelasMes.filter(p => p.status === "pago");
@@ -1162,26 +1137,8 @@ export async function getRankingAutomatico(mes: number, ano: number) {
     custoServico: vendas.custoServico,
   }).from(vendas).where(and(gte(vendas.dataVenda, inicio), lte(vendas.dataVenda, fim), eq(vendas.cancelada, false)));
 
-  // Buscar parcelas pagas no mês que pertencem a vendas do MESMO mês (mesmo mês e ano da venda)
-  // Essas parcelas entram no coletado normal + ranking
-  const parcelasMesmoMes = vendasMes.length > 0 ? await db.select({
-    vendaId: parcelas.vendaId,
-    valor: parcelas.valor,
-    consultorId: vendas.consultorId,
-    comissaoPercent: vendas.comissaoPercent,
-    custoServico: vendas.custoServico,
-  })
-    .from(parcelas)
-    .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
-    .where(and(
-      eq(parcelas.status, "pago"),
-      eq(vendas.cancelada, false),
-      sql`MONTH(${parcelas.dataPagamento}) = ${mes}`,
-      sql`YEAR(${parcelas.dataPagamento}) = ${ano}`,
-      // Parcela paga no mesmo mês da venda
-      sql`MONTH(${vendas.dataVenda}) = ${mes}`,
-      sql`YEAR(${vendas.dataVenda}) = ${ano}`
-    )) : [];
+  // valorColetado da venda já inclui parcelas pagas confirmadas (atualizado ao dar baixa)
+  // Não é necessário buscar parcelasMesmoMes separadamente
 
   // Buscar todos os agendamentos do mês
   const agendsMes = await db.select({
@@ -1224,13 +1181,7 @@ export async function getRankingAutomatico(mes: number, ano: number) {
     entry.totalVendas += 1;
   }
 
-  // Adicionar parcelas pagas no mesmo mês da venda ao coletado do ranking
-  for (const p of parcelasMesmoMes) {
-    if (!p.consultorId) continue;
-    const entry = map.get(p.consultorId);
-    if (!entry) continue;
-    entry.valorColetado += parseFloat(String(p.valor || 0));
-  }
+  // valorColetado já inclui parcelas pagas (atualizado ao dar baixa)
 
   for (const a of agendsMes) {
     if (!a.consultorId) continue;
@@ -1286,18 +1237,8 @@ export async function getDetalheColetado(mes: number, ano: number) {
     }
   }
 
-  // Parcelas pagas no mesmo mês da venda
-  const parcelasMesmo = await getParcelasMesmoMesDaVenda(mes, ano);
-  for (const p of parcelasMesmo) {
-    itens.push({
-      tipo: "parcela_mesmo_mes",
-      clienteNome: p.clienteNome || "—",
-      consultorNome: consultorMap.get(p.consultorId ?? 0) || "—",
-      valor: parseFloat(String(p.valor || 0)),
-      data: p.dataPagamento || new Date(),
-      descricao: `Parcela paga no mesmo mês da venda`,
-    });
-  }
+  // Nota: valorColetado da venda já inclui parcelas pagas confirmadas (atualizado ao dar baixa)
+  // Não é necessário somar parcelasMesmoMes separadamente
 
   itens.sort((a, b) => b.data.getTime() - a.data.getTime());
   const total = itens.reduce((s, i) => s + i.valor, 0);
@@ -1398,21 +1339,7 @@ export async function getDetalheComissoes(mes: number, ano: number) {
     }
   }
 
-  // Comissão de parcelas do mesmo mês
-  const parcelasMesmo = await getParcelasMesmoMesDaVenda(mes, ano);
-  for (const p of parcelasMesmo) {
-    const comissao = parseFloat(String(p.valor || 0)) * 0.10;
-    if (comissao > 0) {
-      itens.push({
-        tipo: "comissao_parcela_mesmo_mes",
-        clienteNome: p.clienteNome || "—",
-        consultorNome: consultorMap.get(p.consultorId ?? 0) || "—",
-        valor: comissao,
-        data: p.dataPagamento || new Date(),
-        descricao: `10% sobre parcela #${(p as any).numeroParcela ?? ""} paga no mesmo mês da venda`,
-      });
-    }
-  }
+  // Nota: comissão das parcelas pagas já está incluída no valorColetado da venda (atualizado ao dar baixa)
 
   itens.sort((a, b) => b.data.getTime() - a.data.getTime());
   const total = itens.reduce((s, i) => s + i.valor, 0);

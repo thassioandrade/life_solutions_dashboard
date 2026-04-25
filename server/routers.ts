@@ -692,6 +692,7 @@ export const appRouter = router({
           custoServico: vendasTable.custoServico,
           consultorId: vendasTable.consultorId,
           clienteNome: vendasTable.clienteNome,
+          valorColetadoVenda: vendasTable.valorColetado,
         })
           .from(parcelasTable)
           .innerJoin(vendasTable, eq(parcelasTable.vendaId, vendasTable.id))
@@ -713,6 +714,12 @@ export const appRouter = router({
           observacoes: input.observacoes || undefined,
           okConsultor: true,
           dataOkConsultor: dataPagamento,
+        });
+
+        // Somar valorPago ao valorColetado da venda (atualiza o coletado real da venda)
+        const valorColetadoAtual = parseFloat(String(parcelaComVenda.valorColetadoVenda || 0));
+        await updateVenda(parcelaComVenda.vendaId, {
+          valorColetado: String(valorColetadoAtual + valorPago),
         });
 
         // Se valorPago < valorOriginal e há data para nova parcela, criar parcela para o saldo
@@ -1244,7 +1251,7 @@ export const appRouter = router({
     stats: adminProcedure
       .input(z.object({ mes: z.number(), ano: z.number() }))
       .query(async ({ input }) => {
-        const [vendasMes, agendsMes, metricasMes, despesasMes, colaboradoresList, parcelasPendentes, consultoresList, parcelasMesmoMes] = await Promise.all([
+        const [vendasMes, agendsMes, metricasMes, despesasMes, colaboradoresList, parcelasPendentes, consultoresList] = await Promise.all([
           getVendasByPeriod(input.mes, input.ano),
           getAgendamentosByPeriod(input.mes, input.ano),
           getMetricasByPeriod(input.mes, input.ano),
@@ -1252,28 +1259,19 @@ export const appRouter = router({
           getAllColaboradores(),
           getParcelasPendentes(),
           getAllConsultores(),
-          getParcelasMesmoMesDaVenda(input.mes, input.ano),
         ]);
 
         const totalFaturado = vendasMes.reduce((s, v) => s + parseFloat(String(v.valorFaturado || 0)), 0);
-        const totalColetadoVendas = vendasMes.reduce((s, v) => s + parseFloat(String(v.valorColetado || 0)), 0);
-        // Parcelas pagas no mesmo mês da venda entram no coletado normal
-        const totalColetadoParcelasMesmoMes = parcelasMesmoMes.reduce((s, p) => s + parseFloat(String(p.valor || 0)), 0);
-        const totalColetado = totalColetadoVendas + totalColetadoParcelasMesmoMes;
-        // Comissão = (coletado - custoServico) × 10% por venda
-        const totalComissoesVendas = vendasMes.reduce((s, v) => {
+        // valorColetado da venda já inclui parcelas pagas confirmadas (atualizado ao dar baixa)
+        const totalColetado = vendasMes.reduce((s, v) => s + parseFloat(String(v.valorColetado || 0)), 0);
+        // Comissão = (coletado - custoServico) × 10% por venda (coletado já inclui parcelas pagas)
+        const totalComissoes = vendasMes.reduce((s, v) => {
           const coletado = parseFloat(String(v.valorColetado || 0));
           const custo = parseFloat(String(v.custoServico || 0));
           const pct = parseFloat(String(v.comissaoPercent || 10));
           return s + ((coletado - custo) * pct / 100);
         }, 0);
-        // Comissão das parcelas do mesmo mês (sem desconto de custo, pois o custo já foi descontado na venda original)
-        const totalComissoesParcelasMesmoMes = parcelasMesmoMes.reduce((s, p) => {
-          const valor = parseFloat(String(p.valor || 0));
-          const pct = parseFloat(String(p.comissaoPercent || 10));
-          return s + (valor * pct / 100);
-        }, 0);
-        const totalComissoes = totalComissoesVendas + totalComissoesParcelasMesmoMes;
+
         const totalCustos = vendasMes.reduce((s, v) => s + parseFloat(String(v.custoServico || 0)), 0);
         const totalDespesas = despesasMes.reduce((s, d) => s + parseFloat(String(d.valor || 0)), 0);
         // Salários: colaboradores fixos + consultoras com receberSalario=true

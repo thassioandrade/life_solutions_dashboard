@@ -485,3 +485,12 @@
 - [x] Frontend Dashboard.tsx: todos os 7 cards são clicáveis e abrem DrillDownModal com dados do período selecionado
 - [x] Frontend Dashboard.tsx: queries lazy (só buscam quando o card está aberto) para não sobrecarregar o servidor
 - [x] Drill-down mostra: cliente, consultora, data, valor (BRL), descrição da transação, badge por tipo
+
+## Bug: valorColetado da venda não atualiza ao pagar parcelas (Abr 2026)
+
+- [x] Backend: ao confirmar baixa de parcela (parcelas.baixar), somar valorPago ao vendas.valorColetado da venda correspondente
+- [x] Backend: ao confirmar baixa, somar valorPago ao valorColetado da venda; remover dupla contagem de parcelasMesmoMes em todos os cálculos
+- [x] Verificar: aba Vendas Realizadas (Admin e Consultor) — exibir valorColetado atualizado (soma de à vista + parcelas pagas)
+- [x] Verificar: Dashboard Admin — cards Coletado e Comissões refletem valorColetado atualizado (parcelasMesmoMes removido do cálculo)
+- [x] Verificar: Painel Consultor — coletado pessoal e comissão refletem valorColetado atualizado
+- [x] Verificar: Ranking — valorColetado do ranking inclui parcelas pagas (via valorColetado da venda)
