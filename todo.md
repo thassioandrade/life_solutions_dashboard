@@ -507,3 +507,9 @@
 - [ ] Bug: editar venda para adicionar parcelas duplica as parcelas existentes
 - [ ] Limpeza: remover parcelas duplicadas existentes no banco e recalcular valorColetado das vendas afetadas
 - [ ] Verificar: todos os painéis refletem valores corretos após correção
+
+## Correção Venda Duplicada Elivelton (Abr 2026)
+
+- [x] Venda 930011 (01/04/2026) cancelada — cadastro duplicado por engano
+- [x] Venda 660002 (02/04/2026) mantida ativa com valorColetado=R$750
+- [x] Endpoint temporário de diagnóstico /api/diag/elivelton removido do index.ts
