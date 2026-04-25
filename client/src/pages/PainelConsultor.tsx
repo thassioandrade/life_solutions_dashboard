@@ -185,6 +185,11 @@ export default function PainelConsultor() {
     { consultorId: consultor?.id || 0, mes, ano },
     { enabled: !!consultor?.id }
   );
+  // Parcelas pagas no mesmo mês da venda (entram no coletado normal + comissão do mês)
+  const { data: parcelasMesmoMes } = trpc.parcelas.parcelasMesmoMesByConsultor.useQuery(
+    { consultorId: consultor?.id || 0, mes, ano },
+    { enabled: !!consultor?.id }
+  );
 
   const updateAgendamento = trpc.agendamentos.update.useMutation({
     onSuccess: () => {
@@ -332,16 +337,24 @@ export default function PainelConsultor() {
   }
 
   // Métricas
-  const totalColetado = vendas?.reduce((s, v) => s + parseFloat(String(v.valorColetado || 0)), 0) || 0;
+  const totalColetadoVendas = vendas?.reduce((s, v) => s + parseFloat(String(v.valorColetado || 0)), 0) || 0;
+  // Parcelas pagas no mesmo mês da venda entram no coletado normal
+  const totalColetadoParcelasMesmoMes = parcelasMesmoMes?.reduce((s, p) => s + parseFloat(String(p.valor || 0)), 0) || 0;
+  const totalColetado = totalColetadoVendas + totalColetadoParcelasMesmoMes;
   const totalFaturado = vendas?.reduce((s, v) => s + parseFloat(String(v.valorFaturado || 0)), 0) || 0;
-  // comissaoTotal: soma de (coletado - custoServico) × 10% por venda
-  // Isso representa a comissão bruta já descontando os custos de serviços
-  const comissaoTotal = vendas?.reduce((s, v) => {
+  // comissaoTotal: soma de (coletado - custoServico) × 10% por venda + comissão das parcelas do mesmo mês
+  const comissaoTotalVendas = vendas?.reduce((s, v) => {
     const coletado = parseFloat(String(v.valorColetado || 0));
     const custo = parseFloat(String(v.custoServico || 0));
     const pct = parseFloat(String(v.comissaoPercent || 10));
     return s + ((coletado - custo) * pct / 100);
   }, 0) || 0;
+  const comissaoTotalParcelasMesmoMes = parcelasMesmoMes?.reduce((s, p) => {
+    const valor = parseFloat(String(p.valor || 0));
+    const pct = parseFloat(String(p.comissaoPercent || 10));
+    return s + (valor * pct / 100);
+  }, 0) || 0;
+  const comissaoTotal = comissaoTotalVendas + comissaoTotalParcelasMesmoMes;
 
   const qtdLimpaName = useMemo(() => {
     return vendas?.reduce((s, v) => {

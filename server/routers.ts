@@ -29,6 +29,7 @@ import { getAllUsers, updateUserRole, updateUserAvatar, deleteUser,
   getPromessas, getPromessasByConsultor, getPromessasHoje, getPromessasHojeByConsultor,
   getPromessaById, createPromessa, updatePromessa, deletePromessa,
   getRankingAutomatico,
+  getParcelasMesmoMesDaVenda,
 } from "./db";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
@@ -575,6 +576,35 @@ export const appRouter = router({
     coletadoByConsultor: protectedProcedure
       .input(z.object({ consultorId: z.number(), mes: z.number(), ano: z.number() }))
       .query(async ({ input }) => getColetadoParcelasByConsultor(input.consultorId, input.mes, input.ano)),
+    // Parcelas pagas no mesmo mês da venda (entram no coletado normal do consultor)
+    parcelasMesmoMesByConsultor: protectedProcedure
+      .input(z.object({ consultorId: z.number(), mes: z.number(), ano: z.number() }))
+      .query(async ({ input }) => {
+        const { getDb } = await import("./db");
+        const { and, eq, sql } = await import("drizzle-orm");
+        const { parcelas: parcelasTable, vendas: vendasTable } = await import("../drizzle/schema");
+        const db = await getDb();
+        if (!db) return [];
+        return db.select({
+          id: parcelasTable.id,
+          valor: parcelasTable.valor,
+          dataPagamento: parcelasTable.dataPagamento,
+          clienteNome: vendasTable.clienteNome,
+          comissaoPercent: vendasTable.comissaoPercent,
+          custoServico: vendasTable.custoServico,
+        })
+          .from(parcelasTable)
+          .innerJoin(vendasTable, eq(parcelasTable.vendaId, vendasTable.id))
+          .where(and(
+            eq(vendasTable.consultorId, input.consultorId),
+            eq(parcelasTable.status, "pago"),
+            eq(vendasTable.cancelada, false),
+            sql`MONTH(${parcelasTable.dataPagamento}) = ${input.mes}`,
+            sql`YEAR(${parcelasTable.dataPagamento}) = ${input.ano}`,
+            sql`MONTH(${vendasTable.dataVenda}) = ${input.mes}`,
+            sql`YEAR(${vendasTable.dataVenda}) = ${input.ano}`
+          ));
+      }),
     coletadoAdmin: protectedProcedure
       .input(z.object({ mes: z.number(), ano: z.number() }))
       .query(async ({ input }) => getColetadoParcelasAdmin(input.mes, input.ano)),
@@ -1207,7 +1237,7 @@ export const appRouter = router({
     stats: adminProcedure
       .input(z.object({ mes: z.number(), ano: z.number() }))
       .query(async ({ input }) => {
-        const [vendasMes, agendsMes, metricasMes, despesasMes, colaboradoresList, parcelasPendentes, consultoresList] = await Promise.all([
+        const [vendasMes, agendsMes, metricasMes, despesasMes, colaboradoresList, parcelasPendentes, consultoresList, parcelasMesmoMes] = await Promise.all([
           getVendasByPeriod(input.mes, input.ano),
           getAgendamentosByPeriod(input.mes, input.ano),
           getMetricasByPeriod(input.mes, input.ano),
@@ -1215,18 +1245,28 @@ export const appRouter = router({
           getAllColaboradores(),
           getParcelasPendentes(),
           getAllConsultores(),
+          getParcelasMesmoMesDaVenda(input.mes, input.ano),
         ]);
 
         const totalFaturado = vendasMes.reduce((s, v) => s + parseFloat(String(v.valorFaturado || 0)), 0);
-        const totalColetado = vendasMes.reduce((s, v) => s + parseFloat(String(v.valorColetado || 0)), 0);
+        const totalColetadoVendas = vendasMes.reduce((s, v) => s + parseFloat(String(v.valorColetado || 0)), 0);
+        // Parcelas pagas no mesmo mês da venda entram no coletado normal
+        const totalColetadoParcelasMesmoMes = parcelasMesmoMes.reduce((s, p) => s + parseFloat(String(p.valor || 0)), 0);
+        const totalColetado = totalColetadoVendas + totalColetadoParcelasMesmoMes;
         // Comissão = (coletado - custoServico) × 10% por venda
-        // Custo do serviço já está descontado dentro da comissão
-        const totalComissoes = vendasMes.reduce((s, v) => {
+        const totalComissoesVendas = vendasMes.reduce((s, v) => {
           const coletado = parseFloat(String(v.valorColetado || 0));
           const custo = parseFloat(String(v.custoServico || 0));
           const pct = parseFloat(String(v.comissaoPercent || 10));
           return s + ((coletado - custo) * pct / 100);
         }, 0);
+        // Comissão das parcelas do mesmo mês (sem desconto de custo, pois o custo já foi descontado na venda original)
+        const totalComissoesParcelasMesmoMes = parcelasMesmoMes.reduce((s, p) => {
+          const valor = parseFloat(String(p.valor || 0));
+          const pct = parseFloat(String(p.comissaoPercent || 10));
+          return s + (valor * pct / 100);
+        }, 0);
+        const totalComissoes = totalComissoesVendas + totalComissoesParcelasMesmoMes;
         const totalCustos = vendasMes.reduce((s, v) => s + parseFloat(String(v.custoServico || 0)), 0);
         const totalDespesas = despesasMes.reduce((s, d) => s + parseFloat(String(d.valor || 0)), 0);
         // Salários: colaboradores fixos + consultoras com receberSalario=true

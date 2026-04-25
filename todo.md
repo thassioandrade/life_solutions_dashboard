@@ -450,3 +450,21 @@
 ## Bug: Editar venda não cria parcelas (Abr 2026)
 - [x] Investigar ModalEditarVenda — ao editar venda com parcelas, as parcelas não são criadas (problema: onSave só chamava updateMutation sem criar parcelas)
 - [x] Corrigir fluxo de edição: Vendas.tsx e PainelConsultor.tsx agora criam parcelas após update (mutateAsync + createParcelas + invalidarTudo)
+
+## Lógica de Parcelas vs Coletado/Ranking (Abr 2026)
+- [x] Analisar lógica atual: coletado normal (vendas.valorColetado), ranking (getRankingAutomatico), coletado parcelas (getColetadoParcelasByConsultor)
+- [ ] Verificar se parcela paga no mesmo mês da venda já entra no coletado normal (valorColetado da venda) — se sim, OK
+- [ ] Verificar se parcela paga em mês diferente da venda NÃO entra no coletado normal nem ranking — se não, corrigir
+- [ ] Garantir que parcela paga em mês diferente entra apenas no coletado de parcelas + comissão do consultor no mês do pagamento
+- [ ] Atualizar Despesas.tsx e Dashboard.tsx para refletir a separação correta
+
+## Lógica de Parcelas vs Coletado Normal - Correção (Abr 2026)
+
+- [x] getRankingAutomatico: incluir parcelas pagas no mesmo mês da venda no valorColetado do ranking
+- [x] dashboard.stats: incluir parcelas do mesmo mês no totalColetado e totalComissoes
+- [x] getDashboardFinanceiro: incluir parcelas do mesmo mês no coletado bruto e comissões
+- [x] getColetadoParcelasByConsultor: excluir parcelas do mesmo mês da venda (ficam no coletado normal)
+- [x] getColetadoParcelasAdmin: excluir parcelas do mesmo mês da venda (ficam no coletado normal)
+- [x] PainelConsultor.tsx: nova query parcelasMesmoMesByConsultor, totalColetado e comissaoTotal incluem parcelas do mesmo mês
+- [x] Nova procedure parcelas.parcelasMesmoMesByConsultor no routers.ts
+- [x] Nova função getParcelasMesmoMesDaVenda no db.ts

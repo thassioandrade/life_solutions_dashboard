@@ -731,7 +731,7 @@ export async function getDashboardFinanceiro(mes: number, ano: number) {
   const inicio = new Date(ano, mes - 1, 1);
   const fim = new Date(ano, mes, 0, 23, 59, 59);
 
-  const [vendasMes, parcelasMes, custos] = await Promise.all([
+  const [vendasMes, parcelasMes, custos, parcelasMesmoMesFinanc] = await Promise.all([
     db.select().from(vendas).where(and(gte(vendas.dataVenda, inicio), lte(vendas.dataVenda, fim), eq(vendas.cancelada, false))),
     db.select({
       id: parcelas.id,
@@ -743,10 +743,29 @@ export async function getDashboardFinanceiro(mes: number, ano: number) {
       vendaId: parcelas.vendaId,
     }).from(parcelas).where(and(gte(parcelas.vencimento, inicio), lte(parcelas.vencimento, fim))),
     getCustosServicos(),
+    // Parcelas pagas no mesmo mês da venda (entram no coletado normal)
+    db.select({
+      id: parcelas.id,
+      valor: parcelas.valor,
+      comissaoPercent: vendas.comissaoPercent,
+    })
+      .from(parcelas)
+      .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
+      .where(and(
+        eq(parcelas.status, "pago"),
+        eq(vendas.cancelada, false),
+        sql`MONTH(${parcelas.dataPagamento}) = ${mes}`,
+        sql`YEAR(${parcelas.dataPagamento}) = ${ano}`,
+        sql`MONTH(${vendas.dataVenda}) = ${mes}`,
+        sql`YEAR(${vendas.dataVenda}) = ${ano}`
+      )),
   ]);
 
   const totalFaturado = vendasMes.reduce((s, v) => s + parseFloat(String(v.valorFaturado || 0)), 0);
-  const totalColetado = vendasMes.reduce((s, v) => s + parseFloat(String(v.valorColetado || 0)), 0);
+  const totalColetadoVendasFinanc = vendasMes.reduce((s, v) => s + parseFloat(String(v.valorColetado || 0)), 0);
+  // Parcelas pagas no mesmo mês da venda entram no coletado bruto
+  const totalColetadoParcelasMesmoMesFinanc = parcelasMesmoMesFinanc.reduce((s, p) => s + parseFloat(String(p.valor || 0)), 0);
+  const totalColetado = totalColetadoVendasFinanc + totalColetadoParcelasMesmoMesFinanc;
 
   // Contar serviços vendidos
   let qtdLimpaName = 0;
@@ -766,15 +785,19 @@ export async function getDashboardFinanceiro(mes: number, ano: number) {
   const salarioFixo = custos["salario_fixo"];
 
   // Comissão total: (coletado - custoServico) × 10% por venda
-  // O custoServico já está embutido em cada venda (salvo no momento do cadastro)
-  // Portanto o lucro líquido = coletado - comissões - salário
-  // (os custos de serviço já estão dentro do cálculo da comissão)
-  const totalComissoes = vendasMes.reduce((s, v) => {
+  const totalComissoesVendasFinanc = vendasMes.reduce((s, v) => {
     const coletado = parseFloat(String(v.valorColetado || 0));
     const custo = parseFloat(String(v.custoServico || 0));
     const pct = parseFloat(String(v.comissaoPercent || 10));
     return s + ((coletado - custo) * pct / 100);
   }, 0);
+  // Comissão das parcelas do mesmo mês (sem desconto de custo, pois o custo já foi descontado na venda)
+  const totalComissoesParcelasMesmoMesFinanc = parcelasMesmoMesFinanc.reduce((s, p) => {
+    const valor = parseFloat(String(p.valor || 0));
+    const pct = parseFloat(String(p.comissaoPercent || 10));
+    return s + (valor * pct / 100);
+  }, 0);
+  const totalComissoes = totalComissoesVendasFinanc + totalComissoesParcelasMesmoMesFinanc;
 
   // Parcelas do mês
   const parcelasPagas = parcelasMes.filter(p => p.status === "pago");
@@ -782,7 +805,7 @@ export async function getDashboardFinanceiro(mes: number, ano: number) {
   const totalParcelasPagas = parcelasPagas.reduce((s, p) => s + parseFloat(String(p.valor || 0)), 0);
   const totalParcelasPendentes = parcelasPendentes.reduce((s, p) => s + parseFloat(String(p.valor || 0)), 0);
 
-  // Lucro líquido: coletado - custos de serviços - salário - comissões
+  // Lucro líquido: coletado (vendas + parcelas mesmo mês) - custos de serviços - salário - comissões
   const liquido = totalColetado - totalCustosServicos - salarioFixo - totalComissoes;
 
   return {
@@ -884,6 +907,7 @@ export async function getColetadoParcelasByConsultor(consultorId: number, mes: n
   const ids = vendasDoConsultor.map(v => v.id);
 
   // Buscar parcelas pagas no mês/ano especificado
+  // EXCLUIR parcelas pagas no mesmo mês da venda (essas entram no coletado normal da venda, não no card de parcelas)
   const parcelasPagas = await db.select({
     id: parcelas.id,
     vendaId: parcelas.vendaId,
@@ -896,6 +920,7 @@ export async function getColetadoParcelasByConsultor(consultorId: number, mes: n
     clienteTelefone: vendas.clienteTelefone,
     comissaoPercent: vendas.comissaoPercent,
     custoServico: vendas.custoServico,
+    dataVenda: vendas.dataVenda,
   })
     .from(parcelas)
     .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
@@ -903,7 +928,9 @@ export async function getColetadoParcelasByConsultor(consultorId: number, mes: n
       sql`${parcelas.vendaId} IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})`,
       eq(parcelas.status, "pago"),
       sql`MONTH(${parcelas.dataPagamento}) = ${mes}`,
-      sql`YEAR(${parcelas.dataPagamento}) = ${ano}`
+      sql`YEAR(${parcelas.dataPagamento}) = ${ano}`,
+      // Apenas parcelas de vendas de MESES ANTERIORES (não do mesmo mês da venda)
+      sql`NOT (MONTH(${vendas.dataVenda}) = ${mes} AND YEAR(${vendas.dataVenda}) = ${ano})`
     ))
     .orderBy(parcelas.dataPagamento);
 
@@ -929,6 +956,7 @@ export async function getColetadoParcelasAdmin(mes: number, ano: number) {
   const db = await getDb();
   if (!db) return { totalColetado: 0, totalComissao: 0, porConsultor: [] as { consultorId: number; consultorNome: string; totalColetado: number; totalComissao: number }[] };
 
+  // EXCLUIR parcelas pagas no mesmo mês da venda (essas entram no coletado normal, não no card de parcelas)
   const parcelasPagas = await db.select({
     id: parcelas.id,
     valor: parcelas.valor,
@@ -945,7 +973,9 @@ export async function getColetadoParcelasAdmin(mes: number, ano: number) {
       eq(parcelas.status, "pago"),
       eq(vendas.cancelada, false),
       sql`MONTH(${parcelas.dataPagamento}) = ${mes}`,
-      sql`YEAR(${parcelas.dataPagamento}) = ${ano}`
+      sql`YEAR(${parcelas.dataPagamento}) = ${ano}`,
+      // Apenas parcelas de vendas de MESES ANTERIORES (não do mesmo mês da venda)
+      sql`NOT (MONTH(${vendas.dataVenda}) = ${mes} AND YEAR(${vendas.dataVenda}) = ${ano})`
     ));
 
   let totalColetado = 0;
@@ -1087,6 +1117,33 @@ export async function deletePromessa(id: number) {
   await db.delete(promessasPagamento).where(eq(promessasPagamento.id, id));
 }
 
+// ─── Parcelas pagas no mesmo mês da venda (entram no coletado normal + ranking + comissão) ────
+export async function getParcelasMesmoMesDaVenda(mes: number, ano: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: parcelas.id,
+    vendaId: parcelas.vendaId,
+    valor: parcelas.valor,
+    dataPagamento: parcelas.dataPagamento,
+    consultorId: vendas.consultorId,
+    comissaoPercent: vendas.comissaoPercent,
+    custoServico: vendas.custoServico,
+    clienteNome: vendas.clienteNome,
+  })
+    .from(parcelas)
+    .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
+    .where(and(
+      eq(parcelas.status, "pago"),
+      eq(vendas.cancelada, false),
+      sql`MONTH(${parcelas.dataPagamento}) = ${mes}`,
+      sql`YEAR(${parcelas.dataPagamento}) = ${ano}`,
+      // Parcela paga no mesmo mês da venda
+      sql`MONTH(${vendas.dataVenda}) = ${mes}`,
+      sql`YEAR(${vendas.dataVenda}) = ${ano}`
+    ));
+}
+
 // ─── Ranking Automático (calculado em tempo real) ─────────────────────────────
 export async function getRankingAutomatico(mes: number, ano: number) {
   const db = await getDb();
@@ -1096,11 +1153,35 @@ export async function getRankingAutomatico(mes: number, ano: number) {
 
   // Buscar todas as vendas do mês com consultores
   const vendasMes = await db.select({
+    id: vendas.id,
     consultorId: vendas.consultorId,
     valorColetado: vendas.valorColetado,
     valorFaturado: vendas.valorFaturado,
     dataVenda: vendas.dataVenda,
+    comissaoPercent: vendas.comissaoPercent,
+    custoServico: vendas.custoServico,
   }).from(vendas).where(and(gte(vendas.dataVenda, inicio), lte(vendas.dataVenda, fim), eq(vendas.cancelada, false)));
+
+  // Buscar parcelas pagas no mês que pertencem a vendas do MESMO mês (mesmo mês e ano da venda)
+  // Essas parcelas entram no coletado normal + ranking
+  const parcelasMesmoMes = vendasMes.length > 0 ? await db.select({
+    vendaId: parcelas.vendaId,
+    valor: parcelas.valor,
+    consultorId: vendas.consultorId,
+    comissaoPercent: vendas.comissaoPercent,
+    custoServico: vendas.custoServico,
+  })
+    .from(parcelas)
+    .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
+    .where(and(
+      eq(parcelas.status, "pago"),
+      eq(vendas.cancelada, false),
+      sql`MONTH(${parcelas.dataPagamento}) = ${mes}`,
+      sql`YEAR(${parcelas.dataPagamento}) = ${ano}`,
+      // Parcela paga no mesmo mês da venda
+      sql`MONTH(${vendas.dataVenda}) = ${mes}`,
+      sql`YEAR(${vendas.dataVenda}) = ${ano}`
+    )) : [];
 
   // Buscar todos os agendamentos do mês
   const agendsMes = await db.select({
@@ -1141,6 +1222,14 @@ export async function getRankingAutomatico(mes: number, ano: number) {
     entry.valorColetado += parseFloat(String(v.valorColetado || 0));
     entry.valorFaturado += parseFloat(String(v.valorFaturado || 0));
     entry.totalVendas += 1;
+  }
+
+  // Adicionar parcelas pagas no mesmo mês da venda ao coletado do ranking
+  for (const p of parcelasMesmoMes) {
+    if (!p.consultorId) continue;
+    const entry = map.get(p.consultorId);
+    if (!entry) continue;
+    entry.valorColetado += parseFloat(String(p.valor || 0));
   }
 
   for (const a of agendsMes) {
