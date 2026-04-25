@@ -513,3 +513,9 @@
 - [x] Venda 930011 (01/04/2026) cancelada — cadastro duplicado por engano
 - [x] Venda 660002 (02/04/2026) mantida ativa com valorColetado=R$750
 - [x] Endpoint temporário de diagnóstico /api/diag/elivelton removido do index.ts
+
+## Correção Coletado Parcelas Dardane (Abr 2026)
+
+- [x] Parcela 3 de R$500 adicionada como paga em abril (08/04/2026) para Dardane Soares Gomes (venda 60006)
+- [x] valorColetado da venda 60006 atualizado para R$1.500 (total pago: 500 março + 500 abril p2 + 500 abril p3)
+- [x] Coletado Parcelas de abril da Dardane agora mostra R$1.000 (parcelas 2 e 3 pagas em abril)
