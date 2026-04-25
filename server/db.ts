@@ -235,7 +235,28 @@ export async function getParcelasPendentes() {
   const db = await getDb();
   if (!db) return [];
   // Inclui pendentes E aguardando_confirmacao (consultor marcou como recebido, aguardando baixa do admin)
-  return db.select().from(parcelas)
+  // JOIN com vendas para trazer clienteNome, clienteTelefone e consultorId
+  return db.select({
+    id: parcelas.id,
+    vendaId: parcelas.vendaId,
+    valor: parcelas.valor,
+    valorPago: parcelas.valorPago,
+    vencimento: parcelas.vencimento,
+    status: parcelas.status,
+    numeroParcela: parcelas.numeroParcela,
+    formaPagamento: parcelas.formaPagamento,
+    comprovanteUrl: parcelas.comprovanteUrl,
+    observacoes: parcelas.observacoes,
+    dataPagamento: parcelas.dataPagamento,
+    okConsultor: parcelas.okConsultor,
+    dataOkConsultor: parcelas.dataOkConsultor,
+    clienteNome: vendas.clienteNome,
+    clienteTelefone: vendas.clienteTelefone,
+    clienteCpfCnpj: vendas.clienteCpfCnpj,
+    consultorId: vendas.consultorId,
+  })
+    .from(parcelas)
+    .leftJoin(vendas, eq(parcelas.vendaId, vendas.id))
     .where(sql`${parcelas.status} IN ('pendente', 'aguardando_confirmacao')`)
     .orderBy(parcelas.vencimento);
 }
@@ -246,7 +267,27 @@ export async function getParcelasByConsultor(consultorId: number) {
   const vendasDoConsultor = await db.select({ id: vendas.id }).from(vendas).where(and(eq(vendas.consultorId, consultorId), eq(vendas.cancelada, false)));
   if (vendasDoConsultor.length === 0) return [];
   const ids = vendasDoConsultor.map(v => v.id);
-  return db.select().from(parcelas)
+  return db.select({
+    id: parcelas.id,
+    vendaId: parcelas.vendaId,
+    valor: parcelas.valor,
+    valorPago: parcelas.valorPago,
+    vencimento: parcelas.vencimento,
+    status: parcelas.status,
+    numeroParcela: parcelas.numeroParcela,
+    formaPagamento: parcelas.formaPagamento,
+    comprovanteUrl: parcelas.comprovanteUrl,
+    observacoes: parcelas.observacoes,
+    dataPagamento: parcelas.dataPagamento,
+    okConsultor: parcelas.okConsultor,
+    dataOkConsultor: parcelas.dataOkConsultor,
+    clienteNome: vendas.clienteNome,
+    clienteTelefone: vendas.clienteTelefone,
+    clienteCpfCnpj: vendas.clienteCpfCnpj,
+    consultorId: vendas.consultorId,
+  })
+    .from(parcelas)
+    .leftJoin(vendas, eq(parcelas.vendaId, vendas.id))
     .where(sql`${parcelas.vendaId} IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})`)
     .orderBy(parcelas.vencimento);
 }
