@@ -1,7 +1,11 @@
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
 export interface DrillDownItem {
   tipo: string;
@@ -10,6 +14,8 @@ export interface DrillDownItem {
   valor: number;
   data: Date | string;
   descricao: string;
+  vendaId?: number;
+  parcelaId?: number;
 }
 
 interface DrillDownModalProps {
@@ -20,6 +26,7 @@ interface DrillDownModalProps {
   items: DrillDownItem[];
   isLoading?: boolean;
   color?: "teal" | "amber" | "blue" | "green" | "purple" | "rose";
+  onDeleted?: () => void;
 }
 
 const colorMap = {
@@ -60,8 +67,64 @@ export default function DrillDownModal({
   items,
   isLoading = false,
   color = "green",
+  onDeleted,
 }: DrillDownModalProps) {
   const colorClass = colorMap[color];
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const utils = trpc.useUtils();
+
+  const deleteVendaMutation = trpc.vendas.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Venda excluída com sucesso!");
+      utils.dashboard.stats.invalidate();
+      utils.dashboardDetalhe.coletado.invalidate();
+      utils.dashboardDetalhe.faturado.invalidate();
+      utils.dashboardDetalhe.aReceber.invalidate();
+      utils.dashboardDetalhe.comissoes.invalidate();
+      utils.dashboardDetalhe.coletadoParcelas.invalidate();
+      utils.dashboardDetalhe.comissaoParcelas.invalidate();
+      utils.dashboardDetalhe.aguardandoBaixa.invalidate();
+      utils.parcelas.listAll.invalidate();
+      utils.parcelas.coletadoAdmin.invalidate();
+      setDeletingId(null);
+      onDeleted?.();
+    },
+    onError: (e) => { toast.error("Erro ao excluir: " + e.message); setDeletingId(null); },
+  });
+
+  const deleteParcelaMutation = trpc.parcelas.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Parcela excluída com sucesso!");
+      utils.dashboard.stats.invalidate();
+      utils.dashboardDetalhe.coletado.invalidate();
+      utils.dashboardDetalhe.faturado.invalidate();
+      utils.dashboardDetalhe.aReceber.invalidate();
+      utils.dashboardDetalhe.comissoes.invalidate();
+      utils.dashboardDetalhe.coletadoParcelas.invalidate();
+      utils.dashboardDetalhe.comissaoParcelas.invalidate();
+      utils.dashboardDetalhe.aguardandoBaixa.invalidate();
+      utils.parcelas.listAll.invalidate();
+      utils.parcelas.coletadoAdmin.invalidate();
+      setDeletingId(null);
+      onDeleted?.();
+    },
+    onError: (e) => { toast.error("Erro ao excluir: " + e.message); setDeletingId(null); },
+  });
+
+  function handleDelete(item: DrillDownItem, idx: number) {
+    const key = `${idx}`;
+    if (!confirm(`Excluir permanentemente "${item.clienteNome}"? Esta ação não pode ser desfeita.`)) return;
+    setDeletingId(key);
+    // Se tem parcelaId e é tipo parcela, exclui a parcela; senão exclui a venda
+    if (item.parcelaId && (item.tipo === "parcela_pendente" || item.tipo === "parcela_mes_anterior" || item.tipo === "aguardando_baixa")) {
+      deleteParcelaMutation.mutate({ id: item.parcelaId });
+    } else if (item.vendaId) {
+      deleteVendaMutation.mutate({ id: item.vendaId });
+    } else {
+      toast.error("Não foi possível identificar o registro para excluir.");
+      setDeletingId(null);
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
@@ -97,6 +160,8 @@ export default function DrillDownModal({
             <div className="divide-y divide-white/5">
               {items.map((item, idx) => {
                 const badge = tipoBadgeMap[item.tipo] || { label: item.tipo, className: "bg-white/10 text-white/60 border-white/20" };
+                const isDeleting = deletingId === `${idx}`;
+                const canDelete = !!(item.vendaId || item.parcelaId);
                 return (
                   <div key={idx} className="px-6 py-4 hover:bg-white/[0.02] transition-colors">
                     <div className="flex items-start justify-between gap-4">
@@ -116,10 +181,26 @@ export default function DrillDownModal({
                           <span>📅 {formatDate(item.data)}</span>
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
                         <span className="text-base font-semibold text-emerald-400">
                           {formatBRL(item.valor)}
                         </span>
+                        {canDelete && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            onClick={() => handleDelete(item, idx)}
+                            disabled={isDeleting}
+                            title="Excluir permanentemente"
+                          >
+                            {isDeleting ? (
+                              <div className="w-3.5 h-3.5 border border-red-400 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Trash2 className="w-3.5 h-3.5" />
+                            )}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>

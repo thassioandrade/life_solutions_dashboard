@@ -1262,7 +1262,7 @@ export async function getDetalheColetado(mes: number, ano: number) {
   const consultoresList = await db.select().from(consultores);
   const consultorMap = new Map(consultoresList.map(c => [c.id, c.nome]));
 
-  const itens: Array<{ tipo: string; clienteNome: string; consultorNome: string; valor: number; data: Date; descricao: string }> = [];
+  const itens: Array<{ tipo: string; clienteNome: string; consultorNome: string; valor: number; data: Date; descricao: string; vendaId?: number; parcelaId?: number }> = [];
 
   for (const v of vendasMes) {
     const valorColetado = parseFloat(String(v.valorColetado || 0));
@@ -1274,6 +1274,7 @@ export async function getDetalheColetado(mes: number, ano: number) {
         valor: valorColetado,
         data: v.dataVenda,
         descricao: `Coletado à vista — ${(v.servicos as string[] || []).join(", ") || "Serviço"}`,
+        vendaId: v.id,
       });
     }
   }
@@ -1307,6 +1308,7 @@ export async function getDetalheFaturado(mes: number, ano: number) {
     valor: parseFloat(String(v.valorFaturado || 0)),
     data: v.dataVenda,
     descricao: `Venda — ${(v.servicos as string[] || []).join(", ") || "Serviço"}`,
+    vendaId: v.id,
   }));
 
   const total = itens.reduce((s, i) => s + i.valor, 0);
@@ -1343,6 +1345,8 @@ export async function getDetalheAReceber(mes: number, ano: number) {
     valor: parseFloat(String(p.valor || 0)),
     data: p.vencimento || new Date(),
     descricao: `Parcela #${p.numeroParcela} — venc. ${p.vencimento ? new Date(p.vencimento).toLocaleDateString("pt-BR") : "—"} — ${p.status === "aguardando_confirmacao" ? "⏳ Aguardando baixa" : "Pendente"}`,
+    vendaId: p.vendaId,
+    parcelaId: p.id,
   })).sort((a, b) => a.data.getTime() - b.data.getTime());
 
   const total = itens.reduce((s, i) => s + i.valor, 0);
@@ -1363,7 +1367,7 @@ export async function getDetalheComissoes(mes: number, ano: number) {
   const consultoresList = await db.select().from(consultores);
   const consultorMap = new Map(consultoresList.map(c => [c.id, c.nome]));
 
-  const itens: Array<{ tipo: string; clienteNome: string; consultorNome: string; valor: number; data: Date; descricao: string }> = [];
+  const itens: Array<{ tipo: string; clienteNome: string; consultorNome: string; valor: number; data: Date; descricao: string; vendaId?: number; parcelaId?: number }> = [];
 
   for (const v of vendasMes) {
     const base = parseFloat(String(v.valorColetado || 0)) - parseFloat(String(v.custoServico || 0));
@@ -1376,6 +1380,7 @@ export async function getDetalheComissoes(mes: number, ano: number) {
         valor: comissao,
         data: v.dataVenda,
         descricao: `${parseFloat(String(v.comissaoPercent || 10))}% sobre R$ ${base.toFixed(2)} (coletado - custo serviço)`,
+        vendaId: v.id,
       });
     }
   }
@@ -1434,6 +1439,8 @@ export async function getDetalheColetadoParcelas(mes: number, ano: number) {
       valor: parseFloat(String(p.valor || 0)),
       data: p.dataPagamento || new Date(),
       descricao: `Parcela #${p.numeroParcela} — venda de ${p.dataVenda ? new Date(p.dataVenda).toLocaleDateString("pt-BR") : "—"}`,
+      vendaId: p.vendaId,
+      parcelaId: p.id,
     }))
     .sort((a, b) => b.data.getTime() - a.data.getTime());
 
@@ -1483,6 +1490,8 @@ export async function getDetalheAguardandoBaixa() {
     valor: parseFloat(String(p.valor || 0)),
     data: p.updatedAt || new Date(),
     descricao: `Parcela #${p.numeroParcela} — venc. ${p.vencimento ? new Date(p.vencimento).toLocaleDateString("pt-BR") : "—"} — aguardando confirmação do admin`,
+    vendaId: p.vendaId,
+    parcelaId: p.id,
   })).sort((a, b) => b.data.getTime() - a.data.getTime());
 
   const total = itens.reduce((s, i) => s + i.valor, 0);

@@ -519,3 +519,10 @@
 - [x] Parcela 3 de R$500 adicionada como paga em abril (08/04/2026) para Dardane Soares Gomes (venda 60006)
 - [x] valorColetado da venda 60006 atualizado para R$1.500 (total pago: 500 março + 500 abril p2 + 500 abril p3)
 - [x] Coletado Parcelas de abril da Dardane agora mostra R$1.000 (parcelas 2 e 3 pagas em abril)
+
+## Botão Excluir nos Modais do Dashboard
+
+- [x] DrillDownModal atualizado com botão de lixeira em cada item
+- [x] vendaId e parcelaId adicionados nos itens de detalhe do db.ts (coletado, faturado, aReceber, comissoes, coletadoParcelas, comissaoParcelas, aguardandoBaixa)
+- [x] Exclusão de venda usa trpc.vendas.delete; exclusão de parcela usa trpc.parcelas.delete
+- [x] Após exclusão: invalidate automático de todos os cards do dashboard (stats, detalhe, parcelas)
