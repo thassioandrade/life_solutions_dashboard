@@ -526,3 +526,6 @@
 - [x] vendaId e parcelaId adicionados nos itens de detalhe do db.ts (coletado, faturado, aReceber, comissoes, coletadoParcelas, comissaoParcelas, aguardandoBaixa)
 - [x] Exclusão de venda usa trpc.vendas.delete; exclusão de parcela usa trpc.parcelas.delete
 - [x] Após exclusão: invalidate automático de todos os cards do dashboard (stats, detalhe, parcelas)
+
+## Botão Excluir Parcelas no Painel do Vendedor
+- [ ] Adicionar botão de excluir parcelas na aba de parcelas do painel do consultor (para remover parcelas duplicadas)

@@ -18,7 +18,7 @@ import {
   ChevronLeft, ChevronRight, CalendarDays, DollarSign, TrendingUp,
   Clock, Upload, X, CheckCircle2, Trophy, Target, Loader2,
   CreditCard, AlertTriangle, Bell, FileText, XCircle, Edit2,
-  Phone, Calendar
+  Phone, Calendar, Trash2
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -290,6 +290,23 @@ export default function PainelConsultor() {
       }
     },
     onError: (e) => toast.error("Erro: " + e.message),
+  });
+
+  const deleteParcelaMutation = trpc.parcelas.delete.useMutation({
+    onSuccess: () => {
+      utils.parcelasCompletas.byConsultor.invalidate();
+      utils.parcelas.coletadoByConsultor.invalidate();
+      utils.parcelas.pendentesConsultor.invalidate();
+      utils.parcelas.devedores.invalidate();
+      utils.parcelas.futurasConsultor.invalidate();
+      utils.parcelas.coletadoAdmin.invalidate();
+      utils.parcelas.listAll.invalidate();
+      utils.parcelas.listPendentes.invalidate();
+      utils.dashboard.stats.invalidate();
+      utils.dashboardFinanceiro.get.invalidate();
+      toast.success("Parcela excluída com sucesso.");
+    },
+    onError: (e) => toast.error("Erro ao excluir parcela: " + e.message),
   });
 
   async function handleUploadComprovanteParcela(file: File) {
@@ -1197,6 +1214,18 @@ export default function PainelConsultor() {
                                 </div>
                               )}
                               {p.status === "pago" && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Excluir parcela de ${p.clienteNome} permanentemente? Esta ação não pode ser desfeita.`)) {
+                                    deleteParcelaMutation.mutate({ id: p.id });
+                                  }
+                                }}
+                                disabled={deleteParcelaMutation.isPending}
+                                className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                title="Excluir parcela"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
                         );
