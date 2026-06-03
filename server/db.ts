@@ -846,9 +846,7 @@ export async function getDashboardFinanceiro(mes: number, ano: number) {
 export async function getParcelasCompletasByConsultor(consultorId: number) {
   const db = await getDb();
   if (!db) return [];
-  const vendasDoConsultor = await db.select({ id: vendas.id }).from(vendas).where(and(eq(vendas.consultorId, consultorId), eq(vendas.cancelada, false)));
-  if (vendasDoConsultor.length === 0) return [];
-  const ids = vendasDoConsultor.map(v => v.id);
+  // Query otimizada: JOIN direto em vez de 2 queries separadas
   return db.select({
     id: parcelas.id,
     vendaId: parcelas.vendaId,
@@ -868,8 +866,7 @@ export async function getParcelasCompletasByConsultor(consultorId: number) {
     comissaoPercent: vendas.comissaoPercent,
   })
     .from(parcelas)
-    .innerJoin(vendas, eq(parcelas.vendaId, vendas.id))
-    .where(sql`${parcelas.vendaId} IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})`)
+    .innerJoin(vendas, and(eq(parcelas.vendaId, vendas.id), eq(vendas.consultorId, consultorId), eq(vendas.cancelada, false)))
     .orderBy(parcelas.vencimento);
 }
 
