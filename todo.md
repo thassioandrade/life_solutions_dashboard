@@ -529,3 +529,8 @@
 
 ## Botão Excluir Parcelas no Painel do Vendedor
 - [ ] Adicionar botão de excluir parcelas na aba de parcelas do painel do consultor (para remover parcelas duplicadas)
+
+## Bug: Página não carrega
+- [x] Diagnosticar e corrigir o bloqueio de carregamento da página para consultores e administrador
+- [x] Diagnóstico: domínio principal `sistemalifesolution.manus.space` apresenta `ERR_SSL_PROTOCOL_ERROR`; domínio alternativo está operacional e permite login de consultor
+- [x] Validação: o domínio principal voltou a carregar e o login do Antonio Aragão foi concluído com sucesso, abrindo o painel do consultor
