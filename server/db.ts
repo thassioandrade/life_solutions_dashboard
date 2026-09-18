@@ -118,6 +118,13 @@ export async function getConsultorByEmail(email: string) {
   return result[0];
 }
 
+export async function getConsultorByUserId(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(consultores).where(eq(consultores.userId, userId)).limit(1);
+  return result[0];
+}
+
 export async function createConsultor(data: { nome: string; email?: string; fotoUrl?: string; linkAgenda?: string }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");

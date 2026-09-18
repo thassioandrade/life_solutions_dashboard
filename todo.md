@@ -115,7 +115,7 @@
 - [x] Testes vitest: auth.logout, auth.me, RBAC, dashboard.stats, consultores, agendamentos, vendas, pipeline (11 testes passando)
 
 ## Configuração de Domínio
-- [ ] Configurar domínio sistemalifesolutions.manus.space (via painel Settings > Domains após publicar)
+- [x] Domínio principal configurado e validado: sistemalifesolution.manus.space
 
 ## Rebranding com Identidade Visual Oficial
 - [x] Upload da logomarca para CDN
@@ -209,7 +209,7 @@
 - [x] Página Promessas: filtros por status (pendente, concluído, cancelado) e por consultora
 - [x] Alerta no Painel Consultor: badge de promessas vencendo hoje com nome e telefone
 - [x] Alerta no Dashboard Admin: banner roxo de promessas vencendo hoje com nome, telefone e consultora
-- [ ] Integração com agendamento: botão "Registrar Promessa" no modal de agendamento
+- [x] Integração com agendamento: botão "Registrar Promessa" no modal de agendamento
 - [x] Navegação: "Promessas de Pgto" no sidebar para Admin e Consultor
 
 ## Botão Vai Fechar e Exportação Excel de Serviços
@@ -318,7 +318,7 @@
 - [x] Backend: procedure vendas.update expandido para aceitar todos os campos (servicos, consultorId, custoServico, comissaoPercent, dataVenda, tipo)
 
 ## Migração de Dados: Preencher campo servicos nas vendas existentes (Mar 2026)
-- [ ] Atualizar campo servicos de todas as vendas com base no custoServico já salvo (70=limpa_nome, 110=rating, 180=ambos)
+- [x] Migração encerrada: nenhuma venda sem serviços se enquadra na regra determinística de custo R$70/R$110/R$180. Dardane (ativa, custo R$0) e Liz (cancelada, custo R$1.500) foram preservadas sem inferência de serviço.
 
 ## Aba Prazo de Serviços (Mar 2026)
 - [x] Backend: procedure vendas.listPrazos — lista vendas ativas com dataVenda e dias decorridos
@@ -453,10 +453,10 @@
 
 ## Lógica de Parcelas vs Coletado/Ranking (Abr 2026)
 - [x] Analisar lógica atual: coletado normal (vendas.valorColetado), ranking (getRankingAutomatico), coletado parcelas (getColetadoParcelasByConsultor)
-- [ ] Verificar se parcela paga no mesmo mês da venda já entra no coletado normal (valorColetado da venda) — se sim, OK
-- [ ] Verificar se parcela paga em mês diferente da venda NÃO entra no coletado normal nem ranking — se não, corrigir
-- [ ] Garantir que parcela paga em mês diferente entra apenas no coletado de parcelas + comissão do consultor no mês do pagamento
-- [ ] Atualizar Despesas.tsx e Dashboard.tsx para refletir a separação correta
+- [x] Verificado: parcela paga no mesmo mês atualiza valorColetado da venda e entra no coletado normal
+- [x] Verificado: parcela paga em mês diferente não entra no coletado normal nem no ranking
+- [x] Garantido: parcela de mês diferente entra somente em Coletado Parcelas e na comissão de parcelas no mês do pagamento
+- [x] Dashboard.tsx e Despesas.tsx atualizados para refletir a separação correta
 
 ## Lógica de Parcelas vs Coletado Normal - Correção (Abr 2026)
 
@@ -497,16 +497,16 @@
 
 ## Drill-Down nos Cards do PainelConsultor (Abr 2026)
 
-- [ ] Backend: procedures de drill-down por consultorId (coletado, faturado, aReceber, coletadoParcelas)
-- [ ] Frontend: DrillDownModal nos 4 cards do PainelConsultor com onClick
+- [x] Backend: procedures de drill-down por consultorId (coletado, faturado, comissão, aReceber, coletadoParcelas)
+- [x] Frontend: DrillDownModal nos cards do PainelConsultor com onClick
 
 ## Bugs Críticos de Cálculo (Abril 2026)
 
-- [ ] Bug: parcelas pagas no mesmo mês da venda não somam ao coletado do mês no Painel Consultor e Dashboard Admin
-- [ ] Bug: divergência de valores entre Serviços Vendidos e Parcelas Pendentes (mesma venda com valores diferentes)
-- [ ] Bug: editar venda para adicionar parcelas duplica as parcelas existentes
-- [ ] Limpeza: remover parcelas duplicadas existentes no banco e recalcular valorColetado das vendas afetadas
-- [ ] Verificar: todos os painéis refletem valores corretos após correção
+- [x] Corrigido: parcelas pagas no mesmo mês atualizam o coletado do Painel Consultor e do Dashboard Admin
+- [x] Corrigido: valores de Serviços Vendidos e Parcelas Pendentes passaram por auditoria de consistência
+- [x] Corrigido: edição de venda remove parcelas pendentes antes de recriá-las, impedindo duplicação
+- [x] Limpeza concluída: parcelas duplicadas foram removidas e valorColetado recalculado nas vendas afetadas
+- [x] Verificado: painéis refletem os valores corretos após as correções
 
 ## Correção Venda Duplicada Elivelton (Abr 2026)
 
@@ -528,7 +528,12 @@
 - [x] Após exclusão: invalidate automático de todos os cards do dashboard (stats, detalhe, parcelas)
 
 ## Botão Excluir Parcelas no Painel do Vendedor
-- [ ] Adicionar botão de excluir parcelas na aba de parcelas do painel do consultor (para remover parcelas duplicadas)
+- [x] Botão de excluir parcelas adicionado na aba Parcelas do painel do consultor, com invalidação dos dados do painel e do admin
+
+## Segurança e Integridade na Exclusão de Parcelas
+- [x] Apenas administrador ou a consultora vinculada à venda podem excluir uma parcela
+- [x] Exclusão de parcela paga estorna valorPago (ou o valor original quando valorPago está vazio) de vendas.valorColetado em transação
+- [x] Exclusão de parcela pendente durante edição também respeita a propriedade da venda
 
 ## Bug: Página não carrega
 - [x] Diagnosticar e corrigir o bloqueio de carregamento da página para consultores e administrador

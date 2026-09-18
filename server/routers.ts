@@ -9,7 +9,7 @@ import { notifyOwner } from "./_core/notification";
 import { sdk } from "./_core/sdk";
 import { upsertUser } from "./db";
 import { getAllUsers, updateUserRole, updateUserAvatar, deleteUser,
-  getAllConsultores, getConsultorById, getConsultorByEmail, createConsultor, updateConsultor, deleteConsultor,
+  getAllConsultores, getConsultorById, getConsultorByEmail, getConsultorByUserId, createConsultor, updateConsultor, deleteConsultor,
   getVendasByPeriod, getVendasByConsultor, getVendasAtivasByClienteNome, createVenda, updateVenda, deleteVenda, cancelarVenda, getVendaById,
   getParcelasByVenda, getParcelasByVendaIds, getParcelasPendentes, getParcelasByConsultor, createParcelas, updateParcela,
   getAgendamentosByPeriod, getAgendamentosByConsultor, createAgendamento, updateAgendamento, deleteAgendamento, getAgendamentoById,
@@ -45,11 +45,24 @@ import { getAllUsers, updateUserRole, updateUserAvatar, deleteUser,
 } from "./db";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
+import { coletadoAposExcluirParcela, podeGerenciarParcela } from "./parcelasSecurity";
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a administradores" });
   return next({ ctx });
 });
+
+async function validarAcessoDaConsultora(ctx: { user: { id: number; email: string | null; role: "user" | "admin" } }, consultorIdVenda: number | null) {
+  if (ctx.user.role === "admin") return;
+
+  const consultorPorUsuario = await getConsultorByUserId(ctx.user.id);
+  const consultorPorEmail = ctx.user.email ? await getConsultorByEmail(ctx.user.email) : undefined;
+  const consultorIdSessao = consultorPorUsuario?.id ?? consultorPorEmail?.id;
+
+  if (!podeGerenciarParcela({ isAdmin: false, consultorIdSessao, consultorIdVenda })) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Você só pode gerenciar parcelas das suas próprias vendas." });
+  }
+}
 
 export const appRouter = router({
   system: systemRouter,
@@ -680,21 +693,54 @@ export const appRouter = router({
       }),
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
-        const { parcelas: parcelasTable } = await import("../drizzle/schema");
-        await db.delete(parcelasTable).where((await import("drizzle-orm")).eq(parcelasTable.id, input.id));
-        return { success: true };
+        const { parcelas: parcelasTable, vendas: vendasTable } = await import("../drizzle/schema");
+        const { eq: eqFn } = await import("drizzle-orm");
+        const [parcela] = await db.select({
+          id: parcelasTable.id,
+          vendaId: parcelasTable.vendaId,
+          status: parcelasTable.status,
+          valor: parcelasTable.valor,
+          valorPago: parcelasTable.valorPago,
+          valorColetadoVenda: vendasTable.valorColetado,
+          consultorIdVenda: vendasTable.consultorId,
+        })
+          .from(parcelasTable)
+          .innerJoin(vendasTable, eqFn(parcelasTable.vendaId, vendasTable.id))
+          .where(eqFn(parcelasTable.id, input.id));
+
+        if (!parcela) throw new TRPCError({ code: "NOT_FOUND", message: "Parcela não encontrada" });
+        await validarAcessoDaConsultora(ctx, parcela.consultorIdVenda);
+
+        await db.transaction(async (tx) => {
+          if (parcela.status === "pago") {
+            const novoColetado = coletadoAposExcluirParcela({
+              valorColetadoAtual: parcela.valorColetadoVenda,
+              status: parcela.status,
+              valorPago: parcela.valorPago,
+              valor: parcela.valor,
+            });
+            await tx.update(vendasTable).set({ valorColetado: String(novoColetado) }).where(eqFn(vendasTable.id, parcela.vendaId));
+          }
+          await tx.delete(parcelasTable).where(eqFn(parcelasTable.id, input.id));
+        });
+
+        return { success: true, coletadoEstornado: parcela.status === "pago" };
       }),
     // Deletar todas as parcelas PENDENTES de uma venda (antes de recriar ao editar)
     deletePendentesByVenda: protectedProcedure
       .input(z.object({ vendaId: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
-        const { parcelas: parcelasTable } = await import("../drizzle/schema");
+        const { parcelas: parcelasTable, vendas: vendasTable } = await import("../drizzle/schema");
         const { eq: eqFn, and: andFn, inArray: inArrayFn } = await import("drizzle-orm");
+        const [venda] = await db.select({ consultorId: vendasTable.consultorId })
+          .from(vendasTable).where(eqFn(vendasTable.id, input.vendaId));
+        if (!venda) throw new TRPCError({ code: "NOT_FOUND", message: "Venda não encontrada" });
+        await validarAcessoDaConsultora(ctx, venda.consultorId);
         await db.delete(parcelasTable).where(
           andFn(
             eqFn(parcelasTable.vendaId, input.vendaId),
