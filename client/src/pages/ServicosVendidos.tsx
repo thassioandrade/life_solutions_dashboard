@@ -6,9 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Download, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { baixarPlanilhaExcel, type ExcelRow } from "@/lib/xlsxDownload";
+import { ChevronLeft, ChevronRight, Download, AlertTriangle, CheckCircle2, Eye } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { toast } from "sonner";
 
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
@@ -33,6 +36,7 @@ export default function ServicosVendidos() {
   const [filtroConsultor, setFiltroConsultor] = useState<string>("todos");
   const [abaAtiva, setAbaAtiva] = useState<"servicos" | "devedores">("servicos");
   const [openGerenciarParcelas, setOpenGerenciarParcelas] = useState<any | null>(null);
+  const [detalheServico, setDetalheServico] = useState<"limpa" | "rating" | "todos" | null>(null);
 
   const utils = trpc.useUtils();
   const { data: todosConsultores } = trpc.consultores.list.useQuery();
@@ -132,9 +136,21 @@ export default function ServicosVendidos() {
     return devedores.filter(d => d.consultorId === cId);
   }, [devedores, filtroConsultor]);
 
-  // Exportar para Excel
-  function exportarExcel() {
-    const rows = stats.clientesComServico.map(v => {
+  function vendasDoServico(tipo: "limpa" | "rating" | "todos") {
+    if (tipo === "todos") return stats.clientesComServico;
+    return stats.clientesComServico.filter(v =>
+      (v.servicos as string[] | null)?.some(s => s.toLowerCase().includes(tipo))
+    );
+  }
+
+  function tituloServico(tipo: "limpa" | "rating" | "todos") {
+    if (tipo === "limpa") return "Limpa Nome";
+    if (tipo === "rating") return "Rating Bancário";
+    return "Limpa Nome e Rating";
+  }
+
+  function criarLinhasServico(tipo: "limpa" | "rating" | "todos"): ExcelRow[] {
+    return vendasDoServico(tipo).map(v => {
       const servs = v.servicos as string[] | null;
       const consultor = consultores?.find(c => c.id === v.consultorId);
       return {
@@ -148,50 +164,28 @@ export default function ServicosVendidos() {
         "Consultora": consultor?.nome || "",
       };
     });
-
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Serviços Vendidos");
-    XLSX.writeFile(wb, `servicos_vendidos_${MESES[mes-1]}_${ano}.xlsx`);
   }
 
-  function exportarLimpaExcel() {
-    const rows = stats.clientesComServico
-      .filter(v => (v.servicos as string[] | null)?.some(s => s.toLowerCase().includes("limpa")))
-      .map(v => {
-        const consultor = consultores?.find(c => c.id === v.consultorId);
-        return {
-          "Nome do Cliente": v.clienteNome,
-          "CPF/CNPJ": v.clienteCpfCnpj || "",
-          "Telefone": v.clienteTelefone || "",
-          "Serviço": "Limpa Nome",
-          "Data da Venda": new Date(v.dataVenda).toLocaleDateString("pt-BR"),
-          "Consultora": consultor?.nome || "",
-        };
-      });
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Limpa Nome");
-    XLSX.writeFile(wb, `limpa-nome-${MESES[mes-1]}-${ano}.xlsx`);
-  }
-  function exportarRatingExcel() {
-    const rows = stats.clientesComServico
-      .filter(v => (v.servicos as string[] | null)?.some(s => s.toLowerCase().includes("rating")))
-      .map(v => {
-        const consultor = consultores?.find(c => c.id === v.consultorId);
-        return {
-          "Nome do Cliente": v.clienteNome,
-          "CPF/CNPJ": v.clienteCpfCnpj || "",
-          "Telefone": v.clienteTelefone || "",
-          "Serviço": "Rating Bancário",
-          "Data da Venda": new Date(v.dataVenda).toLocaleDateString("pt-BR"),
-          "Consultora": consultor?.nome || "",
-        };
-      });
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Rating Bancário");
-    XLSX.writeFile(wb, `rating-bancario-${MESES[mes-1]}-${ano}.xlsx`);
+  async function exportarServicosExcel(tipo: "limpa" | "rating" | "todos") {
+    const rows = criarLinhasServico(tipo);
+    if (rows.length === 0) {
+      toast.info(`Não há clientes com ${tituloServico(tipo)} no período selecionado.`);
+      return;
+    }
+
+    const nomesArquivo = {
+      limpa: `limpa-nome-${MESES[mes - 1]}-${ano}.xlsx`,
+      rating: `rating-bancario-${MESES[mes - 1]}-${ano}.xlsx`,
+      todos: `servicos-vendidos-${MESES[mes - 1]}-${ano}.xlsx`,
+    };
+
+    try {
+      await baixarPlanilhaExcel(rows, tituloServico(tipo), nomesArquivo[tipo]);
+      toast.success("Planilha pronta para salvar ou compartilhar.");
+    } catch (error) {
+      console.error("Falha ao exportar planilha de serviços:", error);
+      toast.error("Não foi possível preparar a planilha. Tente novamente.");
+    }
   }
   function exportarDevedoresExcel() {
     const rows = devedoresFiltrados.flatMap(d =>
@@ -294,20 +288,26 @@ export default function ServicosVendidos() {
                 <CardTitle className="text-sm font-semibold text-gray-700">
                   Clientes com Limpa Nome / Rating — {MESES[mes-1]} {ano}
                 </CardTitle>
-                <div className="flex gap-2 flex-wrap">
-                  <Button size="sm" onClick={exportarLimpaExcel} className="text-white text-xs gap-1.5 bg-indigo-600 hover:bg-indigo-700">
-                    <Download className="w-3.5 h-3.5" />
-                    Limpa Nome
-                  </Button>
-                  <Button size="sm" onClick={exportarRatingExcel} className="text-white text-xs gap-1.5 bg-violet-600 hover:bg-violet-700">
-                    <Download className="w-3.5 h-3.5" />
-                    Rating
-                  </Button>
-                  <Button size="sm" onClick={exportarExcel} className="text-white text-xs gap-1.5" style={{ background: "#0055FF" }}>
-                    <Download className="w-3.5 h-3.5" />
-                    Todos
-                  </Button>
-                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                <Button size="sm" variant="outline" onClick={() => setDetalheServico("limpa")} className="text-xs gap-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                  <Eye className="w-3.5 h-3.5" /> Ver Limpa Nome
+                </Button>
+                <Button size="sm" onClick={() => exportarServicosExcel("limpa")} className="text-white text-xs gap-1.5 bg-indigo-600 hover:bg-indigo-700">
+                  <Download className="w-3.5 h-3.5" /> Baixar Limpa Nome
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setDetalheServico("rating")} className="text-xs gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50">
+                  <Eye className="w-3.5 h-3.5" /> Ver Rating
+                </Button>
+                <Button size="sm" onClick={() => exportarServicosExcel("rating")} className="text-white text-xs gap-1.5 bg-violet-600 hover:bg-violet-700">
+                  <Download className="w-3.5 h-3.5" /> Baixar Rating
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setDetalheServico("todos")} className="text-xs gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50 sm:col-span-1">
+                  <Eye className="w-3.5 h-3.5" /> Ver todos
+                </Button>
+                <Button size="sm" onClick={() => exportarServicosExcel("todos")} className="text-white text-xs gap-1.5 sm:col-span-1" style={{ background: "#0055FF" }}>
+                  <Download className="w-3.5 h-3.5" /> Baixar todos
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -376,6 +376,44 @@ export default function ServicosVendidos() {
             </CardContent>
           </Card>
         )}
+
+        <Dialog open={!!detalheServico} onOpenChange={(open) => !open && setDetalheServico(null)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{detalheServico ? tituloServico(detalheServico) : "Clientes com serviços"}</DialogTitle>
+              <p className="text-sm text-gray-500">
+                {detalheServico ? `${vendasDoServico(detalheServico).length} cliente(s) em ${MESES[mes - 1]} ${ano}` : ""}
+              </p>
+            </DialogHeader>
+            <div className="space-y-2">
+              {detalheServico && vendasDoServico(detalheServico).map(venda => {
+                const consultor = consultores?.find(c => c.id === venda.consultorId);
+                const servicos = venda.servicos as string[] | null;
+                return (
+                  <div key={venda.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-800">{venda.clienteNome}</p>
+                        <p className="mt-0.5 text-xs text-gray-500">CPF/CNPJ: {venda.clienteCpfCnpj || "—"}</p>
+                        <p className="text-xs text-gray-500">Telefone: {venda.clienteTelefone || "—"}</p>
+                        {consultor && <p className="text-xs text-gray-500">Consultora: {consultor.nome}</p>}
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-bold text-blue-700">{formatCurrency(parseFloat(String(venda.valorColetado || 0)))}</p>
+                        <p className="text-xs text-gray-500">{new Date(venda.dataVenda).toLocaleDateString("pt-BR")}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {servicos?.map((servico, index) => (
+                        <Badge key={`${venda.id}-${index}`} className="border border-blue-100 bg-blue-50 text-[10px] text-blue-700">{servico}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Aba: Devedores */}
         {abaAtiva === "devedores" && (
